@@ -483,6 +483,7 @@ nir_handle_add_jump(nir_block *block)
          nir_block *after_block = nir_cf_node_as_block(after);
          link_blocks(block, after_block, NULL);
       }
+   } else if (jump_instr->type == nir_jump_goto_if) {
    } else {
       assert(jump_instr->type == nir_jump_return);
       link_blocks(block, impl->end_block, NULL);

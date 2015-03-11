@@ -1765,11 +1765,13 @@ typedef enum {
    nir_jump_return,
    nir_jump_break,
    nir_jump_continue,
+   nir_jump_goto_if,
 } nir_jump_type;
 
 typedef struct {
    nir_instr instr;
    nir_jump_type type;
+   nir_src condition;
 } nir_jump_instr;
 
 /* creates a new SSA variable in an undefined state */

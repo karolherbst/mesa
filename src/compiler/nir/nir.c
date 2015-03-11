@@ -1137,6 +1137,15 @@ visit_parallel_copy_src(nir_parallel_copy_instr *instr,
    return true;
 }
 
+static bool
+visit_jump_src(nir_jump_instr *instr, nir_foreach_src_cb cb, void *state)
+{
+   if (instr->type != nir_jump_goto_if)
+      return true;
+
+   return visit_src(&instr->condition, cb, state);
+}
+
 typedef struct {
    void *state;
    nir_foreach_src_cb cb;
@@ -1190,6 +1199,7 @@ nir_foreach_src(nir_instr *instr, nir_foreach_src_cb cb, void *state)
          return false;
       break;
    case nir_instr_type_jump:
+      return visit_jump_src(nir_instr_as_jump(instr), cb, state);
    case nir_instr_type_ssa_undef:
       return true;
 
