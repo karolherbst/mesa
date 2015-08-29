@@ -137,11 +137,11 @@ nouveau_codegen(int chipset, int type, struct tgsi_token tokens[],
 int
 main(int argc, char *argv[])
 {
-   struct tgsi_token tokens[4096];
+   struct tgsi_token tokens[40960];
    int i, chipset = 0, type = -1;
    const char *filename = NULL;
    FILE *f;
-   char text[65536] = {0};
+   char text[655360] = {0};
    unsigned size = 0, *code = NULL;
 
    for (i = 1; i < argc; i++) {
