@@ -770,6 +770,61 @@ out:
    return driver;
 }
 
+#if HAVE_LIBUDEV
+static char *
+libudev_get_sysfs_path_for_fd(int fd)
+{
+   struct udev *udev;
+   struct udev_device *udev_dev;
+   char *udev_sysfs_path;
+   char *sysfs_device_path = NULL;
+   struct stat st;
+   UDEV_SYMBOL(struct udev *, udev_new, (void));
+   UDEV_SYMBOL(struct udev *, udev_unref, (struct udev *));
+   UDEV_SYMBOL(struct udev_device *, udev_device_new_from_devnum,
+               (struct udev *udev, char type, dev_t devnum));
+   UDEV_SYMBOL(const char *, udev_device_get_syspath,
+               (struct udev_device *udev_device));
+   UDEV_SYMBOL(struct udev_device *, udev_device_unref,
+               (struct udev_device *));
+
+   udev = udev_new();
+   if (!udev)
+      goto out;
+
+   if (fstat(fd, &st) != 0)
+      goto udev_out;
+
+   udev_dev = udev_device_new_from_devnum(udev, 'c', st.st_rdev);
+   if (!udev_dev)
+      goto udev_out;
+
+   udev_sysfs_path = udev_device_get_syspath(udev_dev);
+   sysfs_device_path = malloc(sizeof(char) * (strlen(udev_sysfs_path) + 6));
+   if (!sysfs_device_path)
+      goto udev_dev_out;
+
+   sprintf(sysfs_device_path, "%s/../..", udev_sysfs_path);
+udev_dev_out:
+   udev_device_unref(udev_dev);
+udev_out:
+   udev_unref(udev);
+out:
+   return sysfs_device_path;
+}
+#endif
+
+char *
+loader_get_sysfs_path_for_fd(int fd)
+{
+   char *result = NULL;
+#if HAVE_LIBUDEV
+   if ((result = libudev_get_sysfs_path_for_fd(fd)))
+      return result;
+#endif
+   return result;
+}
+
 void
 loader_set_logger(void (*logger)(int level, const char *fmt, ...))
 {
