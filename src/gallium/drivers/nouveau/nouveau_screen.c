@@ -138,6 +138,12 @@ nouveau_screen_bo_get_handle(struct pipe_screen *pscreen,
    }
 }
 
+static int
+nouveau_screen_get_fd(struct pipe_screen *pscreen)
+{
+   return nouveau_screen(pscreen)->drm->fd;
+}
+
 int
 nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
 {
@@ -212,6 +218,7 @@ nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
 
    pscreen->fence_reference = nouveau_screen_fence_ref;
    pscreen->fence_finish = nouveau_screen_fence_finish;
+   pscreen->get_fd = nouveau_screen_get_fd;
 
    util_format_s3tc_init();
 

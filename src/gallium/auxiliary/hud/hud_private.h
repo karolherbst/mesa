@@ -86,6 +86,14 @@ struct hud_batch_query_context;
 
 int hud_get_num_cpus(void);
 
+struct sysfs_support {
+   struct {
+      boolean temp;
+      boolean power;
+   } hwmon;
+};
+void hud_supports_sysfs(struct pipe_screen *, struct sysfs_support *);
+
 void hud_fps_graph_install(struct hud_pane *pane);
 void hud_cpu_graph_install(struct hud_pane *pane, unsigned cpu_index);
 void hud_pipe_query_install(struct hud_batch_query_context **pbq,
@@ -99,6 +107,8 @@ void hud_pipe_query_install(struct hud_batch_query_context **pbq,
 boolean hud_driver_query_install(struct hud_batch_query_context **pbq,
                                  struct hud_pane *pane,
                                  struct pipe_context *pipe, const char *name);
+void hud_sysfs_hwmon_temp_install(struct hud_pane *pane, struct pipe_screen *pipe);
+void hud_sysfs_hwmon_power_install(struct hud_pane *pane, struct pipe_screen *pipe);
 void hud_batch_query_update(struct hud_batch_query_context *bq);
 void hud_batch_query_cleanup(struct hud_batch_query_context **pbq);
 

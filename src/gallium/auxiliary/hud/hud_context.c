@@ -918,6 +918,16 @@ hud_parse_env_var(struct hud_context *hud, const char *env)
                                 PIPE_DRIVER_QUERY_RESULT_TYPE_AVERAGE,
                                 0);
       }
+      else if (sscanf(name, "hwmon-%s", s) == 1) {
+         struct sysfs_support sys;
+         hud_supports_sysfs(hud->pipe->screen, &sys);
+         if (strcmp(s, "temperature") == 0 && sys.hwmon.temp) {
+            hud_sysfs_hwmon_temp_install(pane, hud->pipe->screen);
+         }
+         else if (strcmp(s, "power") == 0 && sys.hwmon.power) {
+            hud_sysfs_hwmon_power_install(pane, hud->pipe->screen);
+         }
+      }
       else {
          boolean processed = FALSE;
 
@@ -1044,6 +1054,7 @@ static void
 print_help(struct pipe_screen *screen)
 {
    int i, num_queries, num_cpus = hud_get_num_cpus();
+   struct sysfs_support s;
 
    puts("Syntax: GALLIUM_HUD=name1[+name2][...][:value1][,nameI...][;nameJ...]");
    puts("");
@@ -1107,6 +1118,13 @@ print_help(struct pipe_screen *screen)
       puts("    hs-invocations");
       puts("    ds-invocations");
       puts("    cs-invocations");
+   }
+   hud_supports_sysfs(screen, &s);
+   if (s.hwmon.temp) {
+      puts("    hwmon-temperature");
+   }
+   if (s.hwmon.power) {
+      puts("    hwmon-power");
    }
 
    if (screen->get_driver_query_info){

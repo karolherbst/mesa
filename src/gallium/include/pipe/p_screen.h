@@ -284,6 +284,8 @@ struct pipe_screen {
    const void *(*get_compiler_options)(struct pipe_screen *screen,
                                       enum pipe_shader_ir ir,
                                       unsigned shader);
+
+   int (*get_fd)(struct pipe_screen *screen);
 };
 
 

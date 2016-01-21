@@ -65,6 +65,7 @@ C_SOURCES := \
 	hud/hud_driver_query.c \
 	hud/hud_fps.c \
 	hud/hud_private.h \
+	hud/hud_sysfs.c \
 	indices/u_indices.h \
 	indices/u_indices_priv.h \
 	indices/u_primconvert.c \
