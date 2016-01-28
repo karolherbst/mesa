@@ -2699,10 +2699,53 @@ NVC0LoweringPass::handleSQRT(Instruction *i)
    return true;
 }
 
+static void
+createPOWtoMUL(BuildUtil& bld, Instruction* i, int c, Value *src)
+{
+    if (c == 2) {
+      i->setSrc(0, src);
+      i->setSrc(1, src);
+    } else if (c == 3) {
+      i->setSrc(0, bld.mkOp2v(OP_MUL, i->dType, bld.getSSA(), src, src));
+      createPOWtoMUL(bld, i->getSrc(0)->getInsn(), 2, src);
+      i->setSrc(1, src);
+    } else if (c == 4) {
+      i->setSrc(0, bld.mkOp2v(OP_MUL, i->dType, bld.getSSA(), src, src));
+      createPOWtoMUL(bld, i->getSrc(0)->getInsn(), 2, src);
+      i->setSrc(1, i->getSrc(0));
+    }
+}
+
 bool
 NVC0LoweringPass::handlePOW(Instruction *i)
 {
    LValue *val = bld.getScratch();
+   ImmediateValue imm;
+
+   if (i->src(1).getImmediate(imm)) {
+      if (imm.isInteger(0)) {
+         i->op = OP_MOV;
+         i->setSrc(0, bld.loadImm(NULL, 1));
+         i->setSrc(1, NULL);
+         return true;
+      } else if (imm.isInteger(1)) {
+         i->op = OP_MOV;
+         i->setSrc(1, NULL);
+         return true;
+      } else if (imm.isInteger(2)) {
+         i->op = OP_MUL;
+         createPOWtoMUL(bld, i, 2, i->getSrc(0));
+         return true;
+      } else if (imm.isInteger(3)) {
+         i->op = OP_MUL;
+         createPOWtoMUL(bld, i, 3, i->getSrc(0));
+         return true;
+      } else if (imm.isInteger(4)) {
+         i->op = OP_MUL;
+         createPOWtoMUL(bld, i, 4, i->getSrc(0));
+         return true;
+      }
+   }
 
    bld.mkOp1(OP_LG2, TYPE_F32, val, i->getSrc(0));
    bld.mkOp2(OP_MUL, TYPE_F32, val, i->getSrc(1), val)->dnz = 1;
