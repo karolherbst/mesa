@@ -1355,6 +1355,17 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
    }
       break;
 
+   case OP_MAX:
+      if (!imm0.isInteger(0) || i->src(s ^ 0x1).mod ^ Modifier(NV50_IR_MOD_ABS))
+         return;
+
+      i->op = OP_MOV;
+      if (s == 0)
+         i->swapSources(0, 1);
+      i->setSrc(1, NULL);
+      i->src(0).mod = i->src(0).mod ^ Modifier(NV50_IR_MOD_ABS);
+      break;
+
    case OP_ABS:
    case OP_NEG:
    case OP_SAT:
