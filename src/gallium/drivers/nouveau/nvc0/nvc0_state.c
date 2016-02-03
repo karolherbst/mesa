@@ -837,6 +837,9 @@ nvc0_set_framebuffer_state(struct pipe_context *pipe,
 
     util_copy_framebuffer_state(&nvc0->framebuffer, fb);
 
+    nvc0->zcull_active = 0x0;
+//    pipe_resource_reference(&nvc0->zcull, NULL);
+
     nvc0->dirty_3d |= NVC0_NEW_3D_FRAMEBUFFER;
 }
 

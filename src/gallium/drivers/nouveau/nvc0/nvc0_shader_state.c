@@ -158,6 +158,7 @@ nvc0_fragprog_validate(struct nvc0_context *nvc0)
    PUSH_DATA (push, 0x20);
    BEGIN_NVC0(push, NVC0_3D(ZCULL_TEST_MASK), 1);
    PUSH_DATA (push, fp->flags[0]);
+   printf("ZCULL_TEST_MASK: %x\n");
 }
 
 void

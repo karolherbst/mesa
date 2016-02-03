@@ -698,6 +698,20 @@ nvc0_clear(struct pipe_context *pipe, unsigned buffers,
    unsigned i, j, k;
    uint32_t mode = 0;
 
+/*   if (!nvc0->zcull &&
+       fb->zsbuf &&
+       buffers & PIPE_CLEAR_DEPTH &&
+       !nvc0->cond_query) {
+      struct pipe_resource tmpl = *fb->zsbuf->texture;
+      if (tmpl.width0 % 0x50)
+         tmpl.width0 += 0x50 - (tmpl.width0 % 0x50);
+      tmpl.height0 = align(tmpl.height0, 0x20);
+      // XXX tmpl.format = ? this has implications for the memtype too
+      nvc0->zcull = nvc0->screen->base.base.resource_create(&nvc0->screen->base.base, &tmpl);
+      nvc0->dirty |= NVC0_NEW_FRAMEBUFFER;
+      nvc0->zcull_active = false;
+   }*/
+
    /* don't need NEW_BLEND, COLOR_MASK doesn't affect CLEAR_BUFFERS */
    if (!nvc0_state_validate_3d(nvc0, NVC0_NEW_3D_FRAMEBUFFER))
       return;

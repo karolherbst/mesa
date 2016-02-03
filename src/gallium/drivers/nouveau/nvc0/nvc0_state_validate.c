@@ -5,56 +5,72 @@
 
 #include "nvc0/nvc0_context.h"
 
-#if 0
 static void
 nvc0_validate_zcull(struct nvc0_context *nvc0)
 {
     struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-    struct pipe_framebuffer_state *fb = &nvc0->framebuffer;
-    struct nv50_surface *sf = nv50_surface(fb->zsbuf);
-    struct nv50_miptree *mt = nv50_miptree(sf->base.texture);
+    struct nv50_miptree *mt = nv50_miptree(nvc0->framebuffer.zsbuf->texture);
+
+    if (!mt) {
+       printf("cleared zcull\n");
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_REGION), 1);
+       PUSH_DATA (push, 0x3f);
+       return;
+    }
+
     struct nouveau_bo *bo = mt->base.bo;
-    uint32_t size;
-    uint32_t offset = align(mt->total_size, 1 << 17);
-    unsigned width, height;
+    uint64_t size, offset = 0;
+    uint32_t width = align(mt->base.base.width0, 0x100);
+    uint32_t height = align(mt->base.base.height0, 0x100);
 
     assert(mt->base.base.depth0 == 1 && mt->base.base.array_size < 2);
 
-    size = mt->total_size * 2;
-
-    height = align(fb->height, 32);
-    width = fb->width % 224;
-    if (width)
-       width = fb->width + (224 - width);
-    else
-       width = fb->width;
+    offset = align(width * height / 19, 0x20000);
+    size = align(width * height * 60, 0x100000);
 
     BEGIN_NVC0(push, NVC0_3D(ZCULL_REGION), 1);
     PUSH_DATA (push, 0);
-    BEGIN_NVC0(push, NVC0_3D(ZCULL_ADDRESS_HIGH), 2);
-    PUSH_DATAh(push, bo->offset + offset);
-    PUSH_DATA (push, bo->offset + offset);
-    offset += 1 << 17;
-    BEGIN_NVC0(push, NVC0_3D(ZCULL_LIMIT_HIGH), 2);
-    PUSH_DATAh(push, bo->offset + offset);
-    PUSH_DATA (push, bo->offset + offset);
-    BEGIN_NVC0(push, SUBC_3D(0x07e0), 2);
-    PUSH_DATA (push, size);
-    PUSH_DATA (push, size >> 16);
-    BEGIN_NVC0(push, SUBC_3D(0x15c8), 1); /* bits 0x3 */
-    PUSH_DATA (push, 2);
-    BEGIN_NVC0(push, NVC0_3D(ZCULL_WIDTH), 4);
-    PUSH_DATA (push, width);
-    PUSH_DATA (push, height);
-    PUSH_DATA (push, 1);
-    PUSH_DATA (push, 0);
-    BEGIN_NVC0(push, NVC0_3D(ZCULL_WINDOW_OFFSET_X), 2);
-    PUSH_DATA (push, 0);
-    PUSH_DATA (push, 0);
-    BEGIN_NVC0(push, NVC0_3D(ZCULL_INVALIDATE), 1);
-    PUSH_DATA (push, 0);
+    static bool once = false;
+    if (nvc0->zcull_active != mt->base.address + mt->total_size - offset) {
+       printf("address: %lx\n", mt->base.address + mt->total_size - offset);
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_ADDRESS_HIGH), 2);
+       PUSH_DATAh(push, mt->base.address + mt->total_size - offset);
+       PUSH_DATA (push, mt->base.address + mt->total_size - offset);
+       printf("limit: %lx\n", mt->base.address + mt->total_size);
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_LIMIT_HIGH), 2);
+       PUSH_DATAh(push, mt->base.address + mt->total_size);
+       PUSH_DATA (push, mt->base.address + mt->total_size);
+       printf("size: %x\n", size);
+       printf("size >> 16: %x\n", size >> 16);
+       BEGIN_NVC0(push, NVC0_3D(UNK07E0), 2);
+       PUSH_DATA (push, size);
+       PUSH_DATA (push, size >> 16);
+       BEGIN_NVC0(push, NVC0_3D(UNK15C8), 1);
+       PUSH_DATA (push, 2);
+       printf("width: %i\n", width);
+       printf("height: %i\n", height);
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_WIDTH), 3);
+       PUSH_DATA (push, width);
+       PUSH_DATA (push, height);
+       PUSH_DATA (push, 1);
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_WINDOW_OFFSET_X), 2);
+       PUSH_DATA (push, 0);
+       PUSH_DATA (push, 0);
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_UNK07CC), 1);
+       PUSH_DATA (push, 0);
+       BEGIN_NVC0(push, NVC0_3D(UNK1500), 1);
+       PUSH_DATA (push, 0);
+    }
+    BEGIN_NVC0(push, SUBC_3D(0x02e8), 1);
+    PUSH_DATA (push, align((width * height * 0x10) / (0x50 * 0x20), 0x100));
+    printf("check %x\n", align((width * height * 0x10) / (0x50 * 0x20), 0x100));
+    if (nvc0->zcull_active != mt->base.address + mt->total_size - offset) {
+       BEGIN_NVC0(push, NVC0_3D(ZCULL_UNK07CC), 1);
+       PUSH_DATA (push, 0);
+       IMMED_NVC0(push, NVC0_3D(ZCULL_INVALIDATE), 0);
+       nvc0->zcull_active = mt->base.address + mt->total_size - offset;
+    }
 }
-#endif
 
 static inline void
 nvc0_fb_set_null_rt(struct nouveau_pushbuf *push, unsigned i, unsigned layers)
@@ -87,6 +103,10 @@ nvc0_validate_fb(struct nvc0_context *nvc0)
    BEGIN_NVC0(push, NVC0_3D(SCREEN_SCISSOR_HORIZ), 2);
    PUSH_DATA (push, fb->width << 16);
    PUSH_DATA (push, fb->height << 16);
+
+    if (fb->zsbuf) {
+       nvc0_validate_zcull(nvc0);
+    }
 
    for (i = 0; i < fb->nr_cbufs; ++i) {
       struct nv50_surface *sf;
@@ -839,6 +859,7 @@ nvc0_switch_pipe_context(struct nvc0_context *ctx_to)
 static struct nvc0_state_validate
 validate_list_3d[] = {
     { nvc0_validate_fb,            NVC0_NEW_3D_FRAMEBUFFER },
+//    { nvc0_validate_zcull,         NVC0_NEW_FRAMEBUFFER },
     { nvc0_validate_blend,         NVC0_NEW_3D_BLEND },
     { nvc0_validate_zsa,           NVC0_NEW_3D_ZSA },
     { nvc0_validate_sample_mask,   NVC0_NEW_3D_SAMPLE_MASK },

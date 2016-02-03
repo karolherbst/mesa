@@ -254,6 +254,7 @@ nvc0_miptree_create(struct pipe_screen *pscreen,
    int ret;
    union nouveau_bo_config bo_config;
    uint32_t bo_flags;
+   uint64_t additional_bytes = 0;
 
    if (!mt)
       return NULL;
@@ -309,7 +310,12 @@ nvc0_miptree_create(struct pipe_screen *pscreen,
    if (mt->base.base.bind & (PIPE_BIND_CURSOR | PIPE_BIND_DISPLAY_TARGET))
       bo_flags |= NOUVEAU_BO_CONTIG;
 
-   ret = nouveau_bo_new(dev, bo_flags, 4096, mt->total_size, &bo_config,
+   if (util_format_is_depth_or_stencil(pt->format)) {
+      additional_bytes += align(templ->width0 * templ->height0 / 19, 0x20000);
+      printf("additional %x bytes allocated\n", additional_bytes);
+   }
+
+   ret = nouveau_bo_new(dev, bo_flags, 4096, mt->total_size + additional_bytes, &bo_config,
                         &mt->base.bo);
    if (ret) {
       FREE(mt);

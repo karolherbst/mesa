@@ -223,6 +223,8 @@ struct nvc0_context {
    unsigned viewports_dirty;
    struct pipe_clip_state clip;
    struct nvc0_window_rect_stateobj window_rect;
+   struct pipe_resource *zcull;
+   uint64_t zcull_active;
 
    unsigned sample_mask;
    unsigned min_samples;
