@@ -3707,6 +3707,187 @@ DeadCodeElim::checkSplitLoad(Instruction *ld1)
 
 // =============================================================================
 
+class EmptyBranchElim : public Pass
+{
+public:
+   bool buryAll(Program *);
+private:
+   virtual bool visit(BasicBlock *);
+   virtual bool removeEmptyBB(BasicBlock *, BasicBlock *);
+   bool isBranchEmpty(BasicBlock *);
+   BasicBlock *targetOfBasicBlock(BasicBlock *);
+   void rebindFlowInstructions(BasicBlock *, BasicBlock *);
+
+   DeadCodeElim dce;
+   unsigned int deadCount;
+};
+
+bool
+EmptyBranchElim::buryAll(Program *prog)
+{
+   do {
+      deadCount = 0;
+      if (!this->run(prog, false, false))
+         return false;
+   } while (deadCount);
+
+   return true;
+}
+
+bool
+EmptyBranchElim::visit(BasicBlock *bb)
+{
+   if (!isBranchEmpty(bb))
+      return true;
+
+   BasicBlock *next = targetOfBasicBlock(bb);
+   if (next && removeEmptyBB(bb, next))
+      rebindFlowInstructions(bb, next);
+
+   return true;
+}
+
+bool
+EmptyBranchElim::removeEmptyBB(BasicBlock *bb, BasicBlock *next)
+{
+   Graph::Node *currentNode = &bb->cfg;
+   Graph::Node *nextNode = &next->cfg;
+
+   if (next->getPhi())
+      return false;
+
+   for (Graph::EdgeIterator eIt = bb->cfg.incident(); !eIt.end(); eIt.next())
+   {
+      BasicBlock *parent = BasicBlock::get(eIt.getNode());
+      Graph::Node *parentNode = &parent->cfg;
+      bool addEdge = true;
+      for (Graph::EdgeIterator eIt2 = parentNode->outgoing(); !eIt2.end(); eIt2.next()) {
+         Graph::Edge *edge = eIt2.getEdge();
+         if (edge->getTarget() != nextNode)
+            continue;
+         addEdge = false;
+         break;
+      }
+      if (addEdge)
+         parentNode->attach(nextNode, eIt.getEdge()->getType());
+   }
+
+   ++deadCount;
+   currentNode->cut();
+
+   return true;
+}
+
+bool
+EmptyBranchElim::isBranchEmpty(BasicBlock *bb)
+{
+   if (bb->getPhi() || !bb->cfg.incidentCount())
+      return false;
+
+   Instruction *entry = bb->getEntry();
+
+   if (!entry)
+      return true;
+
+   for (Instruction *insn = bb->getEntry(); insn; insn = insn->next) {
+      FlowInstruction *flow = insn->asFlow();
+      if (!flow || flow->isPredicated())
+         return false;
+      switch (insn->op) {
+      case OP_BRA:
+      case OP_JOIN:
+      case OP_JOINAT:
+         continue;
+      default:
+         return false;
+      }
+   }
+
+
+   return true;
+}
+
+BasicBlock *
+EmptyBranchElim::targetOfBasicBlock(BasicBlock *bb)
+{
+   Instruction *exit = bb->getExit();
+   if (exit && exit->asFlow() && exit->op == OP_BRA && !exit->isPredicated())
+      return exit->asFlow()->target.bb;
+
+   Graph::Node *node = &bb->cfg;
+   Graph::Node *target = NULL;
+   for (Graph::EdgeIterator eIt = node->outgoing(); !eIt.end(); eIt.next()) {
+      if (!target)
+         target = eIt.getNode();
+      else if (target != eIt.getNode())
+         return NULL;
+   }
+
+   if (target)
+      return BasicBlock::get(target);
+   return NULL;
+}
+
+void
+EmptyBranchElim::rebindFlowInstructions(BasicBlock *bb, BasicBlock *next)
+{
+   for (IteratorRef bbIter = func->cfg.iteratorCFG(); !bbIter->end(); bbIter->next())
+   {
+      BasicBlock *parent = BasicBlock::get(reinterpret_cast<Graph::Node *>(bbIter->get()));
+      BasicBlock *target = targetOfBasicBlock(parent);
+      // change target of remove BB
+      for (Instruction *insn = parent->getEntry(); insn; insn = insn->next)
+      {
+         FlowInstruction *flow = insn->asFlow();
+         if (!flow)
+            continue;
+         switch (flow->op) {
+         case OP_JOINAT:
+            if (flow->target.bb == bb || flow->target.bb == next) {
+               delete_Instruction(prog, flow);
+               if (parent->joinAt == flow)
+                  parent->joinAt = NULL;
+               for (Instruction *join = next->getEntry(); join; join = join->next) {
+                  if (join->op == OP_JOIN)
+                     delete_Instruction(prog, join);
+               }
+            }
+            break;
+         default:
+            if (flow->target.bb == bb)
+               flow->target.bb = next;
+            break;
+         }
+      }
+
+      if (!target)
+         continue;
+
+      if (isBranchEmpty(parent))
+         continue;
+
+      Instruction *flow = parent->getExit();
+      if (!flow || flow->op != OP_BRA)
+         continue;
+
+      bool hasPredicate = flow->isPredicated();
+      delete_Instruction(prog, flow);
+
+      if (!hasPredicate)
+         continue;
+
+      // manually run DCE on the BB, because we might empty the BB
+      dce.buryAll(this->prog);
+
+      // and now that branch might be empty
+      if (!isBranchEmpty(parent))
+         continue;
+      visit(parent);
+   }
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3733,6 +3914,8 @@ Program::optimizeSSA(int level)
    RUN_PASS(1, IndirectPropagation, run);
    RUN_PASS(2, MemoryOpt, run);
    RUN_PASS(2, LocalCSE, run);
+   RUN_PASS(0, DeadCodeElim, buryAll);
+   RUN_PASS(2, EmptyBranchElim, buryAll);
    RUN_PASS(0, DeadCodeElim, buryAll);
 
    return true;
