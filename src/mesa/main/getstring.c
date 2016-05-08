@@ -120,6 +120,12 @@ _mesa_GetString( GLenum name )
 
    ASSERT_OUTSIDE_BEGIN_END_WITH_RETVAL(ctx, NULL);
 
+   /* if MESA_VENDOR_OVERRIDE is set, then override GL_VENDOR */
+   const char *forcedvendor = getenv("MESA_VENDOR_OVERRIDE");
+
+   if ((forcedvendor) && (name == GL_VENDOR))
+      return (const GLubyte *) forcedvendor;
+
    /* this is a required driver function */
    assert(ctx->Driver.GetString);
    {
