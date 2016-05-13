@@ -1797,10 +1797,10 @@ AlgebraicOpt::handleSLCT(Instruction *slct)
       if (slct->getSrc(2)->asImm()->compare(slct->asCmp()->setCond, 0.0f))
          slct->setSrc(0, slct->getSrc(1));
    } else
-   if (slct->getSrc(0) != slct->getSrc(1)) {
+   if (slct->getSrc(0) != slct->getSrc(1) || slct->src(0).mod != slct->src(1).mod)
       return;
-   }
-   slct->op = OP_MOV;
+   slct->op = slct->src(0).mod.getOp();
+   slct->src(0).mod = slct->src(0).mod ^ Modifier(slct->op);
    slct->setSrc(1, NULL);
    slct->setSrc(2, NULL);
 }
