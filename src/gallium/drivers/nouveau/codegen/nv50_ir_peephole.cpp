@@ -3774,6 +3774,132 @@ PostRADualIssue::visit(BasicBlock *bb)
 
 // =============================================================================
 
+class SmartCSE : public Pass
+{
+private:
+   virtual bool visit(Instruction *);
+   bool haveEqualResultsWithMod(Instruction*, Instruction*, Modifier &);
+   bool handleADD(Instruction*, Instruction*, Modifier &);
+   bool handleMUL(Instruction*, Instruction*, Modifier &);
+   bool handlePHI(Instruction*, Instruction*, Modifier &);
+   bool handleUNK(Instruction*, Instruction*, Modifier &);
+};
+
+bool
+SmartCSE::handleADD(Instruction *a, Instruction *b, Modifier &mod)
+{
+   if (b->op != a->op)
+      return false;
+
+   if (a->getSrc(0) != b->getSrc(0) || a->getSrc(1) != b->getSrc(1))
+      return false;
+
+   if ((a->src(0).mod | a->src(1).mod | b->src(0).mod | b->src(1).mod) != Modifier(NV50_IR_MOD_NEG))
+      return false;
+
+   if ((a->src(0).mod ^ b->src(0).mod) == Modifier(NV50_IR_MOD_NEG) &&
+       (a->src(1).mod ^ b->src(1).mod) == Modifier(NV50_IR_MOD_NEG)) {
+      mod = Modifier(NV50_IR_MOD_NEG);
+      return true;
+   }
+
+   return false;
+}
+
+bool
+SmartCSE::handlePHI(Instruction *a, Instruction *b, Modifier &mod)
+{
+   if (b->op != a->op)
+      return false;
+
+   if (a->srcCount() != b->srcCount())
+      return false;
+
+   for (int i = 0; a->srcExists(i); ++i) {
+      if (a->getSrc(i) != b->getSrc(i) || a->src(i).mod != b->src(i).mod)
+         return false;
+   }
+
+   mod = Modifier(0);
+   return true;
+}
+
+bool
+SmartCSE::handleMUL(Instruction *a, Instruction *b, Modifier &mod)
+{
+   if (b->op != a->op)
+      return false;
+
+   if (a->getSrc(0) != b->getSrc(0) || a->getSrc(1) != b->getSrc(1))
+      return false;
+
+   // count negs
+   int count = 0;
+   if (a->src(0).mod == Modifier(NV50_IR_MOD_NEG))
+      ++count;
+   if (a->src(1).mod == Modifier(NV50_IR_MOD_NEG))
+      ++count;
+   if (b->src(0).mod == Modifier(NV50_IR_MOD_NEG))
+      ++count;
+   if (b->src(1).mod == Modifier(NV50_IR_MOD_NEG))
+      ++count;
+
+   // 0 or 2 negs in total means mov
+   if (count == 0 || count == 2) {
+      mod = Modifier(0);
+      return true;
+   }
+
+   // 1 or 3 negs in total means neg
+   if (count == 1 || count == 3) {
+      mod = Modifier(NV50_IR_MOD_NEG);
+      return true;
+   }
+
+   return false;
+}
+
+bool
+SmartCSE::haveEqualResultsWithMod(Instruction *a, Instruction *b, Modifier &mod)
+{
+   switch (a->op) {
+   case OP_ADD:
+   case OP_SUB:
+      return handleADD(a, b, mod);
+   case OP_MUL:
+      return handleMUL(a, b, mod);
+   case OP_PHI:
+      return handlePHI(a, b, mod);
+   default:
+      return false;
+   }
+}
+
+bool
+SmartCSE::visit(Instruction *insn)
+{
+   Modifier mod;
+   for (Instruction *prev = insn->prev; prev; prev = prev->prev) {
+      if (!haveEqualResultsWithMod(prev, insn, mod))
+         continue;
+
+      if (mod == Modifier(0)) {
+         insn->def(0).replace(prev->getDef(0), false);
+         delete_Instruction(prog, insn);
+         return true;
+      }
+
+      insn->op = mod.getOp();
+      insn->setSrc(0, prev->getDef(0));
+      insn->src(0).mod = Modifier(0);
+      insn->setSrc(1, NULL);
+      insn->setSrc(2, NULL);
+   }
+   return true;
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3792,6 +3918,7 @@ Program::optimizeSSA(int level)
    RUN_PASS(2, GlobalCSE, run);
    for (int i = 0; i < 2; ++i) {
       RUN_PASS(1, LocalCSE, run);
+      RUN_PASS(1, SmartCSE, run);
       RUN_PASS(2, AlgebraicOpt, run);
       RUN_PASS(2, ModifierFolding, run); // before load propagation -> less checks
       RUN_PASS(1, ConstantFolding, foldAll);
