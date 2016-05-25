@@ -620,12 +620,17 @@ int TargetNVC0::getThroughput(const Instruction *i) const
    }
 }
 
+bool TargetNVC0::hasDualIssueing() const
+{
+   return getChipset() >= 0xe4;
+}
+
 bool TargetNVC0::canDualIssue(const Instruction *a, const Instruction *b) const
 {
    const OpClass clA = operationClass[a->op];
    const OpClass clB = operationClass[b->op];
 
-   if (getChipset() >= 0xe4) {
+   if (hasDualIssueing()) {
       // not texturing
       // not if the 2nd instruction isn't necessarily executed
       if (clA == OPCLASS_TEXTURE || clA == OPCLASS_FLOW)
