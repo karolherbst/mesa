@@ -3707,6 +3707,81 @@ DeadCodeElim::checkSplitLoad(Instruction *ld1)
 
 // =============================================================================
 
+class LiveOnlyTex : public Pass
+{
+private:
+   virtual bool visit(Instruction *);
+   void checkDeps(Instruction *);
+
+   struct Data {
+      Data() : checked(false) {}
+      // true if doesn't end up in quadop or tex
+      bool liveOnly;
+      bool checked;
+   };
+   std::map<Instruction*,Data> insnData;
+};
+
+bool
+LiveOnlyTex::visit(Instruction *insn)
+{
+   if (insn->op != OP_TEX)
+      return;
+
+   TexInstruction *tex = insn->asTex();
+   checkDeps(tex);
+   tex->tex.liveOnly = insnData[insn].liveOnly;
+   return true;
+}
+
+void
+LiveOnlyTex::checkDeps(Instruction *insn)
+{
+   if (!insn)
+      return;
+
+   Data &data = insnData[insn];
+   if (data.checked)
+      return;
+   data.checked = true;
+
+   // check for quadops
+   // TODO: are there more we have to check?
+   switch (insn->op) {
+   case OP_DFDX:
+   case OP_DFDY:
+   case OP_QUADON:
+   case OP_QUADOP:
+   case OP_QUADPOP:
+   case OP_SHFL:
+   case OP_VOTE:
+      data.liveOnly = false;
+      return;
+   default:
+      data.liveOnly = true;
+      break;
+   }
+
+   for (int i = 0; insn->defExists(i); ++i) {
+      Value *def = insn->getDef(i);
+      for (Value::UseIterator it = def->uses.begin(); it != def->uses.end(); ++it) {
+         Instruction *use = (*it)->getInsn();
+         if (!use)
+            continue;
+
+         checkDeps(use);
+
+         // check for tex input
+         if (!insnData[use].liveOnly || use->asTex()) {
+            data.liveOnly = false;
+            return;
+         }
+      }
+   }
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3734,6 +3809,8 @@ Program::optimizeSSA(int level)
    RUN_PASS(2, MemoryOpt, run);
    RUN_PASS(2, LocalCSE, run);
    RUN_PASS(0, DeadCodeElim, buryAll);
+   if (getType() == TYPE_FRAGMENT)
+      RUN_PASS(0, LiveOnlyTex, run);
 
    return true;
 }
