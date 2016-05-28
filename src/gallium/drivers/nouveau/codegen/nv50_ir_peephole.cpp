@@ -3900,6 +3900,78 @@ SmartCSE::visit(Instruction *insn)
 
 // =============================================================================
 
+class LiveOnlyTex : public Pass
+{
+private:
+   virtual bool visit(Instruction *);
+   void checkDeps(Instruction *);
+
+   struct Data {
+      Data() : checked(false) {}
+      // true if doesn't end up in quadop or tex
+      bool liveOnly;
+      bool checked;
+   };
+   std::map<Instruction*,Data> insnData;
+};
+
+bool
+LiveOnlyTex::visit(Instruction *insn)
+{
+   switch (insn->op) {
+   case OP_TEX:
+   case OP_TXB:
+   case OP_TXL:
+   case OP_TXF:
+   case OP_TXG:
+   case OP_TXLQ:
+   case OP_TXD:
+   case OP_TEXCSAA:
+      checkDeps(insn);
+      insn->asTex()->tex.liveOnly = insnData[insn].liveOnly;
+   default:
+      return true;
+   }
+}
+
+void
+LiveOnlyTex::checkDeps(Instruction *insn)
+{
+   if (!insn)
+      return;
+
+   Data &data = insnData[insn];
+   if (data.checked)
+      return;
+   data.checked = true;
+
+   // check for quadop
+   if (insn->op == OP_QUADOP || insn->op == OP_DFDX || insn->op == OP_DFDY) {
+      data.liveOnly = false;
+      return;
+   }
+
+   data.liveOnly = true;
+   for (int i = 0; insn->defExists(i); ++i) {
+      Value *def = insn->getDef(i);
+      for (Value::UseIterator it = def->uses.begin(); it != def->uses.end(); ++it) {
+         Instruction *use = (*it)->getInsn();
+         if (!use)
+            continue;
+
+         checkDeps(use);
+
+         // check for tex input
+         if (!insnData[use].liveOnly || use->op == OP_TEX || use->op == OP_TXB) {
+            data.liveOnly = false;
+            return;
+         }
+      }
+   }
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3931,6 +4003,7 @@ Program::optimizeSSA(int level)
    RUN_PASS(2, MemoryOpt, run);
    RUN_PASS(2, LocalCSE, run);
    RUN_PASS(0, DeadCodeElim, buryAll);
+//   RUN_PASS(0, LiveOnlyTex, run);
 
    return true;
 }
