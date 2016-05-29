@@ -3900,6 +3900,101 @@ SmartCSE::visit(Instruction *insn)
 
 // =============================================================================
 
+// pass to move instructions into conditionals to reduce executed instructions
+// count
+class Deepen : public Pass
+{
+private:
+   virtual bool visit(Instruction *);
+   void moveSourcesInto(BasicBlock *);
+   bool checkInstruction(Instruction *, BasicBlock *);
+};
+
+bool
+Deepen::checkInstruction(Instruction *i, BasicBlock *bb)
+{
+   for (int s = 0; i->srcExists(s); ++s) {
+      Value *src = i->getSrc(s);
+      Instruction *srcInsn = src->getUniqueInsn();
+      if (!srcInsn || srcInsn->asFlow() || srcInsn->op == OP_PHI || srcInsn->bb == bb || srcInsn->defCount() != 1)
+         continue;
+
+      if (src->refCount() > 1) {
+         for (Value::UseIterator it = src->uses.begin(); it != src->uses.end(); ++it) {
+            Instruction *use = (*it)->getInsn();
+            if (use && use->bb != bb)
+               return false;
+         }
+      }
+
+      int count = 0;
+      if (srcInsn->srcCount() > 1) {
+         for (int ss = 0; srcInsn->srcExists(ss); ++ss) {
+            if (srcInsn->getSrc(ss)->getUniqueInsn())
+               ++count;
+         }
+      }
+
+      if (count > 1)
+         return false;
+
+      srcInsn->bb->remove(srcInsn);
+      if (bb->getEntry()->op == OP_JOIN)
+        bb->insertAfter(bb->getEntry(), srcInsn);
+      else
+        bb->insertHead(srcInsn);
+      return true;
+   }
+   return false;
+}
+
+void
+Deepen::moveSourcesInto(BasicBlock *bb)
+{
+   Instruction *next;
+
+   for (Instruction *i = bb->getEntry(); i; i = next) {
+      next = i->next;
+      if (checkInstruction(i, bb))
+         next = bb->getEntry();
+   }
+}
+
+bool
+Deepen::visit(Instruction *insn)
+{
+   if (insn->op != OP_BRA || !insn->isPredicated())
+      return true;
+
+   // move instructions into targets of predicated bra, to reduce amount of
+   // executed instructions in total
+   moveSourcesInto(insn->asFlow()->target.bb);
+
+   return true;
+}
+
+// =============================================================================
+
+// pass to move instructions out of loop
+class Shallowing : public Pass
+{
+private:
+   virtual bool visit(Instruction *);
+   void moveInstructionsOutOf(BasicBlock *);
+   bool checkInstruction(Instruction *, BasicBlock *);
+};
+
+bool
+Shallowing::visit(Instruction *insn)
+{
+   if (insn->op != OP_BRA)
+      return true;
+
+   return true;
+}
+
+// =============================================================================
+
 class LiveOnlyTex : public Pass
 {
 private:
@@ -4004,6 +4099,8 @@ Program::optimizeSSA(int level)
    RUN_PASS(2, LocalCSE, run);
    RUN_PASS(0, DeadCodeElim, buryAll);
 //   RUN_PASS(0, LiveOnlyTex, run);
+//   RUN_PASS(0, Deepen, run);
+//   RUN_PASS(0, Shallowing, run);
 
    return true;
 }
