@@ -4067,6 +4067,272 @@ LiveOnlyTex::checkDeps(Instruction *insn)
 
 // =============================================================================
 
+class ValueAnalyzer : public Pass
+{
+private:
+   enum SIGNESS {
+      IS_POSITIVE,
+      IS_NEGATIVE,
+      IS_ZERO,
+      IS_UNDECIDED,
+   };
+
+   virtual bool visit(Instruction *);
+
+   void makeCOPY(Instruction *);
+   void makePOS(Instruction *);
+   void checkEqual(Instruction *);
+
+   SIGNESS doADD(SIGNESS, SIGNESS);
+   SIGNESS doMUL(SIGNESS, SIGNESS);
+
+   void handleADD(Instruction *);
+   void handleMUL(Instruction *);
+   void handleMAD(Instruction *);
+   void handleMAX(Instruction *);
+   void handleMIN(Instruction *);
+
+   // utility functions
+   SIGNESS applyMods(SIGNESS, Modifier &);
+   SIGNESS checkImmediate(ValueRef &);
+   SIGNESS parseSource(ValueRef &);
+
+   struct Data {
+      Data() : signess(IS_UNDECIDED) {}
+      // true if doesn't end up in quadop or tex
+      SIGNESS signess;
+   };
+   std::map<Instruction*,Data> insnData;
+};
+
+ValueAnalyzer::SIGNESS
+ValueAnalyzer::applyMods(SIGNESS s, Modifier &mod)
+{
+   if (!mod || s == IS_ZERO)
+      return s;
+
+   if (mod.abs() && mod.neg())
+      return IS_NEGATIVE;
+   if (mod.abs())
+      return IS_POSITIVE;
+   if (!mod.neg())
+      return s;
+
+   if (s == IS_UNDECIDED)
+      return s;
+   return s == IS_NEGATIVE ? IS_POSITIVE : IS_NEGATIVE;
+}
+
+ValueAnalyzer::SIGNESS
+ValueAnalyzer::checkImmediate(ValueRef &v)
+{
+   ImmediateValue imm;
+
+   if (!v.getImmediate(imm))
+      return IS_UNDECIDED;
+
+   if (imm.isInteger(0))
+      return IS_ZERO;
+   else if (imm.isNegative())
+      return IS_NEGATIVE;
+   else
+      return IS_POSITIVE;
+}
+
+ValueAnalyzer::SIGNESS
+ValueAnalyzer::parseSource(ValueRef &v)
+{
+   SIGNESS r;
+   Instruction *i = v.get()->getUniqueInsn();
+
+   if (!i)
+      r = checkImmediate(v);
+   else
+      r = insnData[i].signess;
+   return applyMods(r, v.mod);
+}
+
+void
+ValueAnalyzer::makePOS(Instruction *pos)
+{
+   insnData[pos].signess = IS_POSITIVE;
+}
+
+void
+ValueAnalyzer::makeCOPY(Instruction *i)
+{
+   insnData[i].signess = parseSource(i->src(0));
+}
+
+void
+ValueAnalyzer::checkEqual(Instruction *i)
+{
+   SIGNESS s = parseSource(i->src(0));
+   for (int src = 1; i->srcExists(src); ++src) {
+      if (s != parseSource(i->src(src))) {
+         s = IS_UNDECIDED;
+         break;
+      }
+   }
+   insnData[i].signess = s;
+}
+
+ValueAnalyzer::SIGNESS
+ValueAnalyzer::doADD(SIGNESS s0, SIGNESS s1)
+{
+   if (s0 == IS_UNDECIDED || s1 == IS_UNDECIDED)
+      return IS_UNDECIDED;
+   if (s0 == s1)
+      return s0;
+   if (s0 == IS_ZERO)
+      return s1;
+   if (s1 == IS_ZERO)
+      return s0;
+  return IS_UNDECIDED;
+}
+
+ValueAnalyzer::SIGNESS
+ValueAnalyzer::doMUL(SIGNESS s0, SIGNESS s1)
+{
+   if (s0 == IS_UNDECIDED || s1 == IS_UNDECIDED)
+      return IS_UNDECIDED;
+   if (s0 == IS_ZERO || s1 == IS_ZERO)
+      return IS_ZERO;
+   if (s0 == s1)
+      return IS_POSITIVE;
+   else
+      return IS_NEGATIVE;
+}
+
+void
+ValueAnalyzer::handleADD(Instruction *add)
+{
+   SIGNESS s0 = parseSource(add->src(0));
+   SIGNESS s1 = parseSource(add->src(1));
+   insnData[add].signess = doADD(s0, s1);
+}
+
+void
+ValueAnalyzer::handleMUL(Instruction *x)
+{
+   SIGNESS s0, s1;
+   if (x->getSrc(0) == x->getSrc(1)) {
+      s0 = IS_POSITIVE;
+      s1 = IS_POSITIVE;
+   } else {
+      s0 = parseSource(x->src(0));
+      s1 = parseSource(x->src(1));
+   }
+   insnData[x].signess = doMUL(s0, s1);
+}
+
+void
+ValueAnalyzer::handleMAX(Instruction *max)
+{
+   SIGNESS s0 = parseSource(max->src(0));
+   SIGNESS s1 = parseSource(max->src(1));
+
+   if (s0 == s1)
+      insnData[max].signess = s0;
+   else if (s0 == IS_POSITIVE || s1 == IS_POSITIVE || s0 == IS_ZERO || s1 == IS_ZERO)
+      insnData[max].signess = IS_POSITIVE;
+}
+
+void
+ValueAnalyzer::handleMIN(Instruction *min)
+{
+   SIGNESS s0 = parseSource(min->src(0));
+   SIGNESS s1 = parseSource(min->src(1));
+
+   if (s0 == s1)
+      insnData[min].signess = s0;
+   else if (s0 == IS_NEGATIVE || s1 == IS_NEGATIVE || s0 == IS_ZERO || s1 == IS_ZERO)
+      insnData[min].signess = IS_NEGATIVE;
+}
+
+void
+ValueAnalyzer::handleMAD(Instruction *mad)
+{
+   SIGNESS s0, s1, s2;
+   if (mad->getSrc(0) == mad->getSrc(1)) {
+      s0 = IS_POSITIVE;
+      s1 = IS_POSITIVE;
+   } else {
+      s0 = parseSource(mad->src(0));
+      s1 = parseSource(mad->src(1));
+   }
+   s2 = parseSource(mad->src(2));
+
+   insnData[mad].signess = doADD(doMUL(s0, s1), s2);
+}
+
+bool
+ValueAnalyzer::visit(Instruction *insn)
+{
+   if (insn->asFlow())
+      return true;
+
+   switch (insn->op) {
+   case OP_MOV:
+      makeCOPY(insn);
+      break;
+   case OP_ABS:
+      makePOS(insn);
+      break;
+
+   case OP_ADD:
+      handleADD(insn);
+      break;
+   case OP_MUL:
+      handleMUL(insn);
+      break;
+   case OP_MAX:
+      handleMAX(insn);
+      break;
+   case OP_MIN:
+      handleMIN(insn);
+      break;
+
+   case OP_MAD:
+      handleMAD(insn);
+      break;
+
+   // for these we really can't know
+   case OP_PINTERP:
+   case OP_LINTERP:
+   case OP_LOAD:
+      break;
+
+   case OP_PHI:
+      checkEqual(insn);
+      break;
+
+   default:
+      printf("unhandled\n");
+      break;
+   }
+
+   switch (insnData[insn].signess) {
+   case IS_POSITIVE:
+      printf("+ ");
+      break;
+   case IS_NEGATIVE:
+      printf("- ");
+      break;
+   case IS_ZERO:
+      printf("0 ");
+      break;
+   case IS_UNDECIDED:
+      printf("? ");
+      break;
+   }
+   insn->print();
+
+   return true;
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -4101,6 +4367,7 @@ Program::optimizeSSA(int level)
 //   RUN_PASS(0, LiveOnlyTex, run);
 //   RUN_PASS(0, Deepen, run);
 //   RUN_PASS(0, Shallowing, run);
+//   RUN_PASS(0, ValueAnalyzer, run);
 
    return true;
 }
