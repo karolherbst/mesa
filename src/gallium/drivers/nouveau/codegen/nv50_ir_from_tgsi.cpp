@@ -2897,9 +2897,9 @@ Converter::handleATOM(Value *dst0[4], DataType ty, uint16_t subOp)
       if (tgsi.getSrc(0).isIndirect(0))
          tex->setIndirectR(fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, NULL));
 
-      for (int c = 0; c < 4; ++c)
-         if (dst0[c])
-            dst0[c] = dst; // not equal to rDst so handleInstruction will do mkMov
+      int c;
+      FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi)
+         dst0[c] = dst; // not equal to rDst so handleInstruction will do mkMov
       }
       break;
    default:
@@ -3740,14 +3740,13 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
             geni->setIndirect(0, 1,
                               fetchSrc(tgsi.getSrc(0).getIndirect(0), 0, 0));
       } else {
+         int c, d = 0;
          assert(tgsi.getSrc(0).getFile() == TGSI_FILE_IMAGE);
 
          TexInstruction *texi = new_TexInstruction(func, OP_SUQ);
-         for (int c = 0, d = 0; c < 4; ++c) {
-            if (dst0[c]) {
-               texi->setDef(d++, dst0[c]);
-               texi->tex.mask |= 1 << c;
-            }
+         FOR_EACH_DST_ENABLED_CHANNEL(0, c, tgsi) {
+            texi->setDef(d++, dst0[c]);
+            texi->tex.mask |= 1 << c;
          }
          texi->tex.r = tgsi.getSrc(0).getIndex(0);
          texi->tex.target = getImageTarget(code, texi->tex.r);
