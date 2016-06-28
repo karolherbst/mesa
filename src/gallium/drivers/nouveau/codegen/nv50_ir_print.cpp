@@ -78,6 +78,7 @@ const char *operationStr[OP_LAST + 1] =
    "ld",
    "st",
    "add",
+   "add3",
    "sub",
    "mul",
    "div",

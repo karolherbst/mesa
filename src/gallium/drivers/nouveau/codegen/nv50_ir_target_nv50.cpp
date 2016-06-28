@@ -115,12 +115,12 @@ void TargetNV50::initOpInfo()
    {
       // ADD, MUL, MAD, FMA, AND, OR, XOR, MAX, MIN, SET_AND, SET_OR, SET_XOR,
       // SET, SELP, SLCT
-      0x0ce0ca00, 0x0000007e, 0x00000000, 0x00000000
+      0x19c19200, 0x000000fc, 0x00000000, 0x00000000
    };
    static const uint32_t shortForm[(OP_LAST + 31) / 32] =
    {
       // MOV, ADD, SUB, MUL, MAD, SAD, RCP, L/PINTERP, TEX, TXF
-      0x00014e40, 0x00000080, 0x00001260, 0x00000000
+      0x00029c80, 0x00000100, 0x000024c0, 0x00000000
    };
    static const operation noDestList[] =
    {
@@ -439,6 +439,7 @@ TargetNV50::isOpSupported(operation op, DataType ty) const
    case OP_EXIT: // want exit modifier instead (on NOP if required)
    case OP_MEMBAR:
    case OP_SHLADD:
+   case OP_ADD3:
       return false;
    case OP_SAD:
       return ty == TYPE_S32;
