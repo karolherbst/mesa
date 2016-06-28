@@ -50,6 +50,7 @@ enum operation
    OP_LOAD,
    OP_STORE,
    OP_ADD, // NOTE: add u64 + u32 is legal for targets w/o 64-bit integer adds
+   OP_ADD3,
    OP_SUB,
    OP_MUL,
    OP_DIV,

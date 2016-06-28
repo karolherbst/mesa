@@ -151,7 +151,7 @@ static const struct opProperties _initPropsNVE4[] = {
    { OP_SUSTP,   0x0, 0x0, 0x0, 0x0, 0x2, 0x0 },
    { OP_SUCLAMP, 0x0, 0x0, 0x0, 0x0, 0x2, 0x2 },
    { OP_SUBFM,   0x0, 0x0, 0x0, 0x0, 0x6, 0x2 },
-   { OP_SUEAU,   0x0, 0x0, 0x0, 0x0, 0x6, 0x2 }
+   { OP_SUEAU,   0x0, 0x0, 0x0, 0x0, 0x6, 0x2 },
 };
 
 static const struct opProperties _initPropsGM107[] = {
@@ -161,6 +161,7 @@ static const struct opProperties _initPropsGM107[] = {
    { OP_SUSTP,   0x0, 0x0, 0x0, 0x0, 0x0, 0x4 },
    { OP_SUREDB,  0x0, 0x0, 0x0, 0x0, 0x0, 0x4 },
    { OP_SUREDP,  0x0, 0x0, 0x0, 0x0, 0x0, 0x4 },
+   { OP_ADD3,    0x7, 0x0, 0x0, 0x0, 0x2, 0x2 },
 };
 
 void TargetNVC0::initProps(const struct opProperties *props, int size)
@@ -193,15 +194,15 @@ void TargetNVC0::initOpInfo()
 
    static const uint32_t commutative[(OP_LAST + 31) / 32] =
    {
-      // ADD, MUL, MAD, FMA, AND, OR, XOR, MAX, MIN, SET_AND, SET_OR, SET_XOR,
-      // SET, SELP, SLCT
-      0x0ce0ca00, 0x0000007e, 0x00000000, 0x00000000
+      // ADD, ADD3, MUL, MAD, FMA, AND, OR, XOR, MAX, MIN, SET_AND, SET_OR,
+      // SET_XOR, SET, SELP, SLCT
+      0x19c19600, 0x000000fc, 0x00000000, 0x00000000
    };
 
    static const uint32_t shortForm[(OP_LAST + 31) / 32] =
    {
-      // ADD, MUL, MAD, FMA, AND, OR, XOR, MAX, MIN
-      0x0ce0ca00, 0x00000000, 0x00000000, 0x00000000
+      // ADD, ADD3, MUL, MAD, FMA, AND, OR, XOR, MAX, MIN
+      0x19c19600, 0x00000000, 0x00000000, 0x00000000
    };
 
    static const operation noDest[] =
@@ -444,6 +445,8 @@ TargetNVC0::isOpSupported(operation op, DataType ty) const
    if (op == OP_SAD && ty != TYPE_S32 && ty != TYPE_U32)
       return false;
    if (op == OP_POW || op == OP_SQRT || op == OP_DIV || op == OP_MOD)
+      return false;
+   if (op == OP_ADD3)
       return false;
    return true;
 }

@@ -61,6 +61,10 @@ TargetGM107::isOpSupported(operation op, DataType ty) const
    case OP_DIV:
    case OP_MOD:
       return false;
+   case OP_ADD3:
+      if (isFloatType(ty))
+         return false;
+      break;
    default:
       break;
    }
