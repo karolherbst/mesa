@@ -109,11 +109,11 @@ query_data(struct hud_graph *gr)
          if (!f)
             return;
 
-         fscanf(f, "%li", &value);
+         fscanf(f, "%llu", &value);
          fclose(f);
 
          data->last_time = now;
-         hud_graph_add_value(gr, ((float)value) / 1000);
+         hud_graph_add_value(gr, (uint64_t)(value));
       }
    } else {
       data->last_time = now;
@@ -160,7 +160,7 @@ hud_sysfs_hwmon_temp_install(struct hud_pane *pane, struct pipe_screen *pscreen)
    f = fopen(emer_path, "r");
 
    if (f) {
-      fscanf(f, "%li", &value);
+      fscanf(f, "%llu", &value);
       fclose(f);
       hud_pane_set_max_value(pane, value / 1000);
    }
@@ -187,6 +187,7 @@ hud_sysfs_hwmon_power_install(struct hud_pane *pane, struct pipe_screen *pscreen
 
    get_hwmon_root(path, pscreen);
    sprintf(data->file_path, "%s/power1_input", path);
+   printf(data->file_path);
 
    gr->query_data = data;
    gr->query_new_value = query_data;
@@ -194,3 +195,124 @@ hud_sysfs_hwmon_power_install(struct hud_pane *pane, struct pipe_screen *pscreen
 
    hud_pane_add_graph(pane, gr);
 }
+
+void
+hud_sysfs_hwmon_core_load_install(struct hud_pane *pane, struct pipe_screen *pscreen)
+{
+   struct hud_graph *gr;
+   struct hud_sysfs_data *data;
+   char path[PATH_MAX];
+
+   gr = CALLOC_STRUCT(hud_graph);
+   if (!gr)
+      return;
+
+   strcpy(gr->name, "core load");
+
+   data = CALLOC_STRUCT(hud_sysfs_data);
+   if (!data) {
+      FREE(gr);
+      return;
+   }
+
+   get_hwmon_root(path, pscreen);
+   sprintf(data->file_path, "%s/power2_input", path);
+   printf(data->file_path);
+
+   gr->query_data = data;
+   gr->query_new_value = query_data;
+   gr->free_query_data = free_query_data;
+
+   hud_pane_add_graph(pane, gr);
+}
+
+void
+hud_sysfs_hwmon_mem_load_install(struct hud_pane *pane, struct pipe_screen *pscreen)
+{
+   struct hud_graph *gr;
+   struct hud_sysfs_data *data;
+   char path[PATH_MAX];
+
+   gr = CALLOC_STRUCT(hud_graph);
+   if (!gr)
+      return;
+
+   strcpy(gr->name, "mem load");
+
+   data = CALLOC_STRUCT(hud_sysfs_data);
+   if (!data) {
+      FREE(gr);
+      return;
+   }
+
+   get_hwmon_root(path, pscreen);
+   sprintf(data->file_path, "%s/power3_input", path);
+   printf(data->file_path);
+
+   gr->query_data = data;
+   gr->query_new_value = query_data;
+   gr->free_query_data = free_query_data;
+
+   hud_pane_add_graph(pane, gr);
+}
+
+void
+hud_sysfs_hwmon_core_clock_install(struct hud_pane *pane, struct pipe_screen *pscreen)
+{
+   struct hud_graph *gr;
+   struct hud_sysfs_data *data;
+   char path[PATH_MAX];
+
+   gr = CALLOC_STRUCT(hud_graph);
+   if (!gr)
+      return;
+
+   strcpy(gr->name, "core clock");
+
+   data = CALLOC_STRUCT(hud_sysfs_data);
+   if (!data) {
+      FREE(gr);
+      return;
+   }
+
+   get_hwmon_root(path, pscreen);
+   sprintf(data->file_path, "%s/power4_input", path);
+   printf(data->file_path);
+
+   gr->query_data = data;
+   gr->query_new_value = query_data;
+   gr->free_query_data = free_query_data;
+
+   hud_pane_add_graph(pane, gr);
+}
+
+void
+hud_sysfs_hwmon_mem_clock_install(struct hud_pane *pane, struct pipe_screen *pscreen)
+{
+   struct hud_graph *gr;
+   struct hud_sysfs_data *data;
+   char path[PATH_MAX];
+
+   gr = CALLOC_STRUCT(hud_graph);
+   if (!gr)
+      return;
+
+   strcpy(gr->name, "memory clock");
+
+   data = CALLOC_STRUCT(hud_sysfs_data);
+   if (!data) {
+      FREE(gr);
+      return;
+   }
+
+   get_hwmon_root(path, pscreen);
+   sprintf(data->file_path, "%s/power5_input", path);
+   printf(data->file_path);
+
+   gr->query_data = data;
+   gr->query_new_value = query_data;
+   gr->free_query_data = free_query_data;
+
+   hud_pane_add_graph(pane, gr);
+}
+

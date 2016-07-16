@@ -109,6 +109,10 @@ boolean hud_driver_query_install(struct hud_batch_query_context **pbq,
                                  struct pipe_context *pipe, const char *name);
 void hud_sysfs_hwmon_temp_install(struct hud_pane *pane, struct pipe_screen *pipe);
 void hud_sysfs_hwmon_power_install(struct hud_pane *pane, struct pipe_screen *pipe);
+void hud_sysfs_hwmon_core_load_install(struct hud_pane *pane, struct pipe_screen *pipe);
+void hud_sysfs_hwmon_mem_load_install(struct hud_pane *pane, struct pipe_screen *pipe);
+void hud_sysfs_hwmon_core_clock_install(struct hud_pane *pane, struct pipe_screen *pipe);
+void hud_sysfs_hwmon_mem_clock_install(struct hud_pane *pane, struct pipe_screen *pipe);
 void hud_batch_query_update(struct hud_batch_query_context *bq);
 void hud_batch_query_cleanup(struct hud_batch_query_context **pbq);
 

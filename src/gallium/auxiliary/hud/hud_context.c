@@ -927,6 +927,18 @@ hud_parse_env_var(struct hud_context *hud, const char *env)
          else if (strcmp(s, "power") == 0 && sys.hwmon.power) {
             hud_sysfs_hwmon_power_install(pane, hud->pipe->screen);
          }
+         else if (strcmp(s, "cl") == 0 && sys.hwmon.power) {
+            hud_sysfs_hwmon_core_load_install(pane, hud->pipe->screen);
+         }
+         else if (strcmp(s, "ml") == 0 && sys.hwmon.power) {
+            hud_sysfs_hwmon_mem_load_install(pane, hud->pipe->screen);
+         }
+         else if (strcmp(s, "cc") == 0 && sys.hwmon.power) {
+            hud_sysfs_hwmon_core_clock_install(pane, hud->pipe->screen);
+         }
+         else if (strcmp(s, "mc") == 0 && sys.hwmon.power) {
+            hud_sysfs_hwmon_mem_clock_install(pane, hud->pipe->screen);
+         }
       }
       else {
          boolean processed = FALSE;
