@@ -20,6 +20,7 @@ public:
 
    virtual bool isBarrierRequired(const Instruction *) const;
 
+   virtual bool hasDualIssuing() const;
    virtual bool canDualIssue(const Instruction *, const Instruction *) const;
    virtual int getLatency(const Instruction *) const;
    virtual int getReadLatency(const Instruction *) const;

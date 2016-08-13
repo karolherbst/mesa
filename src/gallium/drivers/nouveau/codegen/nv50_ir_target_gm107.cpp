@@ -301,6 +301,11 @@ getDualIssueClass(const Instruction *insn)
    }
 }
 
+bool TargetGM107::hasDualIssuing() const
+{
+   return true;
+}
+
 bool
 TargetGM107::canDualIssue(const Instruction *a, const Instruction *b) const
 {

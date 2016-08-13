@@ -61,6 +61,7 @@ public:
    virtual bool isPostMultiplySupported(operation, float, int& e) const;
    virtual bool mayPredicate(const Instruction *, const Value *) const;
 
+   virtual bool hasDualIssuing() const;
    virtual bool canDualIssue(const Instruction *, const Instruction *) const;
    virtual int getLatency(const Instruction *) const;
    virtual int getThroughput(const Instruction *) const;

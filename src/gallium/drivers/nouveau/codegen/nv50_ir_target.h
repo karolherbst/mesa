@@ -230,6 +230,7 @@ public:
                              const Value *) const = 0;
 
    // whether @insn can be issued together with @next (order matters)
+   virtual bool hasDualIssuing() const { return false; }
    virtual bool canDualIssue(const Instruction *insn,
                              const Instruction *next) const { return false; }
    virtual int getLatency(const Instruction *) const { return 1; }
