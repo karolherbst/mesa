@@ -2586,6 +2586,13 @@ _GLX_PUBLIC void (*glXGetProcAddressARB(const GLubyte * procName)) (void)
    typedef void (*gl_function) (void);
    gl_function f;
 
+   if (strcmp((const char *) procName, "glNamedStringARB") == 0 ||
+       strcmp((const char *) procName, "glDeleteNamedStringARB") == 0 ||
+       strcmp((const char *) procName, "glCompileShaderIncludeARB") == 0 ||
+       strcmp((const char *) procName, "glIsNamedStringARB") == 0 ||
+       strcmp((const char *) procName, "glGetNamedStringARB") == 0 ||
+       strcmp((const char *) procName, "glGetNamedStringivARB") == 0)
+      return NULL;
 
    /* Search the table of GLX and internal functions first.  If that
     * fails and the supplied name could be a valid core GL name, try
