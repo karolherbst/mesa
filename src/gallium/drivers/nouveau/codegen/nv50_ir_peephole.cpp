@@ -3707,6 +3707,62 @@ DeadCodeElim::checkSplitLoad(Instruction *ld1)
 
 // =============================================================================
 
+// Tries to improve dual issueing trivially
+//
+// the PASS checks for every instruction A,B with A->next == B and
+// !canDualIssue(A,B), if there is a Instruction C in the same BB which can be
+// moved between A and B and canDualIssue(A,C) is true
+class PostRADualIssue : public Pass
+{
+private:
+   virtual bool visit(BasicBlock *);
+};
+
+static bool
+isChainedCommutationLegal(Instruction *a, Instruction *b)
+{
+   Instruction *check = a;
+   do {
+      if (!check->isCommutationLegal(b) || (check->op == OP_TEX && check->op == OP_TEX))
+         return false;
+      check = check->next;
+   } while (check != b);
+   return true;
+}
+
+bool
+PostRADualIssue::visit(BasicBlock *bb)
+{
+   const Target *target = prog->getTarget();
+   Instruction *i, *next, *check;
+
+   for (i = bb->getEntry(); i; i = next) {
+      next = i->next;
+
+      // check next
+      if (!next || next->fixed || next->join || next->asFlow() || target->canDualIssue(i, next))
+         continue;
+
+      check = next->next;
+      // we can't move fixed, flow instructions and instruction marked as join
+      while (check && !check->fixed && !check->join && !check->asFlow() && check->prev->bb == check->bb) {
+         if (isChainedCommutationLegal(next, check) && target->canDualIssue(i, check)) {
+            // move the instruction after i step by step
+            while (check->prev != i)
+               bb->permuteAdjacent(check->prev, check);
+
+            // we have to always continue with the currently next instruction
+            next = i->next;
+            break;
+         }
+         check = check->next;
+      }
+   }
+   return true;
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3743,6 +3799,9 @@ Program::optimizePostRA(int level)
 {
    RUN_PASS(2, FlatteningPass, run);
    RUN_PASS(2, PostRaLoadPropagation, run);
+   // should be last
+   if (getTarget()->hasDualIssuing())
+      RUN_PASS(2, PostRADualIssue, run);
 
    return true;
 }
