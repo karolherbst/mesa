@@ -1468,8 +1468,7 @@ GCRA::allocateRegisters(ArrayList& insns)
          nodes[i].init(regs, lval);
          RIG.insert(&nodes[i]);
 
-         if (lval->inFile(FILE_GPR) && lval->getInsn() != NULL &&
-             prog->getTarget()->getChipset() < 0xc0) {
+         if (lval->inFile(FILE_GPR) && lval->getInsn() != NULL) {
             Instruction *insn = lval->getInsn();
             if (insn->op == OP_MAD || insn->op == OP_FMA || insn->op == OP_SAD)
                // Short encoding only possible if they're all GPRs, no need to
