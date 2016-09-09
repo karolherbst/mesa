@@ -3175,7 +3175,7 @@ SchedDataCalculator::setDelay(Instruction *insn, int delay, Instruction *next)
       insn->sched = 0xc2;
    } else
    if (insn->op == OP_JOIN || insn->join) {
-      insn->sched = 0x00;
+      insn->sched = 0x2f;
    } else
    if (delay >= 0 || prevData == 0x04 ||
        !next || !targ->canDualIssue(insn, next)) {
