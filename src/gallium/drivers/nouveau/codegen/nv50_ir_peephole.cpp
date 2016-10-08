@@ -61,7 +61,7 @@ Instruction::isNop() const
    return false;
 }
 
-bool Instruction::isDead() const
+bool Instruction::isDead(bool postRA) const
 {
    if (op == OP_STORE ||
        op == OP_EXPORT ||
@@ -70,8 +70,11 @@ bool Instruction::isDead() const
        op == OP_WRSV)
       return false;
 
+   if (postRA && op == OP_MOV && subOp == NV50_IR_SUBOP_MOV_FINAL)
+      return false;
+
    for (int d = 0; defExists(d); ++d)
-      if (getDef(d)->refCount() || getDef(d)->reg.data.id >= 0)
+      if (getDef(d)->refCount() || (!postRA && getDef(d)->reg.data.id >= 0))
          return false;
 
    if (terminator || asFlow())
@@ -3199,17 +3202,6 @@ private:
    void handleMADforNVC0(Instruction *);
 };
 
-static bool
-post_ra_dead(Instruction *i)
-{
-   for (int d = 0; i->defExists(d); ++d)
-      if (i->getDef(d)->refCount())
-         return false;
-   return true;
-}
-
-// Fold Immediate into MAD; must be done after register allocation due to
-// constraint SDST == SSRC2
 void
 PostRaLoadPropagation::handleMADforNV50(Instruction *i)
 {
@@ -3252,13 +3244,13 @@ PostRaLoadPropagation::handleMADforNV50(Instruction *i)
       /* There's no post-RA dead code elimination, so do it here
        * XXX: if we add more code-removing post-RA passes, we might
        *      want to create a post-RA dead-code elim pass */
-      if (post_ra_dead(vtmp->getInsn())) {
+      if (vtmp->getInsn()->isDead(true)) {
          Value *src = vtmp->getInsn()->getSrc(0);
          // Careful -- splits will have already been removed from the
          // functions. Don't double-delete.
          if (vtmp->getInsn()->bb)
             delete_Instruction(prog, vtmp->getInsn());
-         if (src->getInsn() && post_ra_dead(src->getInsn()))
+         if (src->getInsn() && src->getInsn()->isDead())
             delete_Instruction(prog, src->getInsn());
       }
    }
@@ -3299,7 +3291,7 @@ PostRaLoadPropagation::handleMADforNVC0(Instruction *i)
 
    Instruction *imm = i->getSrc(1)->getInsn();
    i->setSrc(1, imm->getSrc(0));
-   if (post_ra_dead(imm))
+   if (imm->isDead(true))
       delete_Instruction(prog, imm);
 }
 
