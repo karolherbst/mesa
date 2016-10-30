@@ -1470,7 +1470,9 @@ GCRA::allocateRegisters(ArrayList& insns)
 
          if (lval->inFile(FILE_GPR) && lval->getInsn() != NULL) {
             Instruction *insn = lval->getInsn();
+            ImmediateValue imm;
             if (insn->op == OP_MAD || insn->op == OP_FMA || insn->op == OP_SAD)
+            if (insn->src(0).getImmediate(imm) || insn->src(1).getImmediate(imm))
                // Short encoding only possible if they're all GPRs, no need to
                // affect them otherwise.
                if (insn->flagsDef < 0 &&
