@@ -171,6 +171,16 @@ namespace clover {
       virtual cl_mem_object_type type() const;
    };
 
+   class image1d_buffer : public image {
+   public:
+      image1d_buffer(clover::context &ctx, cl_mem_flags flags,
+                     const cl_image_format *format,
+                     size_t width, size_t row_pitch,
+                     void *host_ptr);
+
+      virtual cl_mem_object_type type() const;
+   };
+
    class image2d : public image {
    public:
       image2d(clover::context &ctx, cl_mem_flags flags,
