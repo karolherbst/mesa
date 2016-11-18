@@ -243,6 +243,20 @@ image2d::type() const {
    return CL_MEM_OBJECT_IMAGE2D;
 }
 
+image2d_array::image2d_array(clover::context &ctx, cl_mem_flags flags,
+                             const cl_image_format *format,
+                             size_t width, size_t height, size_t array_size,
+                             size_t row_pitch, size_t slice_pitch,
+                             void *host_ptr) :
+   image(ctx, flags, format, width, height, 1,
+         row_pitch, slice_pitch, slice_pitch * array_size, host_ptr) {
+}
+
+cl_mem_object_type
+image2d_array::type() const {
+   return CL_MEM_OBJECT_IMAGE2D_ARRAY;
+}
+
 image3d::image3d(clover::context &ctx, cl_mem_flags flags,
                  const cl_image_format *format,
                  size_t width, size_t height, size_t depth,
