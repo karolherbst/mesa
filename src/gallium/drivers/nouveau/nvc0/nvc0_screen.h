@@ -11,8 +11,8 @@
 #include "nvc0/nvc0_winsys.h"
 #include "nvc0/nvc0_stateobj.h"
 
-#define NVC0_TIC_MAX_ENTRIES 2048
-#define NVC0_TSC_MAX_ENTRIES 2048
+#define NVC0_TIC_MAX_ENTRIES 4096
+#define NVC0_TSC_MAX_ENTRIES 4096
 
 /* doesn't count driver-reserved slot */
 #define NVC0_MAX_PIPE_CONSTBUFS         15

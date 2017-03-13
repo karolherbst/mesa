@@ -1266,6 +1266,7 @@ nvc0_screen_tic_alloc(struct nvc0_screen *screen, void *entry)
 
    screen->tic.next = (i + 1) & (NVC0_TIC_MAX_ENTRIES - 1);
 
+   assert(i < NVC0_TIC_MAX_ENTRIES);
    if (screen->tic.entries[i])
       nv50_tic_entry(screen->tic.entries[i])->id = -1;
 
@@ -1283,6 +1284,7 @@ nvc0_screen_tsc_alloc(struct nvc0_screen *screen, void *entry)
 
    screen->tsc.next = (i + 1) & (NVC0_TSC_MAX_ENTRIES - 1);
 
+   assert(i < NVC0_TSC_MAX_ENTRIES);
    if (screen->tsc.entries[i])
       nv50_tsc_entry(screen->tsc.entries[i])->id = -1;
 
