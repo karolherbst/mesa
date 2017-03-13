@@ -635,7 +635,7 @@ nvc0_validate_tsc(struct nvc0_context *nvc0, int s)
          tsc->id = nvc0_screen_tsc_alloc(nvc0->screen, tsc);
 
          nvc0_m2mf_push_linear(&nvc0->base, nvc0->screen->txc,
-                               65536 + tsc->id * 32, NV_VRAM_DOMAIN(&nvc0->screen->base),
+                               NVC0_TIC_MAX_ENTRIES * 32 + tsc->id * 32, NV_VRAM_DOMAIN(&nvc0->screen->base),
                                32, tsc->tsc);
          need_flush = true;
       }
@@ -677,7 +677,7 @@ nve4_validate_tsc(struct nvc0_context *nvc0, int s)
          tsc->id = nvc0_screen_tsc_alloc(nvc0->screen, tsc);
 
          nve4_p2mf_push_linear(&nvc0->base, nvc0->screen->txc,
-                               65536 + tsc->id * 32,
+                               NVC0_TIC_MAX_ENTRIES * 32 + tsc->id * 32,
                                NV_VRAM_DOMAIN(&nvc0->screen->base),
                                32, tsc->tsc);
          need_flush = true;

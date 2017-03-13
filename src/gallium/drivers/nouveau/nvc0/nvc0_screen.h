@@ -68,7 +68,7 @@ struct nvc0_screen {
    struct nouveau_bo *text;
    struct nouveau_bo *uniform_bo;
    struct nouveau_bo *tls;
-   struct nouveau_bo *txc; /* TIC (offset 0) and TSC (65536) */
+   struct nouveau_bo *txc; /* TIC (offset 0) and TSC (NVC0_TIC_MAX_ENTRIES * 32) */
    struct nouveau_bo *poly_cache;
 
    uint8_t gpc_count;

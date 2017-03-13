@@ -1081,7 +1081,8 @@ nvc0_screen_create(struct nouveau_device *dev)
       PUSH_DATA (push, 3);
    }
 
-   ret = nouveau_bo_new(dev, NV_VRAM_DOMAIN(&screen->base), 1 << 17, 1 << 17, NULL,
+   ret = nouveau_bo_new(dev, NV_VRAM_DOMAIN(&screen->base), 1 << 17,
+                        (NVC0_TSC_MAX_ENTRIES + NVC0_TIC_MAX_ENTRIES) << 5, NULL,
                         &screen->txc);
    if (ret)
       FAIL_SCREEN_INIT("Error allocating txc BO: %d\n", ret);
@@ -1100,8 +1101,8 @@ nvc0_screen_create(struct nouveau_device *dev)
    }
 
    BEGIN_NVC0(push, NVC0_3D(TSC_ADDRESS_HIGH), 3);
-   PUSH_DATAh(push, screen->txc->offset + 65536);
-   PUSH_DATA (push, screen->txc->offset + 65536);
+   PUSH_DATAh(push, screen->txc->offset + NVC0_TIC_MAX_ENTRIES * 32);
+   PUSH_DATA (push, screen->txc->offset + NVC0_TIC_MAX_ENTRIES * 32);
    PUSH_DATA (push, NVC0_TSC_MAX_ENTRIES - 1);
 
    BEGIN_NVC0(push, NVC0_3D(SCREEN_Y_CONTROL), 1);
@@ -1237,8 +1238,8 @@ nvc0_screen_create(struct nouveau_device *dev)
 
    PUSH_KICK (push);
 
-   screen->tic.entries = CALLOC(4096, sizeof(void *));
-   screen->tsc.entries = screen->tic.entries + 2048;
+   screen->tic.entries = CALLOC(NVC0_TIC_MAX_ENTRIES + NVC0_TSC_MAX_ENTRIES, sizeof(void *));
+   screen->tsc.entries = screen->tic.entries + NVC0_TIC_MAX_ENTRIES;
 
    if (!nvc0_blitter_create(screen))
       goto fail;

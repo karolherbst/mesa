@@ -753,7 +753,7 @@ nvc0_validate_fbread(struct nvc0_context *nvc0)
    if (screen->default_tsc->id < 0) {
       struct nv50_tsc_entry *tsc = nv50_tsc_entry(screen->default_tsc);
       tsc->id = nvc0_screen_tsc_alloc(screen, tsc);
-      nvc0->base.push_data(&nvc0->base, screen->txc, 65536 + tsc->id * 32,
+      nvc0->base.push_data(&nvc0->base, screen->txc, NVC0_TIC_MAX_ENTRIES * 32 + tsc->id * 32,
                            NV_VRAM_DOMAIN(&screen->base), 32, tsc->tsc);
       screen->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
 
