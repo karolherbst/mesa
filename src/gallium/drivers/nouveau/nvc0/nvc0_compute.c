@@ -109,8 +109,8 @@ nvc0_screen_compute_setup(struct nvc0_screen *screen,
 
    /* samplers */
    BEGIN_NVC0(push, NVC0_CP(TSC_ADDRESS_HIGH), 3);
-   PUSH_DATAh(push, screen->txc->offset + 65536);
-   PUSH_DATA (push, screen->txc->offset + 65536);
+   PUSH_DATAh(push, screen->txc->offset + NVC0_TIC_MAX_ENTRIES * 32);
+   PUSH_DATA (push, screen->txc->offset + NVC0_TIC_MAX_ENTRIES * 32);
    PUSH_DATA (push, NVC0_TSC_MAX_ENTRIES - 1);
 
    /* MS sample coordinate offsets */
