@@ -640,9 +640,31 @@ ConstantFolding::expr(Instruction *i,
       }
       break;
    case OP_SLCT:
-      if (a->data.u32 != b->data.u32)
+      // slct(a, a, b) -> a
+      if (a->data.u32 == b->data.u32) {
+         res.data.u32 = a->data.u32;
+      } else {
+         // slct_ne(true, false, bool) -> !bool
+         CmpInstruction *slct = i->asCmp();
+         Instruction *set = i->getSrc(2)->getInsn();
+         if (!set || set->op != OP_SET)
+            return;
+         if (isFloatType(set->dType))
+            return;
+         if ((slct->getCondition() == CC_NE && imm0.isInteger(-1) && imm1.isInteger(0)) ||
+             (slct->getCondition() == CC_EQ && imm0.isInteger(0) && imm1.isInteger(-1))) {
+            bld.setPosition(i, false);
+            bld.mkOp1(OP_MOV, i->dType, i->getDef(0), i->getSrc(2));
+            delete_Instruction(prog, i);
+         } else if (
+             (slct->getCondition() == CC_EQ && imm0.isInteger(-1) && imm1.isInteger(0)) ||
+             (slct->getCondition() == CC_NE && imm0.isInteger(0) && imm1.isInteger(-1))) {
+            bld.setPosition(i, false);
+            bld.mkOp1(OP_NOT, i->dType, i->getDef(0), i->getSrc(2));
+            delete_Instruction(prog, i);
+         }
          return;
-      res.data.u32 = a->data.u32;
+      }
       break;
    case OP_EXTBF: {
       int offset = b->data.u32 & 0xff;
