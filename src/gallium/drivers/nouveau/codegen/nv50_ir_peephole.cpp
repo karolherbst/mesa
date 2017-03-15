@@ -643,6 +643,11 @@ ConstantFolding::expr(Instruction *i,
       // slct(a, a, b) -> a
       if (a->data.u32 == b->data.u32) {
          res.data.u32 = a->data.u32;
+      } else if (a->data.u32 == 0xffffffff && b->data.u32 == 0x0) {
+         i->op = OP_SET;
+         i->setSrc(0, i->getSrc(2));
+         i->setSrc(2, NULL);
+         return;
       } else {
          // slct_ne(true, false, bool) -> !bool
          CmpInstruction *slct = i->asCmp();
@@ -1634,7 +1639,7 @@ private:
    bool tryADDToMADOrSAD(Instruction *, operation toOp);
    void handleMINMAX(Instruction *);
    void handleRCP(Instruction *);
-   void handleSLCT(Instruction *);
+   void handleSLCT(CmpInstruction *);
    void handleLOGOP(Instruction *);
    void handleCVT_NEG(Instruction *);
    void handleCVT_CVT(Instruction *);
@@ -1816,8 +1821,20 @@ AlgebraicOpt::handleRCP(Instruction *rcp)
 }
 
 void
-AlgebraicOpt::handleSLCT(Instruction *slct)
+AlgebraicOpt::handleSLCT(CmpInstruction *slct)
 {
+   Instruction *o = slct->getSrc(2)->getInsn();
+   if (o && o->op == OP_SET) {
+      ImmediateValue imm0;
+      int s = 0;
+      CmpInstruction *set = o->asCmp();
+      if (set->src(1).getImmediate(imm0) && imm0.isInteger(0)) {
+         if ((set->getCondition() == CC_EQ && slct->getCondition() == CC_EQ) ||
+             (set->getCondition() == CC_NE && slct->getCondition() == CC_NE)) {
+            slct->setSrc(2, set->getSrc(s));
+         }
+      }
+   }
    if (slct->getSrc(2)->reg.file == FILE_IMMEDIATE) {
       if (slct->getSrc(2)->asImm()->compare(slct->asCmp()->setCond, 0.0f))
          slct->setSrc(0, slct->getSrc(1));
@@ -2165,7 +2182,7 @@ AlgebraicOpt::visit(BasicBlock *bb)
          handleMINMAX(i);
          break;
       case OP_SLCT:
-         handleSLCT(i);
+         handleSLCT(i->asCmp());
          break;
       case OP_AND:
       case OP_OR:
