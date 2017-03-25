@@ -139,8 +139,8 @@ nve4_screen_compute_setup(struct nvc0_screen *screen,
 
    /* MS sample coordinate offsets: these do not work with _ALT modes ! */
    BEGIN_NVC0(push, NVE4_CP(UPLOAD_DST_ADDRESS_HIGH), 2);
-   PUSH_DATAh(push, address + NVC0_CB_AUX_MS_INFO);
-   PUSH_DATA (push, address + NVC0_CB_AUX_MS_INFO);
+   PUSH_DATAh(push, address + NVC0_CB_AUX_MS_INFO + 0x10000);
+   PUSH_DATA (push, address + NVC0_CB_AUX_MS_INFO + 0x10000);
    BEGIN_NVC0(push, NVE4_CP(UPLOAD_LINE_LENGTH_IN), 2);
    PUSH_DATA (push, 64);
    PUSH_DATA (push, 1);
@@ -237,8 +237,8 @@ gm107_compute_validate_surfaces(struct nvc0_context *nvc0,
 
    /* upload the texture handle */
    BEGIN_NVC0(push, NVE4_CP(UPLOAD_DST_ADDRESS_HIGH), 2);
-   PUSH_DATAh(push, address + NVC0_CB_AUX_TEX_INFO(slot + 32));
-   PUSH_DATA (push, address + NVC0_CB_AUX_TEX_INFO(slot + 32));
+   PUSH_DATAh(push, address + NVC0_CB_AUX_TEX_INFO(slot + 32) + 0x10000);
+   PUSH_DATA (push, address + NVC0_CB_AUX_TEX_INFO(slot + 32) + 0x10000);
    BEGIN_NVC0(push, NVE4_CP(UPLOAD_LINE_LENGTH_IN), 2);
    PUSH_DATA (push, 4);
    PUSH_DATA (push, 0x1);
@@ -267,8 +267,8 @@ nve4_compute_validate_surfaces(struct nvc0_context *nvc0)
       struct pipe_image_view *view = &nvc0->images[s][i];
 
       BEGIN_NVC0(push, NVE4_CP(UPLOAD_DST_ADDRESS_HIGH), 2);
-      PUSH_DATAh(push, address + NVC0_CB_AUX_SU_INFO(i));
-      PUSH_DATA (push, address + NVC0_CB_AUX_SU_INFO(i));
+      PUSH_DATAh(push, address + NVC0_CB_AUX_SU_INFO(i) + 0x10000);
+      PUSH_DATA (push, address + NVC0_CB_AUX_SU_INFO(i) + 0x10000);
       BEGIN_NVC0(push, NVE4_CP(UPLOAD_LINE_LENGTH_IN), 2);
       PUSH_DATA (push, 16 * 4);
       PUSH_DATA (push, 0x1);
@@ -401,7 +401,7 @@ nve4_compute_validate_constbufs(struct nvc0_context *nvc0)
 
             PUSH_DATA (push, res->address + nvc0->constbuf[s][i].offset);
             PUSH_DATAh(push, res->address + nvc0->constbuf[s][i].offset);
-            PUSH_DATA (push, nvc0->constbuf[5][i].size);
+            PUSH_DATA (push, nvc0->constbuf[5][i].size + 0x10000);
             PUSH_DATA (push, 0);
             BCTX_REFN(nvc0->bufctx_cp, CP_CB(i), res, RD);
 
@@ -439,13 +439,13 @@ nve4_compute_validate_buffers(struct nvc0_context *nvc0)
             nv04_resource(nvc0->buffers[s][i].buffer);
          PUSH_DATA (push, res->address + nvc0->buffers[s][i].buffer_offset);
          PUSH_DATAh(push, res->address + nvc0->buffers[s][i].buffer_offset);
-         PUSH_DATA (push, nvc0->buffers[s][i].buffer_size);
+         PUSH_DATA (push, nvc0->buffers[s][i].buffer_size + 0x10000);
          PUSH_DATA (push, 0);
          BCTX_REFN(nvc0->bufctx_cp, CP_BUF, res, RDWR);
          util_range_add(&res->valid_buffer_range,
                         nvc0->buffers[s][i].buffer_offset,
                         nvc0->buffers[s][i].buffer_offset +
-                        nvc0->buffers[s][i].buffer_size);
+                        nvc0->buffers[s][i].buffer_size + 0x10000);
       } else {
          PUSH_DATA (push, 0);
          PUSH_DATA (push, 0);
