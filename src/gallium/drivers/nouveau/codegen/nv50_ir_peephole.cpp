@@ -195,7 +195,7 @@ LoadPropagation::checkSwapSrc01(Instruction *insn)
 {
    const Target *targ = prog->getTarget();
    if (!targ->getOpInfo(insn).commutative)
-      if (insn->op != OP_SET && insn->op != OP_SLCT && insn->op != OP_SUB)
+      if (insn->op != OP_SET && insn->op != OP_SLCT && insn->op != OP_SELP && insn->op != OP_SUB)
          return;
    if (insn->src(1).getFile() != FILE_GPR)
       return;
@@ -240,6 +240,9 @@ LoadPropagation::checkSwapSrc01(Instruction *insn)
       insn->src(0).mod = insn->src(0).mod ^ Modifier(NV50_IR_MOD_NEG);
       insn->src(1).mod = insn->src(1).mod ^ Modifier(NV50_IR_MOD_NEG);
    }
+   else
+   if (insn->op == OP_SELP)
+      insn->src(2).mod = insn->src(2).mod ^ Modifier(NV50_IR_MOD_NOT);
 }
 
 bool
@@ -3738,6 +3741,121 @@ DeadCodeElim::checkSplitLoad(Instruction *ld1)
 
 // =============================================================================
 
+class SELFolding : public Pass
+{
+private:
+   virtual bool visit(BasicBlock *);
+
+   bool canMerge(Instruction *);
+   int hasValidSource(Instruction *, BasicBlock *parent);
+
+   BuildUtil bld;
+};
+
+bool
+SELFolding::canMerge(Instruction *insn)
+{
+   switch (insn->op) {
+   // for now we only support plain movs
+   case OP_MOV:
+      return true;
+   default:
+      return false;
+   }
+   return true;
+}
+
+int
+SELFolding::hasValidSource(Instruction *insn, BasicBlock *parent)
+{
+   ImmediateValue imm;
+   if (insn->src(0).getImmediate(imm)) {
+      if (imm.isInteger(0))
+         return 0;
+      if (imm.isInteger(-1))
+         return -1;
+   }
+   return 1;
+}
+
+bool
+SELFolding::visit(BasicBlock *bb)
+{
+   Instruction *next;
+   for (Instruction *phi = bb->getPhi(); phi && phi->op == OP_PHI; phi = next) {
+      next = phi->next;
+
+      if (phi->srcCount() != 2 || bb->cfg.incidentCount() != 2)
+         continue;
+
+      BasicBlock *parent = NULL;
+      for (Graph::EdgeIterator eIt = bb->cfg.incident(); !eIt.end(); eIt.next()) {
+         BasicBlock *bb = BasicBlock::get(eIt.getNode());
+         Graph::Node *parentNode = bb->cfg.parent();
+
+         if (!parentNode || (parent && parent != BasicBlock::get(parentNode)))
+            return true;
+         else
+            parent = BasicBlock::get(parentNode);
+      }
+
+      Instruction *insn0 = phi->getSrc(0)->getUniqueInsn();
+      Instruction *insn1 = phi->getSrc(1)->getUniqueInsn();
+
+      if (!insn0 || !insn1 || !canMerge(insn0) || !canMerge(insn1))
+         continue;
+
+      int r0 = hasValidSource(insn0, parent);
+      int r1 = hasValidSource(insn1, parent);
+      if (r0 + r1 != -1)
+         continue;
+
+      FlowInstruction *bra = parent->getExit()->asFlow();
+      Value *predicate = bra->getPredicate();
+
+      assert(bra->op == OP_BRA);
+      assert(predicate != NULL);
+
+      // convert into selp
+      bld.setPosition(bb->getEntry(), bb->getEntry()->op == OP_JOIN);
+//      Instruction *selp = bld.mkOp3(OP_SELP, phi->dType, phi->getDef(0), NULL, NULL, bra->getPredicate());
+
+      Instruction *tset = predicate->getUniqueInsn();
+      if (tset && tset->op == OP_SET && false) {
+         CmpInstruction *set = tset->asCmp();
+         CmpInstruction *set2 = bld.mkCmp(OP_SET, set->cc, phi->dType, phi->getDef(0), set->sType, set->getSrc(0), set->getSrc(1));
+
+         if (set->srcExists(2))
+            set2->setSrc(2, set->getSrc(2));
+
+         set2->setCond = set->setCond;
+         set2->subOp = set->subOp;
+         set2->src(0).mod = set->src(0).mod;
+         set2->src(1).mod = set->src(1).mod;
+         bool needsFlip = false;
+         needsFlip ^= bra->cc == CC_NOT_P;
+         needsFlip ^= bra->target.bb != insn0->bb;
+         needsFlip ^= r0 == 0;
+         if (needsFlip)
+            set2->setCond = inverseCondCode(set2->setCond);
+         delete_Instruction(prog, phi);
+      } else {
+         Instruction *cvt = bld.mkOp1(OP_CVT, phi->dType, phi->getDef(0), bra->getPredicate());
+         if (bra->cc == CC_NOT_P)
+            cvt->src(0).mod = cvt->src(0).mod ^ Modifier(NV50_IR_MOD_NOT);
+         if (bra->target.bb != insn0->bb)
+            cvt->src(0).mod = cvt->src(0).mod ^ Modifier(NV50_IR_MOD_NOT);
+         if (r0 == 0)
+            cvt->src(0).mod = cvt->src(0).mod ^ Modifier(NV50_IR_MOD_NOT);
+         delete_Instruction(prog, phi);
+      }
+   }
+
+   return true;
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3752,6 +3870,8 @@ Program::optimizeSSA(int level)
 {
    RUN_PASS(1, DeadCodeElim, buryAll);
    RUN_PASS(1, CopyPropagation, run);
+//   RUN_PASS(2, SELFolding, run);
+   RUN_PASS(1, DeadCodeElim, buryAll);
    RUN_PASS(1, MergeSplits, run);
    RUN_PASS(2, GlobalCSE, run);
    for (int i = 0; i < 3; ++i) {
