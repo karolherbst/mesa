@@ -1856,6 +1856,12 @@ AlgebraicOpt::handleLOGOP(Instruction *logop)
 
       set0 = cloneForward(func, set0);
       set1 = cloneShallow(func, set1);
+
+      if (logop->src(0).mod == Modifier(NV50_IR_MOD_NOT))
+         set0->asCmp()->setCond = inverseCondCode(set0->asCmp()->setCond);
+      if (logop->src(1).mod == Modifier(NV50_IR_MOD_NOT))
+         set1->asCmp()->setCond = inverseCondCode(set1->asCmp()->setCond);
+
       logop->bb->insertAfter(logop, set1);
       logop->bb->insertAfter(logop, set0);
 
