@@ -1284,6 +1284,13 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
 
    case OP_SHL:
    {
+      if (s == 1 && imm0.isInteger(0)) {
+         i->op = i->src(0).mod.getOp();
+         if (i->op != OP_CVT)
+            i->src(0).mod = 0;
+         i->setSrc(1, NULL);
+         break;
+      }
       if (s != 1 || i->src(0).mod != Modifier(0))
          break;
       // try to concatenate shifts
