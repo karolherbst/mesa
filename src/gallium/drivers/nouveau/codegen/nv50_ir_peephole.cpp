@@ -2224,6 +2224,9 @@ LateAlgebraicOpt::tryADDToSHLADD(Instruction *add)
    if (!shl->src(1).getImmediate(imm))
       return false;
 
+   if (imm.isInteger(0))
+      return false;
+
    add->op = OP_SHLADD;
    add->setSrc(2, add->src(!s));
    // SHL can't have any modifiers, but the ADD source may have had
