@@ -3207,6 +3207,7 @@ private:
 
    void handleMADforNV50(Instruction *);
    void handleMADforNVC0(Instruction *);
+   void handleMOV(Instruction *);
 };
 
 static bool
@@ -3313,6 +3314,19 @@ PostRaLoadPropagation::handleMADforNVC0(Instruction *i)
       delete_Instruction(prog, imm);
 }
 
+void
+PostRaLoadPropagation::handleMOV(Instruction *mov)
+{
+   Instruction *pMov = mov->getSrc(0)->getUniqueInsn();
+   if (!pMov || pMov->bb != mov->bb || pMov->op != OP_MOV || pMov->src(0).getFile() != FILE_IMMEDIATE)
+      return;
+
+   mov->setSrc(0, pMov->getSrc(0));
+
+   if (post_ra_dead(pMov))
+      delete_Instruction(prog, pMov);
+}
+
 bool
 PostRaLoadPropagation::visit(Instruction *i)
 {
@@ -3323,6 +3337,9 @@ PostRaLoadPropagation::visit(Instruction *i)
          handleMADforNV50(i);
       else
          handleMADforNVC0(i);
+      break;
+   case OP_MOV:
+      handleMOV(i);
       break;
    default:
       break;
