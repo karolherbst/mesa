@@ -1361,6 +1361,30 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
       }
    }
       break;
+   case OP_SHR: {
+      if (s != 1)
+         return;
+
+      Instruction *si = i->getSrc(0)->getUniqueInsn();
+      if (!si)
+         return;
+
+      if (si->op == OP_INSBF) {
+         ImmediateValue imm1;
+
+         if (!si->src(1).getImmediate(imm1))
+            return;
+
+         unsigned int offset = imm1.reg.data.u32 & 0xff;
+         unsigned int width = (imm1.reg.data.u32 >> 8) & 0xff;
+
+         if (width + offset > imm0.reg.data.u32)
+            return;
+
+         i->setSrc(0, si->getSrc(2));
+      }
+      break;
+   }
 
    case OP_ABS:
    case OP_NEG:
