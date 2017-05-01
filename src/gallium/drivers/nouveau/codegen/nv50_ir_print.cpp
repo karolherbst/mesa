@@ -632,7 +632,8 @@ void Instruction::print() const
       if (perPatch)
          PRINT("patch ");
       if (asTex())
-         PRINT("%s %s$r%u $s%u %s", asTex()->tex.target.getName(),
+         PRINT("%s %s %s$r%u $s%u %s", asTex()->tex.target.getName(),
+               asTex()->tex.liveOnly ? "live" : "all",
                colour[TXT_MEM], asTex()->tex.r, asTex()->tex.s,
                colour[TXT_INSN]);
       if (postFactor)
