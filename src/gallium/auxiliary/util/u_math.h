@@ -421,6 +421,23 @@ util_logbase2(unsigned n)
 #endif
 }
 
+static inline uint64_t
+util_logbase2_64(uint64_t n)
+{
+#if defined(HAVE___BUILTIN_CLZLL)
+   return ((sizeof(uint64_t) * 8ll - 1ll) - __builtin_clzll(n | 1ll));
+#else
+   uint64_t pos = 0ll;
+   if (n >= 1ll<<32ll) { n >>= 32ll; pos += 32ll; }
+   if (n >= 1ll<<16ll) { n >>= 16ll; pos += 16ll; }
+   if (n >= 1ll<< 8ll) { n >>=  8ll; pos +=  8ll; }
+   if (n >= 1ll<< 4ll) { n >>=  4ll; pos +=  4ll; }
+   if (n >= 1ll<< 2ll) { n >>=  2ll; pos +=  2ll; }
+   if (n >= 1ll<< 1ll) {             pos +=  1ll; }
+   return pos;
+#endif
+}
+
 /**
  * Returns the ceiling of log n base 2, and 0 when n == 0. Equivalently,
  * returns the smallest x such that n <= 2**x.
@@ -432,6 +449,15 @@ util_logbase2_ceil(unsigned n)
       return 0;
 
    return 1 + util_logbase2(n - 1);
+}
+
+static inline uint64_t
+util_logbase2_ceil64(uint64_t n)
+{
+   if (n <= 1ll)
+      return 0ll;
+
+   return 1ll + util_logbase2_64(n - 1ll);
 }
 
 /**
@@ -460,6 +486,35 @@ util_next_power_of_two(unsigned x)
    val = (val >> 4) | val;
    val = (val >> 8) | val;
    val = (val >> 16) | val;
+   val++;
+   return val;
+#endif
+}
+
+static inline uint64_t
+util_next_power_of_two64(uint64_t x)
+{
+#if defined(HAVE___BUILTIN_CLZLL)
+   if (x <= 1ll)
+       return 1ll;
+
+   return (1ll << ((sizeof(uint64_t) * 8ll) - __builtin_clzll(x - 1ll)));
+#else
+   uint64_t val = x;
+
+   if (x <= 1ll)
+      return 1ll;
+
+   if (util_is_power_of_two_or_zero64(x))
+      return x;
+
+   val--;
+   val = (val >> 1ll)  | val;
+   val = (val >> 2ll)  | val;
+   val = (val >> 4ll)  | val;
+   val = (val >> 8ll)  | val;
+   val = (val >> 16ll) | val;
+   val = (val >> 32ll) | val;
    val++;
    return val;
 #endif
