@@ -3460,7 +3460,7 @@ GlobalCSE::visit(BasicBlock *bb)
       if (!phi->srcExists(s)) {
          Instruction *entry = bb->getEntry();
          ik->bb->remove(ik);
-         if (!entry || entry->op != OP_JOIN)
+         if (!entry || entry->op != OP_JOIN || ik->op == OP_PHI)
             bb->insertHead(ik);
          else
             bb->insertAfter(entry, ik);
