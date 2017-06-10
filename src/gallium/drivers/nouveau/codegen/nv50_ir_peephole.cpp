@@ -3459,7 +3459,13 @@ GlobalCSE::visit(BasicBlock *bb)
       }
       if (!phi->srcExists(s)) {
          Instruction *entry = bb->getEntry();
-         ik->bb->remove(ik);
+         if (ik->op == OP_PHI) {
+            Value *src = ik->getDef(0);
+            ik = new_Instruction(func, OP_MOV, TYPE_U32);
+            ik->setSrc(0, src);
+            ik->setDef(0, phi->getDef(0));
+         } else
+            ik->bb->remove(ik);
          if (!entry || entry->op != OP_JOIN)
             bb->insertHead(ik);
          else
