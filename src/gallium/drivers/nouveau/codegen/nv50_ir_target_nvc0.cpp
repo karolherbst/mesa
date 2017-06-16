@@ -628,12 +628,13 @@ bool TargetNVC0::hasDualIssuing() const
 bool TargetNVC0::canDualIssue(const Instruction *a, const Instruction *b) const
 {
    const OpClass clA = operationClass[a->op];
+
    const OpClass clB = operationClass[b->op];
 
    if (hasDualIssuing()) {
       // not texturing
       // not if the 2nd instruction isn't necessarily executed
-      if (clA == OPCLASS_TEXTURE || clA == OPCLASS_FLOW)
+      if (clA == OPCLASS_TEXTURE || (clA == OPCLASS_FLOW && a->op != OP_BREAK))
          return false;
 
       // Check that a and b don't write to the same sources, nor that b reads
