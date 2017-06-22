@@ -636,4 +636,20 @@ BuildUtil::split64BitOpPostRA(Function *fn, Instruction *i,
    return hi;
 }
 
+bool
+BuildUtil::lowerPOW(Instruction *i)
+{
+   LValue *val = getScratch();
+
+   mkOp1(OP_LG2, TYPE_F32, val, i->getSrc(0));
+   mkOp2(OP_MUL, TYPE_F32, val, i->getSrc(1), val)->dnz = 1;
+   mkOp1(OP_PREEX2, TYPE_F32, val, val);
+
+   i->op = OP_EX2;
+   i->setSrc(0, val);
+   i->setSrc(1, NULL);
+
+   return true;
+}
+
 } // namespace nv50_ir

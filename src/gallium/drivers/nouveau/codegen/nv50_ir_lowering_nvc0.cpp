@@ -2700,22 +2700,6 @@ NVC0LoweringPass::handleSQRT(Instruction *i)
 }
 
 bool
-NVC0LoweringPass::handlePOW(Instruction *i)
-{
-   LValue *val = bld.getScratch();
-
-   bld.mkOp1(OP_LG2, TYPE_F32, val, i->getSrc(0));
-   bld.mkOp2(OP_MUL, TYPE_F32, val, i->getSrc(1), val)->dnz = 1;
-   bld.mkOp1(OP_PREEX2, TYPE_F32, val, val);
-
-   i->op = OP_EX2;
-   i->setSrc(0, val);
-   i->setSrc(1, NULL);
-
-   return true;
-}
-
-bool
 NVC0LoweringPass::handleEXPORT(Instruction *i)
 {
    if (prog->getType() == Program::TYPE_FRAGMENT) {
@@ -2813,7 +2797,7 @@ NVC0LoweringPass::visit(Instruction *i)
       i->setSrc(0, i->getDef(0));
       break;
    case OP_POW:
-      return handlePOW(i);
+      return bld.lowerPOW(i);
    case OP_DIV:
       return handleDIV(i);
    case OP_MOD:
