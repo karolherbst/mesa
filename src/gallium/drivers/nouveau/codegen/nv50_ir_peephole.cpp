@@ -1506,6 +1506,73 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
       i->src(0).mod = Modifier(0); /* Clear the already applied modifier */
       break;
    }
+   case OP_POW: {
+      bld.setPosition(i, false);
+      Value *src = i->getSrc(0);
+
+      if (s == 1) {
+         LValue *val = bld.getSSA();
+         if (imm0.isInteger(0)) {
+            i->op = OP_MOV;
+            i->setSrc(0, bld.loadImm(NULL, 1.0f));
+            i->setSrc(1, NULL);
+         } else if (imm0.isInteger(1)) {
+            i->op = OP_MOV;
+            i->setSrc(1, NULL);
+         } else if (imm0.isInteger(2)) {
+            i->op = OP_MUL;
+            i->setSrc(1, src);
+         } else if (imm0.isInteger(3)) {
+            bld.mkOp2(OP_MUL, i->dType, val, src, src);
+            i->op = OP_MUL;
+            i->setSrc(1, val);
+         } else if (imm0.isInteger(4)) {
+            bld.mkOp2(OP_MUL, i->dType, val, src, src);
+            i->op = OP_MUL;
+            i->setSrc(0, val);
+            i->setSrc(1, val);
+         } else if (imm0.isInteger(5)) {
+            LValue *val2 = bld.getSSA();
+            bld.mkOp2(OP_MUL, i->dType, val, src, src);
+            bld.mkOp2(OP_MUL, i->dType, val2, val, val);
+            i->op = OP_MUL;
+            i->setSrc(1, val2);
+         } else if (imm0.isInteger(8)) {
+            LValue *val2 = bld.getSSA();
+            bld.mkOp2(OP_MUL, i->dType, val, src, src);
+            bld.mkOp2(OP_MUL, i->dType, val2, val, val);
+            i->op = OP_MUL;
+            i->setSrc(0, val2);
+            i->setSrc(1, val2);
+         }
+      } else {
+         if (imm0.isInteger(0)) {
+            i->op = OP_MOV;
+            i->setSrc(0, bld.loadImm(NULL, 0.0f));
+            i->setSrc(1, NULL);
+         } else if (imm0.isInteger(1)) {
+            i->op = OP_MOV;
+            i->setSrc(0, bld.loadImm(NULL, 1.0f));
+            i->setSrc(1, NULL);
+         } else if (imm0.isInteger(2)) {
+            LValue *val = bld.getSSA();
+            bld.mkOp1(OP_PREEX2, i->dType, val, src);
+            i->op = OP_EX2;
+            i->setSrc(0, val);
+            i->setSrc(1, NULL);
+         } else {
+            // 2 ^ (lg2(imm) * a)
+            LValue *val1 = bld.getSSA();
+            LValue *val2 = bld.getSSA();
+            bld.mkOp2(OP_MUL, i->dType, val1, src, bld.loadImm(NULL, log2f(imm0.reg.data.f32)));
+            bld.mkOp1(OP_PREEX2, i->dType, val2, val1);
+            i->op = OP_EX2;
+            i->setSrc(0, val2);
+            i->setSrc(1, NULL);
+         }
+      }
+   }
+      break;
    default:
       return;
    }
