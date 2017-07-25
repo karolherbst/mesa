@@ -601,6 +601,9 @@ NV50LegalizeSSA::visit(BasicBlock *bb)
       case OP_MUL:
          handleMUL(insn);
          break;
+      case OP_POW:
+         bld.legalizeSSAPOW(insn);
+         break;
       default:
          break;
       }
@@ -1398,8 +1401,6 @@ NV50LoweringPreSSA::visit(Instruction *i)
       return handleSLCT(i->asCmp());
    case OP_SELP:
       return handleSELP(i);
-   case OP_POW:
-      return bld.lowerPOW(i);
    case OP_DIV:
       return handleDIV(i);
    case OP_SQRT:

@@ -103,7 +103,7 @@ public:
 
    Value *loadImm(Value *dst, int i) { return loadImm(dst, (uint32_t)i); }
 
-   bool lowerPOW(Instruction *);
+   void legalizeSSAPOW(Instruction *);
 
    // returns high part of the operation
    static Instruction *split64BitOpPostRA(Function *, Instruction *,

@@ -86,6 +86,9 @@ GM107LegalizeSSA::visit(Instruction *i)
    case OP_LOAD:
       handleLOAD(i);
       break;
+   case OP_POW:
+      bld.legalizeSSAPOW(i);
+      break;
    default:
       break;
    }

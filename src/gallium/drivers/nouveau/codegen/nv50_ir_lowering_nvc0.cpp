@@ -300,6 +300,9 @@ NVC0LegalizeSSA::visit(BasicBlock *bb)
          if (typeSizeof(i->sType) == 8 && i->sType != TYPE_F64)
             handleSET(i->asCmp());
          break;
+      case OP_POW:
+         bld.legalizeSSAPOW(i);
+         break;
       default:
          break;
       }
@@ -2796,8 +2799,6 @@ NVC0LoweringPass::visit(Instruction *i)
       bld.mkOp1(OP_PREEX2, TYPE_F32, i->getDef(0), i->getSrc(0));
       i->setSrc(0, i->getDef(0));
       break;
-   case OP_POW:
-      return bld.lowerPOW(i);
    case OP_DIV:
       return handleDIV(i);
    case OP_MOD:

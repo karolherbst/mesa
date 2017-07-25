@@ -636,20 +636,26 @@ BuildUtil::split64BitOpPostRA(Function *fn, Instruction *i,
    return hi;
 }
 
-bool
-BuildUtil::lowerPOW(Instruction *i)
+void
+BuildUtil::legalizeSSAPOW(Instruction *i)
 {
-   LValue *val = getScratch();
+   setPosition(i, false);
+   LValue *val0 = getSSA();
+   LValue *val1 = getSSA();
+   LValue *val2 = getSSA();
 
-   mkOp1(OP_LG2, TYPE_F32, val, i->getSrc(0));
-   mkOp2(OP_MUL, TYPE_F32, val, i->getSrc(1), val)->dnz = 1;
-   mkOp1(OP_PREEX2, TYPE_F32, val, val);
+   Instruction *lg2 = mkOp1(OP_LG2, TYPE_F32, val0, i->getSrc(0));
+   lg2->src(0).mod = i->src(0).mod;
+   Instruction *mul = mkOp2(OP_MUL, TYPE_F32, val1, val0, i->getSrc(1));
+   mul->dnz = 1;
+   mul->src(1).mod = i->src(1).mod;
+   mkOp1(OP_PREEX2, TYPE_F32, val2, val1);
 
    i->op = OP_EX2;
-   i->setSrc(0, val);
+   i->src(0).mod = 0;
+   i->src(1).mod = 0;
+   i->setSrc(0, val2);
    i->setSrc(1, NULL);
-
-   return true;
 }
 
 } // namespace nv50_ir
