@@ -1005,6 +1005,10 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          }
          if (i->op != OP_CVT)
             i->src(0).mod = 0;
+         if (i->op == OP_MOV && i->saturate) {
+            i->saturate = 0;
+            i->op = OP_SAT;
+         }
          i->setSrc(1, NULL);
       } else
       if (!i->postFactor && (imm0.isInteger(2) || imm0.isInteger(-2))) {
