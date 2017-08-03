@@ -3738,6 +3738,113 @@ DeadCodeElim::checkSplitLoad(Instruction *ld1)
 
 // =============================================================================
 
+class EliminateLdSt : public Pass
+{
+private:
+   virtual bool visit(Instruction *);
+   void tryRemoveSt(Instruction *);
+
+   Instruction *findSourceInsn(Instruction *, int);
+   Instruction *findDefInsn(Instruction *, int);
+};
+
+bool
+EliminateLdSt::visit(Instruction *i)
+{
+   switch (i->op)
+   {
+   case OP_STORE:
+      if (!i->join && !i->fixed)
+         tryRemoveSt(i);
+      break;
+   default:
+      break;
+   }
+   return true;
+}
+
+void
+EliminateLdSt::tryRemoveSt(Instruction *st)
+{
+   Instruction *ld = findSourceInsn(st, 1);
+   if (!ld || ld->op != OP_LOAD)
+      return;
+
+   Value *pst = st->getPredicate();
+   Value *pld = ld->getPredicate();
+   if (pst && pld) {
+      if (!pst->equals(pld, false))
+         return;
+   } else if (!pst != !pld)
+      return;
+
+   if (!st->getSrc(0)->equals(ld->getSrc(0), false))
+      return;
+
+   // okay, now we found the instruction reading the value, we need also the
+   // first one writing to it...
+   Instruction *def = findDefInsn(ld, 0);
+   if (!def && def != st)
+      return;
+
+   delete_Instruction(prog, st);
+
+   // now check if the ld is obsolete
+   if (ld->join || ld->fixed)
+      return;
+
+   Instruction *ld2 = ld->next;
+   if (!ld2 || ld2->bb != ld->bb || ld2->op != OP_LOAD)
+      return;
+
+   if (!ld->getDef(0)->equals(ld2->getDef(0), false))
+      return;
+
+   delete_Instruction(prog, ld);
+}
+
+Instruction *
+EliminateLdSt::findSourceInsn(Instruction *i, int s)
+{
+   Value *v = i->getSrc(s);
+   Instruction *prev = i->prev;
+
+   // TODO convert to while later
+   if (prev && prev->bb == i->bb) {
+      for (unsigned int d = 0; d < prev->defCount(); d++) {
+         Value *def = prev->getDef(d);
+         if (def && v->equals(def, false))
+            return prev;
+      }
+      prev = prev->prev;
+   }
+   return NULL;
+}
+
+Instruction *
+EliminateLdSt::findDefInsn(Instruction *i, int s)
+{
+   Value *v = i->getSrc(s);
+   Instruction *next = i->next;
+
+   // TODO convert to while later
+   if (next && next->bb == i->bb) {
+      for (unsigned int d = 0; d < next->defCount(); d++) {
+         Value *def = next->getDef(d);
+         if (def && v->equals(def, false))
+            return next;
+      }
+      if (next->op == OP_STORE && next->getSrc(0)) {
+         if (next->getSrc(0)->equals(v, false))
+            return next;
+      }
+      next = next->next;
+   }
+   return NULL;
+}
+
+// =============================================================================
+
 #define RUN_PASS(l, n, f)                       \
    if (level >= (l)) {                          \
       if (dbgFlags & NV50_IR_DEBUG_VERBOSE)     \
@@ -3774,6 +3881,8 @@ Program::optimizePostRA(int level)
 {
    RUN_PASS(2, FlatteningPass, run);
    RUN_PASS(2, PostRaLoadPropagation, run);
+   //printf("START!\n");
+   RUN_PASS(2, EliminateLdSt, run);
 
    return true;
 }
