@@ -87,11 +87,11 @@ void
 NVC0LegalizeSSA::handleRCPRSQLib(Instruction *i, Value *src[])
 {
    FlowInstruction *call;
-   Value *def[2];
+   Value *def[2] = { bld.getSSA(), bld.getSSA() };
    int builtin;
 
-   def[0] = bld.mkMovToReg(0, src[0])->getDef(0);
-   def[1] = bld.mkMovToReg(1, src[1])->getDef(0);
+   bld.mkMovToReg(0, src[0]);
+   bld.mkMovToReg(1, src[1]);
 
    if (i->op == OP_RCP)
       builtin = NVC0_BUILTIN_RCP_F64;
@@ -99,6 +99,8 @@ NVC0LegalizeSSA::handleRCPRSQLib(Instruction *i, Value *src[])
       builtin = NVC0_BUILTIN_RSQ_F64;
 
    call = bld.mkFlow(OP_CALL, NULL, CC_ALWAYS, NULL);
+   bld.mkMovFromReg(def[0], 0);
+   bld.mkMovFromReg(def[1], 1);
    bld.mkOp2(OP_MERGE, TYPE_U64, i->getDef(0), def[0], def[1]);
    bld.mkClobber(FILE_GPR, 0x3fc, 2);
    bld.mkClobber(FILE_PREDICATE, i->op == OP_RSQ ? 0x3 : 0x1, 0);
@@ -106,6 +108,7 @@ NVC0LegalizeSSA::handleRCPRSQLib(Instruction *i, Value *src[])
    call->fixed = 1;
    call->absolute = call->builtin = 1;
    call->target.builtin = builtin;
+   call->dType = TYPE_F64;
    delete_Instruction(prog, i);
 }
 
