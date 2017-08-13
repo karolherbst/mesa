@@ -93,6 +93,16 @@ static inline uint32_t f32_to_uf11(float val)
       exponent += UF11_EXPONENT_BIAS;
       mantissa >>= UF11_MANTISSA_SHIFT;
       uf11 = exponent << UF11_EXPONENT_SHIFT | mantissa;
+   } else if (exponent > -21) {
+      /* for exponents (-21, -15] we can be a bit smarter than returning 0
+       *
+       * From the GL_EXT_packed_float spec:
+       *      "2^-14 * (M / 64),         if E == 0 and M != 0,"
+       *
+       * based on the exponent and mantissa we can calculate M for E == 0 for
+       * the given value.
+       */
+      uf11 = (1 << (exponent + 20)) + (mantissa >> (3 - exponent));
    }
 
    return uf11;
