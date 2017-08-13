@@ -485,7 +485,11 @@ _mesa_format_convert(void *void_dst, uint32_t dst_format, size_t dst_stride,
 
    assert(src_integer == dst_integer);
 
-   if (src_integer && dst_integer) {
+   /* do a simply memcpy if applicable */
+   if (dst_format == src_format && dst_stride == src_stride &&
+       !dst_format_is_mesa_array_format && !rebase_swizzle) {
+      memcpy(dst, src, src_stride * height);
+   } else if (src_integer && dst_integer) {
       tmp_uint = malloc(width * height * sizeof(*tmp_uint));
 
       /* The [un]packing functions for unsigned datatypes treat the 32-bit
