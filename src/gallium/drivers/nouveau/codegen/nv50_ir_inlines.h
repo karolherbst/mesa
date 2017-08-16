@@ -207,7 +207,14 @@ const LValue *ValueDef::preSSA() const
 
 Instruction *Value::getInsn() const
 {
-   return defs.empty() ? NULL : defs.front()->getInsn();
+   if (defs.empty())
+      return NULL;
+
+   for (DefCIterator it = defs.begin(); it != defs.end(); ++it)
+      if ((*it)->get() == this)
+         return (*it)->getInsn();
+
+   return NULL;
 }
 
 Instruction *Value::getUniqueInsn() const
@@ -217,9 +224,9 @@ Instruction *Value::getUniqueInsn() const
 
    // after regalloc, the definitions of coalesced values are linked
    if (join != this) {
-      for (DefCIterator it = defs.begin(); it != defs.end(); ++it)
-         if ((*it)->get() == this)
-            return (*it)->getInsn();
+      Instruction *i = getInsn();
+      if (i)
+         return i;
       // should be unreachable and trigger assertion at the end
    }
 #ifdef DEBUG
@@ -232,8 +239,11 @@ Instruction *Value::getUniqueInsn() const
          WARN("value %%%i not uniquely defined\n", id); // return NULL ?
    }
 #endif
-   assert(defs.front()->get() == this);
-   return defs.front()->getInsn();
+   Instruction *i = getInsn();
+   if (i)
+      return i;
+   assert(false);
+   return NULL;
 }
 
 inline bool Instruction::constrainedDefs() const

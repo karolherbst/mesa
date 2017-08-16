@@ -154,9 +154,9 @@ ValueDef::set(Value *defVal)
    if (value == defVal)
       return;
    if (value)
-      value->defs.remove(this);
+      value->defs.erase(this);
    if (defVal)
-      defVal->defs.push_back(this);
+      defVal->defs.insert(this);
 
    value = defVal;
 }

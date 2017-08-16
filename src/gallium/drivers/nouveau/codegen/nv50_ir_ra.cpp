@@ -942,7 +942,7 @@ GCRA::coalesceValues(Value *dst, Value *src, bool force)
    assert(rep->join == rep && val->join == rep);
 
    // add val's definitions to rep and extend the live interval of its RIG node
-   rep->defs.insert(rep->defs.end(), val->defs.begin(), val->defs.end());
+   rep->defs.insert(val->defs.begin(), val->defs.end());
    nRep->livei.unify(nVal->livei);
    return true;
 }
@@ -1534,7 +1534,7 @@ GCRA::cleanup(const bool success)
       } else {
          for (Value::DefIterator d = lval->defs.begin(); d != lval->defs.end();
               ++d)
-            lval->join->defs.remove(*d);
+            lval->join->defs.erase(*d);
          lval->join = lval;
       }
    }
@@ -1729,8 +1729,7 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
       // multiple destinations that all need to be spilled (like OP_SPLIT).
       unordered_set<Instruction *> to_del;
 
-      for (Value::DefIterator d = lval->defs.begin(); d != lval->defs.end();
-           ++d) {
+      for (Value::DefIterator d = lval->defs.begin(); d != lval->defs.end();) {
          Value *slot = mem ?
             static_cast<Value *>(mem) : new_LValue(func, FILE_GPR);
          Value *tmp = NULL;
@@ -1766,13 +1765,13 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
          assert(defi);
          if (defi->isPseudo()) {
             d = lval->defs.erase(d);
-            --d;
             if (slot->reg.file == FILE_MEMORY_LOCAL)
                to_del.insert(defi);
             else
                defi->setDef(0, slot);
          } else {
             spill(defi, slot, dval);
+            ++d;
          }
       }
 
@@ -2330,7 +2329,7 @@ RegAlloc::InsertConstraintsPass::insertConstraintMoves()
             }
             assert(cst->getSrc(s)->defs.size() == 1); // still SSA
 
-            Instruction *defi = cst->getSrc(s)->defs.front()->getInsn();
+            Instruction *defi = cst->getSrc(s)->getInsn();
             // catch some cases where don't really need MOVs
             if (cst->getSrc(s)->refCount() == 1 && !defi->constrainedDefs())
                continue;

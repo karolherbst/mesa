@@ -234,7 +234,7 @@ NV50LegalizePostRA::visit(Function *fn)
    if (outWrites) {
       for (std::list<Instruction *>::iterator it = outWrites->begin();
            it != outWrites->end(); ++it)
-         (*it)->getSrc(1)->defs.front()->getInsn()->setDef(0, (*it)->getSrc(0));
+         (*it)->getSrc(1)->getInsn()->setDef(0, (*it)->getSrc(0));
       // instructions will be deleted on exit
       outWrites->clear();
    }
@@ -365,7 +365,7 @@ NV50LegalizeSSA::propagateWriteToOutput(Instruction *st)
       return;
 
    // check def instruction can store
-   Instruction *di = st->getSrc(1)->defs.front()->getInsn();
+   Instruction *di = st->getSrc(1)->getInsn();
 
    // TODO: move exports (if beneficial) in common opt pass
    if (di->isPseudo() || isTextureOp(di->op) || di->defCount(0xff, true) > 1)

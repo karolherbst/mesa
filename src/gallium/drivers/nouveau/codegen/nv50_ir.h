@@ -671,11 +671,11 @@ public:
    static inline Value *get(Iterator&);
 
    unordered_set<ValueRef *> uses;
-   std::list<ValueDef *> defs;
+   unordered_set<ValueDef *> defs;
    typedef unordered_set<ValueRef *>::iterator UseIterator;
    typedef unordered_set<ValueRef *>::const_iterator UseCIterator;
-   typedef std::list<ValueDef *>::iterator DefIterator;
-   typedef std::list<ValueDef *>::const_iterator DefCIterator;
+   typedef unordered_set<ValueDef *>::iterator DefIterator;
+   typedef unordered_set<ValueDef *>::const_iterator DefCIterator;
 
    int id;
    Storage reg;
