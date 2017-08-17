@@ -106,7 +106,7 @@ nvc0_render_condition(struct pipe_context *pipe,
       mode != PIPE_RENDER_COND_NO_WAIT &&
       mode != PIPE_RENDER_COND_BY_REGION_NO_WAIT;
 
-   if (!pq) {
+   if (!pq || (!wait && pq && hq->state == 1)) {
       cond = NVC0_3D_COND_MODE_ALWAYS;
    }
    else {
