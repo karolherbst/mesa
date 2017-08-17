@@ -128,7 +128,7 @@ nvc0_render_condition(struct pipe_context *pipe,
             else
                cond = NVC0_3D_COND_MODE_RES_NON_ZERO;
          } else {
-            cond = wait ? NVC0_3D_COND_MODE_EQUAL : NVC0_3D_COND_MODE_ALWAYS;
+            cond = NVC0_3D_COND_MODE_EQUAL;
          }
          break;
       default:
