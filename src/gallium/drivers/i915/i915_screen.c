@@ -137,6 +137,7 @@ i915_get_shader_param(struct pipe_screen *screen,
       case PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH:
          return 0;
       case PIPE_SHADER_CAP_MAX_INPUTS:
+      case PIPE_SHADER_CAP_MAX_VARYINGS:
          return 10;
       case PIPE_SHADER_CAP_MAX_OUTPUTS:
          return 1;

@@ -549,6 +549,7 @@ fd_screen_get_shader_param(struct pipe_screen *pscreen,
 		return 8; /* XXX */
 	case PIPE_SHADER_CAP_MAX_INPUTS:
 	case PIPE_SHADER_CAP_MAX_OUTPUTS:
+	case PIPE_SHADER_CAP_MAX_VARYINGS:
 		return 16;
 	case PIPE_SHADER_CAP_MAX_TEMPS:
 		return 64; /* Max native temporaries. */

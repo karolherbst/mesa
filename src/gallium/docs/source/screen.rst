@@ -491,6 +491,7 @@ support different features.
 * ``PIPE_SHADER_CAP_MAX_TEX_INDIRECTIONS``: The maximum number of texture indirections.
 * ``PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH``: The maximum nested control flow depth.
 * ``PIPE_SHADER_CAP_MAX_INPUTS``: The maximum number of input registers.
+* ``PIPE_SHADER_CAP_MAX_VARYINGS``: The maximum number of varyings.
 * ``PIPE_SHADER_CAP_MAX_OUTPUTS``: The maximum number of output registers.
   This is valid for all shaders except the fragment shader.
 * ``PIPE_SHADER_CAP_MAX_CONST_BUFFER_SIZE``: The maximum size per constant buffer in bytes.

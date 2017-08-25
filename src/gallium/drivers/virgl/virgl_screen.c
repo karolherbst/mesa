@@ -355,6 +355,7 @@ virgl_get_shader_param(struct pipe_screen *screen,
       case PIPE_SHADER_CAP_INDIRECT_CONST_ADDR:
          return 1;
       case PIPE_SHADER_CAP_MAX_INPUTS:
+      case PIPE_SHADER_CAP_MAX_VARYINGS:
          if (vscreen->caps.caps.v1.glsl_level < 150)
             return vscreen->caps.caps.v2.max_vertex_attribs;
          return (shader == PIPE_SHADER_VERTEX ||

@@ -505,6 +505,7 @@ vgpu9_get_shader_param(struct pipe_screen *screen,
       case PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH:
          return SVGA3D_MAX_NESTING_LEVEL;
       case PIPE_SHADER_CAP_MAX_INPUTS:
+      case PIPE_SHADER_CAP_MAX_VARYINGS:
          return 10;
       case PIPE_SHADER_CAP_MAX_OUTPUTS:
          return svgascreen->max_color_buffers;
@@ -579,6 +580,7 @@ vgpu9_get_shader_param(struct pipe_screen *screen,
       case PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH:
          return SVGA3D_MAX_NESTING_LEVEL;
       case PIPE_SHADER_CAP_MAX_INPUTS:
+      case PIPE_SHADER_CAP_MAX_VARYINGS:
          return 16;
       case PIPE_SHADER_CAP_MAX_OUTPUTS:
          return 10;
@@ -678,6 +680,7 @@ vgpu10_get_shader_param(struct pipe_screen *screen,
    case PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH:
       return 64;
    case PIPE_SHADER_CAP_MAX_INPUTS:
+   case PIPE_SHADER_CAP_MAX_VARYINGS:
       if (shader == PIPE_SHADER_FRAGMENT)
          return VGPU10_MAX_FS_INPUTS;
       else if (shader == PIPE_SHADER_GEOMETRY)
