@@ -329,6 +329,7 @@ static int r300_get_shader_param(struct pipe_screen *pscreen,
             return is_r500 ? 64 : 0; /* Actually unlimited on r500. */
             /* Fragment shader limits. */
         case PIPE_SHADER_CAP_MAX_INPUTS:
+        case PIPE_SHADER_CAP_MAX_VARINGS:
             /* 2 colors + 8 texcoords are always supported
              * (minus fog and wpos).
              *
@@ -396,6 +397,7 @@ static int r300_get_shader_param(struct pipe_screen *pscreen,
             return is_r500 ? 1024 : 256;
         case PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH:
             return is_r500 ? 4 : 0; /* For loops; not sure about conditionals. */
+        case PIPE_SHADER_CAP_MAX_VARINGS:
         case PIPE_SHADER_CAP_MAX_INPUTS:
             return 16;
         case PIPE_SHADER_CAP_MAX_OUTPUTS:

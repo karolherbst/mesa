@@ -723,6 +723,7 @@ static int si_get_shader_param(struct pipe_screen* pscreen,
 	case PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH:
 		return 16384;
 	case PIPE_SHADER_CAP_MAX_INPUTS:
+	case PIPE_SHADER_CAP_MAX_VARYINGS:
 		return shader == PIPE_SHADER_VERTEX ? SI_MAX_ATTRIBS : 32;
 	case PIPE_SHADER_CAP_MAX_OUTPUTS:
 		return shader == PIPE_SHADER_FRAGMENT ? 8 : 32;
