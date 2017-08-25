@@ -370,6 +370,9 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 		/* only a4xx, requires new enough kernel so we know max_freq: */
 		return (screen->max_freq > 0) && (is_a4xx(screen) || is_a5xx(screen) || is_a6xx(screen));
 
+	case PIPE_CAP_MAX_VARYINGS:
+		return 16;
+
 	case PIPE_CAP_VENDOR_ID:
 		return 0x5143;
 	case PIPE_CAP_DEVICE_ID:

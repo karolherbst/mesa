@@ -145,6 +145,8 @@ nv50_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
       return (class_3d >= NVA3_3D_CLASS) ? 4 : 0;
    case PIPE_CAP_MAX_WINDOW_RECTANGLES:
       return NV50_MAX_WINDOW_RECTANGLES;
+   case PIPE_CAP_MAX_VARYINGS:
+      return 15;
 
    /* supported caps */
    case PIPE_CAP_TEXTURE_MIRROR_CLAMP:

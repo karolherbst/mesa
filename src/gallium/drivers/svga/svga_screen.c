@@ -342,6 +342,9 @@ svga_get_param(struct pipe_screen *screen, enum pipe_cap param)
    case PIPE_CAP_QUADS_FOLLOW_PROVOKING_VERTEX_CONVENTION:
       return 1;
 
+   case PIPE_CAP_MAX_VARYINGS:
+      return sws->have_vgpu10 ? VGPU10_MAX_FS_INPUTS : 10;
+
    /* Unsupported features */
    case PIPE_CAP_TEXTURE_MIRROR_CLAMP:
    case PIPE_CAP_TEXTURE_MIRROR_CLAMP_TO_EDGE:
