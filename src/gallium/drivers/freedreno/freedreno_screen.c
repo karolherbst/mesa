@@ -463,6 +463,9 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 	case PIPE_CAP_MIN_MAP_BUFFER_ALIGNMENT:
 		return 64;
 
+	case PIPE_CAP_MAX_VARYINGS:
+		return 16;
+
 	case PIPE_CAP_VENDOR_ID:
 		return 0x5143;
 	case PIPE_CAP_DEVICE_ID:
