@@ -776,9 +776,8 @@ private:
    void simplifyEdge(RIG_Node *, RIG_Node *);
    void simplifyNode(RIG_Node *);
 
-   bool coalesceValues(Value *, Value *, bool force);
+   bool coalesceValues(Value *, Value *, bool force, bool extend = true);
    void resolveSplitsAndMerges();
-   void makeCompound(Instruction *, bool isSplit);
 
    inline void checkInterference(const RIG_Node *, Graph::EdgeIterator&);
 
@@ -892,7 +891,7 @@ GCRA::RIG_Node::init(const RegisterSet& regs, LValue *lval)
 }
 
 bool
-GCRA::coalesceValues(Value *dst, Value *src, bool force)
+GCRA::coalesceValues(Value *dst, Value *src, bool force, bool extend)
 {
    LValue *rep = dst->join->asLValue();
    LValue *val = src->join->asLValue();
@@ -937,14 +936,17 @@ GCRA::coalesceValues(Value *dst, Value *src, bool force)
             rep->id, rep->reg.data.id, val->id);
 
    // set join pointer of all values joined with val
-   for (Value::DefIterator def = val->defs.begin(); def != val->defs.end();
-        ++def)
-      (*def)->get()->join = rep;
-   assert(rep->join == rep && val->join == rep);
+   if (extend) {
+      for (Value::DefIterator def = val->defs.begin(); def != val->defs.end();
+           ++def)
+         (*def)->get()->join = rep;
+      assert(rep->join == rep && val->join == rep);
+   }
 
    // add val's definitions to rep and extend the live interval of its RIG node
    rep->defs.insert(rep->defs.end(), val->defs.begin(), val->defs.end());
-   nRep->livei.unify(nVal->livei);
+   if (extend)
+      nRep->livei.unify(nVal->livei);
    return true;
 }
 
@@ -979,25 +981,6 @@ GCRA::coalesce(ArrayList& insns)
    return doCoalesce(insns, JOIN_MASK_MOV);
 }
 
-static inline uint8_t makeCompMask(int compSize, int base, int size)
-{
-   uint8_t m = ((1 << size) - 1) << base;
-
-   switch (compSize) {
-   case 1:
-      return 0xff;
-   case 2:
-      m |= (m << 2);
-      return (m << 4) | m;
-   case 3:
-   case 4:
-      return (m << 4) | m;
-   default:
-      assert(compSize <= 8);
-      return m;
-   }
-}
-
 // Used when coalescing moves. The non-compound value will become one, e.g.:
 // mov b32 $r0 $r2            / merge b64 $r0d { $r0 $r1 }
 // split b64 { $r0 $r1 } $r0d / mov b64 $r0d f64 $r2d
@@ -1014,40 +997,6 @@ static inline void copyCompound(Value *dst, Value *src)
 
    ldst->compound = lsrc->compound;
    ldst->compMask = lsrc->compMask;
-}
-
-void
-GCRA::makeCompound(Instruction *insn, bool split)
-{
-   LValue *rep = (split ? insn->getSrc(0) : insn->getDef(0))->asLValue();
-
-   if (prog->dbgFlags & NV50_IR_DEBUG_REG_ALLOC) {
-      INFO("makeCompound(split = %i): ", split);
-      insn->print();
-   }
-
-   const unsigned int size = getNode(rep)->colors;
-   unsigned int base = 0;
-
-   if (!rep->compound)
-      rep->compMask = 0xff;
-   rep->compound = 1;
-
-   for (int c = 0; split ? insn->defExists(c) : insn->srcExists(c); ++c) {
-      LValue *val = (split ? insn->getDef(c) : insn->getSrc(c))->asLValue();
-
-      val->compound = 1;
-      if (!val->compMask)
-         val->compMask = 0xff;
-      val->compMask &= makeCompMask(size, base, getNode(val)->colors);
-      assert(val->compMask);
-
-      INFO_DBG(prog->dbgFlags, REG_ALLOC, "compound: %%%i:%02x <- %%%i:%02x\n",
-           rep->id, rep->compMask, val->id, val->compMask);
-
-      base += getNode(val)->colors;
-   }
-   assert(base == size);
 }
 
 bool
@@ -1075,11 +1024,9 @@ GCRA::doCoalesce(ArrayList& insns, unsigned int mask)
          if (!(mask & JOIN_MASK_UNION))
             break;
          for (c = 0; insn->srcExists(c); ++c)
-            coalesceValues(insn->getDef(0), insn->getSrc(c), true);
+            coalesceValues(insn->getDef(0), insn->getSrc(c), true, false);
          if (insn->op == OP_MERGE) {
             merges.push_back(insn);
-            if (insn->srcExists(1))
-               makeCompound(insn, false);
          }
          break;
       case OP_SPLIT:
@@ -1087,8 +1034,7 @@ GCRA::doCoalesce(ArrayList& insns, unsigned int mask)
             break;
          splits.push_back(insn);
          for (c = 0; insn->defExists(c); ++c)
-            coalesceValues(insn->getSrc(0), insn->getDef(c), true);
-         makeCompound(insn, true);
+            coalesceValues(insn->getSrc(0), insn->getDef(c), true, false);
          break;
       case OP_MOV:
          if (!(mask & JOIN_MASK_MOV))
@@ -1212,6 +1158,9 @@ GCRA::buildRIG(ArrayList& insns)
    while (!values.empty()) {
       RIG_Node *cur = values.front();
 
+      INFO_DBG(prog->dbgFlags, REG_ALLOC, "checking node with range %i/%i\n",
+               cur->livei.begin(), cur->livei.end());
+
       for (std::list<RIG_Node *>::iterator it = active.begin();
            it != active.end();) {
          RIG_Node *node = *it;
@@ -1329,6 +1278,11 @@ GCRA::simplify()
          }
          if (isinf(bestScore)) {
             ERROR("no viable spill candidates left\n");
+            RIG_Node *it = hi.next;
+            do {
+               ERROR("Node: %u\n", it->getValue()->id);
+               it = it->next;
+            } while (it != &hi);
             return false;
          }
          simplifyNode(best);
@@ -1753,7 +1707,7 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
             ValueRef *u = *it;
             Instruction *usei = u->getInsn();
             assert(usei);
-            if (usei->isPseudo()) {
+            if (usei->isPseudo() && usei->op != OP_MERGE) {
                tmp = (slot->reg.file == FILE_MEMORY_LOCAL) ? NULL : slot;
                last = NULL;
             } else {
@@ -1765,7 +1719,7 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
          }
 
          assert(defi);
-         if (defi->isPseudo()) {
+         if (defi->isPseudo() && defi->op != OP_SPLIT) {
             d = lval->defs.erase(d);
             --d;
             if (slot->reg.file == FILE_MEMORY_LOCAL)
@@ -1838,7 +1792,7 @@ RegAlloc::execFunc()
       goto out;
 
    // TODO: need to fix up spill slot usage ranges to support > 1 retry
-   for (retries = 0; retries < 3; ++retries) {
+   for (retries = 0; retries < 10; ++retries) {
       if (retries && (prog->dbgFlags & NV50_IR_DEBUG_REG_ALLOC))
          INFO("Retry: %i\n", retries);
       if (prog->dbgFlags & NV50_IR_DEBUG_REG_ALLOC)
