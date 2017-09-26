@@ -241,7 +241,7 @@ void TargetNVC0::initOpInfo()
 unsigned int
 TargetNVC0::getFileSize(DataFile file) const
 {
-   const unsigned int gprs = (chipset >= NVISA_GK20A_CHIPSET) ? 255 : 63;
+   const unsigned int gprs = (chipset >= NVISA_GK20A_CHIPSET) ? 255 : 7;
    const unsigned int smregs = (chipset >= NVISA_GK104_CHIPSET) ? 65536 : 32768;
    switch (file) {
    case FILE_NULL:          return 0;
