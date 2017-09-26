@@ -824,11 +824,12 @@ GCRA::printNodeInfo() const
    for (unsigned int i = 0; i < nodeCount; ++i) {
       if (!nodes[i].colors)
          continue;
-      INFO("RIG_Node[%%%i]($[%u]%i): %u colors, weight %f, deg %u/%u\n X",
+      INFO("RIG_Node[%%%i]($[%u]%i): %u colors, weight %f, deg %u/%u, range %i/%i\n X",
            i,
            nodes[i].f,nodes[i].reg,nodes[i].colors,
            nodes[i].weight,
-           nodes[i].degree, nodes[i].degreeLimit);
+           nodes[i].degree, nodes[i].degreeLimit,
+           nodes[i].livei.begin(), nodes[i].livei.end());
 
       for (Graph::EdgeIterator ei = nodes[i].outgoing(); !ei.end(); ei.next())
          INFO(" %%%i", RIG_Node::get(ei)->getValue()->id);
