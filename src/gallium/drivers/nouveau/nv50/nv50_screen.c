@@ -27,6 +27,7 @@
 #include "util/u_format_s3tc.h"
 #include "util/u_screen.h"
 #include "pipe/p_screen.h"
+#include "compiler/nir/nir.h"
 
 #include "nv50/nv50_context.h"
 #include "nv50/nv50_screen.h"
@@ -855,6 +856,42 @@ int nv50_tls_realloc(struct nv50_screen *screen, unsigned tls_space)
    return 1;
 }
 
+static const nir_shader_compiler_options nir_options = {
+   .fuse_ffma = false, /* nir doesn't track mad vs fma */
+   .lower_flrp32 = true,
+   .lower_flrp64 = true,
+   .lower_fpow = true,
+   .lower_fmod64 = true,
+   .lower_uadd_carry = true,
+   .lower_usub_borrow = true,
+   .lower_ffract = true,
+   .lower_pack_half_2x16 = true,
+   .lower_pack_unorm_2x16 = true,
+   .lower_pack_snorm_2x16 = true,
+   .lower_pack_unorm_4x8 = true,
+   .lower_pack_snorm_4x8 = true,
+   .lower_unpack_half_2x16 = true,
+   .lower_unpack_unorm_2x16 = true,
+   .lower_unpack_snorm_2x16 = true,
+   .lower_unpack_unorm_4x8 = true,
+   .lower_unpack_snorm_4x8 = true,
+   .lower_extract_byte = true,
+   .lower_extract_word = true,
+   .lower_all_io_to_temps = false,
+   .native_integers = true,
+   .lower_cs_local_index_from_id = true,
+   .use_interpolated_input_intrinsics = true,
+   .max_unroll_iterations = 32,
+};
+
+static const void *
+nv50_screen_get_compiler_options(struct pipe_screen *pscreen,
+                                 enum pipe_shader_ir ir,
+                                 enum pipe_shader_type shader)
+{
+        return &nir_options;
+}
+
 struct nouveau_screen *
 nv50_screen_create(struct nouveau_device *dev)
 {
@@ -899,6 +936,9 @@ nv50_screen_create(struct nouveau_device *dev)
    pscreen->get_compute_param = nv50_screen_get_compute_param;
    pscreen->get_driver_query_info = nv50_screen_get_driver_query_info;
    pscreen->get_driver_query_group_info = nv50_screen_get_driver_query_group_info;
+
+   /* nir stuff */
+   pscreen->get_compiler_options = nv50_screen_get_compiler_options;
 
    nv50_screen_init_resource_functions(pscreen);
 

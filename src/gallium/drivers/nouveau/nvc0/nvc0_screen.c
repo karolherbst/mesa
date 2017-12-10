@@ -27,6 +27,7 @@
 #include "util/u_format_s3tc.h"
 #include "util/u_screen.h"
 #include "pipe/p_screen.h"
+#include "compiler/nir/nir.h"
 
 #include "nouveau_vp3_video.h"
 
@@ -374,7 +375,8 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
    case PIPE_SHADER_CAP_PREFERRED_IR:
       return PIPE_SHADER_IR_TGSI;
    case PIPE_SHADER_CAP_SUPPORTED_IRS:
-      return 1 << PIPE_SHADER_IR_TGSI;
+      return 1 << PIPE_SHADER_IR_TGSI |
+             1 << PIPE_SHADER_IR_NIR;
    case PIPE_SHADER_CAP_MAX_INSTRUCTIONS:
    case PIPE_SHADER_CAP_MAX_ALU_INSTRUCTIONS:
    case PIPE_SHADER_CAP_MAX_TEX_INSTRUCTIONS:
@@ -868,6 +870,42 @@ nvc0_screen_bind_cb_3d(struct nvc0_screen *screen, bool *can_serialize,
    IMMED_NVC0(push, NVC0_3D(CB_BIND(stage)), (index << 4) | (size >= 0));
 }
 
+static const nir_shader_compiler_options nir_options = {
+   .fuse_ffma = false, /* nir doesn't track mad vs fma */
+   .lower_flrp32 = true,
+   .lower_flrp64 = true,
+   .lower_fpow = true,
+   .lower_fmod64 = true,
+   .lower_uadd_carry = true,
+   .lower_usub_borrow = true,
+   .lower_ffract = true,
+   .lower_pack_half_2x16 = true,
+   .lower_pack_unorm_2x16 = true,
+   .lower_pack_snorm_2x16 = true,
+   .lower_pack_unorm_4x8 = true,
+   .lower_pack_snorm_4x8 = true,
+   .lower_unpack_half_2x16 = true,
+   .lower_unpack_unorm_2x16 = true,
+   .lower_unpack_snorm_2x16 = true,
+   .lower_unpack_unorm_4x8 = true,
+   .lower_unpack_snorm_4x8 = true,
+   .lower_extract_byte = true,
+   .lower_extract_word = true,
+   .lower_all_io_to_temps = false,
+   .native_integers = true,
+   .lower_cs_local_index_from_id = true,
+   .use_interpolated_input_intrinsics = true,
+   .max_unroll_iterations = 32,
+};
+
+static const void *
+nvc0_screen_get_compiler_options(struct pipe_screen *pscreen,
+                                 enum pipe_shader_ir ir,
+                                 enum pipe_shader_type shader)
+{
+        return &nir_options;
+}
+
 #define FAIL_SCREEN_INIT(str, err)                    \
    do {                                               \
       NOUVEAU_ERR(str, err);                          \
@@ -935,6 +973,8 @@ nvc0_screen_create(struct nouveau_device *dev)
    pscreen->get_sample_pixel_grid = nvc0_screen_get_sample_pixel_grid;
    pscreen->get_driver_query_info = nvc0_screen_get_driver_query_info;
    pscreen->get_driver_query_group_info = nvc0_screen_get_driver_query_group_info;
+   /* nir stuff */
+   pscreen->get_compiler_options = nvc0_screen_get_compiler_options;
 
    nvc0_screen_init_resource_functions(pscreen);
 
