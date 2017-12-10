@@ -176,8 +176,13 @@ nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
    union nouveau_bo_config mm_config;
 
    char *nv_dbg = getenv("NOUVEAU_MESA_DEBUG");
+   char *use_nir = getenv("NV50_PROG_USE_NIR");
+
    if (nv_dbg)
       nouveau_mesa_debug = atoi(nv_dbg);
+
+   if (use_nir)
+      screen->prefer_nir = strtol(use_nir, NULL, 0) == 1;
 
    /* These must be set before any failure is possible, as the cleanup
     * paths assume they're responsible for deleting them.

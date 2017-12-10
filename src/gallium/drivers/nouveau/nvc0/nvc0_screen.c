@@ -107,7 +107,8 @@ static int
 nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 {
    const uint16_t class_3d = nouveau_screen(pscreen)->class_3d;
-   struct nouveau_device *dev = nouveau_screen(pscreen)->device;
+   const struct nouveau_screen *screen = nouveau_screen(pscreen);
+   struct nouveau_device *dev = screen->device;
 
    switch (param) {
    /* non-boolean caps */
@@ -223,7 +224,6 @@ nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_USER_VERTEX_BUFFERS:
    case PIPE_CAP_TEXTURE_QUERY_LOD:
    case PIPE_CAP_SAMPLE_SHADING:
-   case PIPE_CAP_TEXTURE_GATHER_OFFSETS:
    case PIPE_CAP_TEXTURE_GATHER_SM5:
    case PIPE_CAP_TGSI_FS_FINE_DERIVATIVE:
    case PIPE_CAP_CONDITIONAL_RENDER_INVERTED:
@@ -264,6 +264,9 @@ nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_ALLOW_MAPPED_BUFFERS_DURING_EXECUTION:
    case PIPE_CAP_QUERY_SO_OVERFLOW:
       return 1;
+   case PIPE_CAP_TEXTURE_GATHER_OFFSETS:
+      /* TODO: nir doesn't support tg4 with multiple offsets */
+      return screen->prefer_nir ? 0 : 1;
    case PIPE_CAP_PREFER_BLIT_BASED_TEXTURE_TRANSFER:
       return nouveau_screen(pscreen)->vram_domain & NOUVEAU_BO_VRAM ? 1 : 0;
    case PIPE_CAP_TGSI_FS_FBFETCH:
@@ -285,8 +288,9 @@ nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
       return class_3d >= GP100_3D_CLASS;
    case PIPE_CAP_SEAMLESS_CUBE_MAP_PER_TEXTURE:
    case PIPE_CAP_TGSI_BALLOT:
-   case PIPE_CAP_BINDLESS_TEXTURE:
       return class_3d >= NVE4_3D_CLASS;
+   case PIPE_CAP_BINDLESS_TEXTURE:
+      return class_3d >= NVE4_3D_CLASS && !screen->prefer_nir;
 
    /* unsupported caps */
    case PIPE_CAP_TGSI_FS_COORD_ORIGIN_LOWER_LEFT:
@@ -357,7 +361,8 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
                              enum pipe_shader_type shader,
                              enum pipe_shader_cap param)
 {
-   const uint16_t class_3d = nouveau_screen(pscreen)->class_3d;
+   const struct nouveau_screen *screen = nouveau_screen(pscreen);
+   const uint16_t class_3d = screen->class_3d;
 
    switch (shader) {
    case PIPE_SHADER_VERTEX:
@@ -373,7 +378,7 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
 
    switch (param) {
    case PIPE_SHADER_CAP_PREFERRED_IR:
-      return PIPE_SHADER_IR_TGSI;
+      return screen->prefer_nir ? PIPE_SHADER_IR_NIR : PIPE_SHADER_IR_TGSI;
    case PIPE_SHADER_CAP_SUPPORTED_IRS:
       return 1 << PIPE_SHADER_IR_TGSI |
              1 << PIPE_SHADER_IR_NIR;

@@ -329,6 +329,8 @@ nv50_screen_get_shader_param(struct pipe_screen *pscreen,
                              enum pipe_shader_type shader,
                              enum pipe_shader_cap param)
 {
+   const struct nouveau_screen *screen = nouveau_screen(pscreen);
+
    switch (shader) {
    case PIPE_SHADER_VERTEX:
    case PIPE_SHADER_GEOMETRY:
@@ -382,7 +384,7 @@ nv50_screen_get_shader_param(struct pipe_screen *pscreen,
    case PIPE_SHADER_CAP_MAX_SAMPLER_VIEWS:
       return MIN2(16, PIPE_MAX_SAMPLERS);
    case PIPE_SHADER_CAP_PREFERRED_IR:
-      return PIPE_SHADER_IR_TGSI;
+      return screen->prefer_nir ? PIPE_SHADER_IR_NIR : PIPE_SHADER_IR_TGSI;
    case PIPE_SHADER_CAP_MAX_UNROLL_ITERATIONS_HINT:
       return 32;
    case PIPE_SHADER_CAP_TGSI_DROUND_SUPPORTED:
