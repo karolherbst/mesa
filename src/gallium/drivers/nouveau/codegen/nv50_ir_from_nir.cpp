@@ -141,6 +141,7 @@ private:
    bool visit(nir_jump_instr *);
    bool visit(nir_load_const_instr*);
    bool visit(nir_loop *);
+   bool visit(nir_ssa_undef_instr *);
 
    nir_shader *nir;
 
@@ -1458,6 +1459,8 @@ Converter::visit(nir_instr *insn)
       return visit(nir_instr_as_jump(insn));
    case nir_instr_type_load_const:
       return visit(nir_instr_as_load_const(insn));
+   case nir_instr_type_ssa_undef:
+      return visit(nir_instr_as_ssa_undef(insn));
    default:
       ERROR("unknown nir_instr type %u\n", insn->type);
       return false;
@@ -2169,6 +2172,16 @@ Converter::visit(nir_alu_instr *insn)
    return true;
 }
 #undef DEFAULT_CHECKS
+
+bool
+Converter::visit(nir_ssa_undef_instr *insn)
+{
+   LValues &newDefs = convert(&insn->def);
+   for (uint8_t i = 0u; i < insn->def.num_components; ++i) {
+      mkOp(OP_NOP, TYPE_NONE, newDefs[i]);
+   }
+   return true;
+}
 
 bool
 Converter::run()
