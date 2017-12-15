@@ -96,6 +96,7 @@ private:
    DataType getSType(nir_src&, bool isFloat, bool isSigned);
 
    bool assignSlots();
+   bool parseNIR();
 
    nir_shader *nir;
 
@@ -997,6 +998,60 @@ Converter::storeTo(nir_intrinsic_instr *insn, DataFile file, operation op,
 }
 
 bool
+Converter::parseNIR()
+{
+   info->io.clipDistances = nir->info.clip_distance_array_size;
+   info->io.cullDistances = nir->info.cull_distance_array_size;
+
+   switch(prog->getType()) {
+   case Program::TYPE_COMPUTE:
+      info->prop.cp.numThreads[0] = nir->info.cs.local_size[0];
+      info->prop.cp.numThreads[1] = nir->info.cs.local_size[1];
+      info->prop.cp.numThreads[2] = nir->info.cs.local_size[2];
+      info->bin.smemSize = nir->info.cs.shared_size;
+      break;
+   case Program::TYPE_FRAGMENT:
+      info->prop.fp.earlyFragTests = nir->info.fs.early_fragment_tests;
+      info->prop.fp.persampleInvocation =
+         (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_ID) ||
+         (nir->info.system_values_read & SYSTEM_BIT_SAMPLE_POS);
+      info->prop.fp.postDepthCoverage = nir->info.fs.post_depth_coverage;
+      info->prop.fp.usesDiscard = nir->info.fs.uses_discard;
+      info->prop.fp.usesSampleMaskIn =
+         !!(nir->info.system_values_read & SYSTEM_BIT_SAMPLE_MASK_IN);
+      break;
+   case Program::TYPE_GEOMETRY:
+      info->prop.gp.inputPrim = nir->info.gs.input_primitive;
+      info->prop.gp.instanceCount = nir->info.gs.invocations;
+      info->prop.gp.maxVertices = nir->info.gs.vertices_out;
+      info->prop.gp.outputPrim = nir->info.gs.output_primitive;
+      break;
+   case Program::TYPE_TESSELLATION_CONTROL:
+   case Program::TYPE_TESSELLATION_EVAL:
+      if (nir->info.tess.primitive_mode == GL_ISOLINES)
+         info->prop.tp.domain = GL_LINES;
+      else
+         info->prop.tp.domain = nir->info.tess.primitive_mode;
+      info->prop.tp.outputPatchSize = nir->info.tess.tcs_vertices_out;
+      info->prop.tp.outputPrim =
+         nir->info.tess.point_mode ? PIPE_PRIM_POINTS : PIPE_PRIM_TRIANGLES;
+      info->prop.tp.partitioning = (nir->info.tess.spacing + 1) % 3;
+      info->prop.tp.winding = !nir->info.tess.ccw;
+      break;
+   case Program::TYPE_VERTEX:
+      info->prop.vp.usesDrawParameters =
+         (nir->info.system_values_read & BITFIELD64_BIT(SYSTEM_VALUE_BASE_VERTEX)) ||
+         (nir->info.system_values_read & BITFIELD64_BIT(SYSTEM_VALUE_BASE_INSTANCE)) ||
+         (nir->info.system_values_read & BITFIELD64_BIT(SYSTEM_VALUE_DRAW_ID));
+      break;
+   default:
+      break;
+   }
+
+   return true;
+}
+
+bool
 Converter::run()
 {
    bool progress;
@@ -1028,6 +1083,11 @@ Converter::run()
 
    /* Garbage collect dead instructions */
    nir_sweep(nir);
+
+   if (!parseNIR()) {
+      ERROR("Couldn't prase NIR!\n");
+      return false;
+   }
 
    if (!assignSlots()) {
       ERROR("Couldn't assign slots!\n");
