@@ -53,6 +53,7 @@ public:
 private:
    typedef std::vector<LValue*> LValues;
    typedef decltype(nir_ssa_def().index) NirSSADefIdx;
+   typedef decltype(nir_ssa_def().bit_size) NirSSADefBitSize;
    typedef std::unordered_map<NirSSADefIdx, LValues> NirDefMap;
 
    LValues& convert(nir_alu_dest *);
@@ -68,6 +69,18 @@ private:
    uint32_t getIndirect(nir_src *, uint8_t, Value*&);
    uint32_t getIndirect(nir_intrinsic_instr *, uint8_t s, uint8_t c, Value*&);
 
+   bool isFloatType(nir_alu_type);
+   bool isSignedType(nir_alu_type);
+   bool isResultFloat(nir_op);
+   bool isResultSigned(nir_op);
+
+   DataType getDType(nir_alu_instr*);
+   DataType getDType(nir_intrinsic_instr*);
+   DataType getDType(nir_op, NirSSADefBitSize);
+
+   std::vector<DataType> getSTypes(nir_alu_instr*);
+   DataType getSType(nir_src&, bool isFloat, bool isSigned);
+
    nir_shader *nir;
 
    NirDefMap ssaDefs;
@@ -77,6 +90,109 @@ private:
 Converter::Converter(Program *prog, nir_shader *nir, nv50_ir_prog_info *info)
    : ConverterCommon(prog, info),
      nir(nir) {}
+
+bool
+Converter::isFloatType(nir_alu_type type)
+{
+   return nir_alu_type_get_base_type(type) == nir_type_float;
+}
+
+bool
+Converter::isSignedType(nir_alu_type type)
+{
+   return nir_alu_type_get_base_type(type) == nir_type_int;
+}
+
+bool
+Converter::isResultFloat(nir_op op)
+{
+   const nir_op_info &info = nir_op_infos[op];
+   if (info.output_type != nir_type_invalid)
+      return isFloatType(info.output_type);
+
+   ERROR("isResultFloat not implemented for %s\n", nir_op_infos[op].name);
+   assert(false);
+   return true;
+}
+
+bool
+Converter::isResultSigned(nir_op op)
+{
+   switch (op) {
+   /* there is no umul and we get wrong results if the treat all muls as signed */
+   case nir_op_imul:
+   case nir_op_inot:
+      return false;
+   default:
+      const nir_op_info &info = nir_op_infos[op];
+      if (info.output_type != nir_type_invalid)
+         return isSignedType(info.output_type);
+      ERROR("isResultSigned not implemented for %s\n", nir_op_infos[op].name);
+      assert(false);
+      return true;
+   }
+}
+
+DataType
+Converter::getDType(nir_alu_instr *insn)
+{
+   if (insn->dest.dest.is_ssa)
+      return getDType(insn->op, insn->dest.dest.ssa.bit_size);
+   else
+      return getDType(insn->op, insn->dest.dest.reg.reg->bit_size);
+}
+
+DataType
+Converter::getDType(nir_intrinsic_instr *insn)
+{
+   if (insn->dest.is_ssa)
+      return typeOfSize(insn->dest.ssa.bit_size / 8, false, false);
+   else
+      return typeOfSize(insn->dest.reg.reg->bit_size / 8, false, false);
+}
+
+DataType
+Converter::getDType(nir_op op, Converter::NirSSADefBitSize bitSize)
+{
+   DataType ty = typeOfSize(bitSize / 8, isResultFloat(op), isResultSigned(op));
+   if (ty == TYPE_NONE) {
+      ERROR("couldn't get Type for op %s with bitSize %u\n", nir_op_infos[op].name, bitSize);
+      assert(false);
+   }
+   return ty;
+}
+
+std::vector<DataType>
+Converter::getSTypes(nir_alu_instr *insn)
+{
+   const nir_op_info &info = nir_op_infos[insn->op];
+   std::vector<DataType> res(info.num_inputs);
+
+   for (auto i = 0u; i < info.num_inputs; ++i) {
+      if (info.input_types[i] != nir_type_invalid) {
+         res[i] = getSType(insn->src[i].src, isFloatType(info.input_types[i]), isSignedType(info.input_types[i]));
+      } else {
+         ERROR("getSType not implemented for %s idx %u\n", info.name, i);
+         assert(false);
+         res[i] = TYPE_NONE;
+         break;
+      }
+   }
+
+   return res;
+}
+
+DataType
+Converter::getSType(nir_src &src, bool isFloat, bool isSigned)
+{
+   NirSSADefBitSize bitSize;
+   if (src.is_ssa)
+      bitSize = src.ssa->bit_size;
+   else
+      bitSize = src.reg.reg->bit_size;
+
+   return typeOfSize(bitSize / 8, isFloat, isSigned);
+}
 
 Converter::LValues&
 Converter::convert(nir_dest *dest)
