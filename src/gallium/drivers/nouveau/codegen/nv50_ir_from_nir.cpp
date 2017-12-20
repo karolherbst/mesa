@@ -444,6 +444,12 @@ int
 Converter::getSubOp(nir_intrinsic_op op)
 {
    switch (op) {
+   case nir_intrinsic_vote_all:
+      return NV50_IR_SUBOP_VOTE_ALL;
+   case nir_intrinsic_vote_any:
+      return NV50_IR_SUBOP_VOTE_ANY;
+   case nir_intrinsic_vote_ieq:
+      return NV50_IR_SUBOP_VOTE_UNI;
    default:
       return 0;
    }
@@ -1854,6 +1860,42 @@ Converter::visit(nir_intrinsic_instr *insn)
    case nir_intrinsic_load_subgroup_size: {
       LValues &newDefs = convert(&insn->dest);
       loadImm(newDefs[0], 32u);
+      break;
+   }
+   case nir_intrinsic_vote_all:
+   case nir_intrinsic_vote_any:
+   case nir_intrinsic_vote_ieq: {
+      LValues &newDefs = convert(&insn->dest);
+      Value *pred = new_LValue(func, FILE_PREDICATE);
+      mkCmp(OP_SET, CC_NE, TYPE_U32, pred, TYPE_U32, getSrc(&insn->src[0], 0), zero);
+      mkOp1(OP_VOTE, TYPE_U32, pred, pred)->subOp = getSubOp(op);
+      mkCvt(OP_CVT, TYPE_U32, newDefs[0], TYPE_U8, pred);
+      break;
+   }
+   case nir_intrinsic_ballot: {
+      LValues &newDefs = convert(&insn->dest);
+      Value *pred = new_LValue(func, FILE_PREDICATE);
+      mkCmp(OP_SET, CC_NE, TYPE_U32, pred, TYPE_U32, getSrc(&insn->src[0], 0), zero);
+      Instruction *ballot = mkOp1(OP_VOTE, TYPE_U32, getSSA(), pred);
+      ballot->subOp = NV50_IR_SUBOP_VOTE_ANY;
+      mkOp2(OP_MERGE, TYPE_U64, newDefs[0], ballot->getDef(0), loadImm(getSSA(), 0));
+      break;
+   }
+   case nir_intrinsic_read_first_invocation:
+   case nir_intrinsic_read_invocation: {
+      LValues &newDefs = convert(&insn->dest);
+      const DataType dType = getDType(insn);
+      Value *tmp = getScratch();
+
+      if (op == nir_intrinsic_read_first_invocation) {
+         mkOp1(OP_VOTE, TYPE_U32, tmp, mkImm(1))->subOp = NV50_IR_SUBOP_VOTE_ANY;
+         mkOp2(OP_EXTBF, TYPE_U32, tmp, tmp, mkImm(0x2000))->subOp = NV50_IR_SUBOP_EXTBF_REV;
+         mkOp1(OP_BFIND, TYPE_U32, tmp, tmp)->subOp = NV50_IR_SUBOP_BFIND_SAMT;
+      } else
+         tmp = getSrc(&insn->src[1], 0);
+
+      mkOp3(OP_SHFL, dType, newDefs[0], getSrc(&insn->src[0], 0), tmp, mkImm(0x1f))
+         ->subOp = NV50_IR_SUBOP_SHFL_IDX;
       break;
    }
    default:
