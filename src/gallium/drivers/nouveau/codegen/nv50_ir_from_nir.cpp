@@ -116,10 +116,12 @@ private:
    std::vector<DataType> getSTypes(nir_alu_instr *);
    DataType getSType(nir_src &, bool isFloat, bool isSigned);
 
+   operation getOperation(nir_intrinsic_op);
    operation getOperation(nir_op);
    operation getOperation(nir_texop);
    operation preOperationNeeded(nir_op);
 
+   int getSubOp(nir_intrinsic_op);
    int getSubOp(nir_op);
 
    CondCode getCondCode(nir_op);
@@ -453,6 +455,17 @@ Converter::getOperation(nir_texop op)
 }
 
 operation
+Converter::getOperation(nir_intrinsic_op op)
+{
+   switch (op) {
+   default:
+      ERROR("couldn't get operation for nir_intrinsic_op %u\n", op);
+      assert(false);
+      return OP_NOP;
+   }
+}
+
+operation
 Converter::preOperationNeeded(nir_op op)
 {
    switch (op) {
@@ -471,6 +484,15 @@ Converter::getSubOp(nir_op op)
    case nir_op_imul_high:
    case nir_op_umul_high:
       return NV50_IR_SUBOP_MUL_HIGH;
+   default:
+      return 0;
+   }
+}
+
+int
+Converter::getSubOp(nir_intrinsic_op op)
+{
+   switch (op) {
    default:
       return 0;
    }
