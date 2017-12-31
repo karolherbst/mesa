@@ -163,6 +163,7 @@ namespace {
       proc(S &s, QT &x) {
          _proc(s, x.id);
          _proc(s, x.type);
+         _proc(s, x.flags);
          _proc(s, x.size);
          _proc(s, x.data);
       }
