@@ -326,7 +326,7 @@ clGetDeviceInfo(cl_device_id d_dev, cl_device_info param,
 #ifdef MESA_GIT_SHA1
                         " (" MESA_GIT_SHA1 ")"
 #endif
-			;
+                        ;
       break;
 
    case CL_DEVICE_EXTENSIONS:
