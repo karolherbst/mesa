@@ -107,6 +107,8 @@ clover::GetExtensionFunctionAddress(const char *p_name) {
 
    if (name == "clIcdGetPlatformIDsKHR")
       return reinterpret_cast<void *>(IcdGetPlatformIDsKHR);
+   else if (name == "clCreateProgramWithILKHR")
+      return reinterpret_cast<void *>(CreateProgramWithILKHR);
    else
       return NULL;
 }
