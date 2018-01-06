@@ -2069,6 +2069,29 @@ Converter::visit(nir_intrinsic_instr *insn)
       }
       break;
    }
+   case nir_intrinsic_load_per_vertex_output: {
+      const DataType dType = getDType(insn);
+      LValues &newDefs = convert(&insn->dest);
+      Value *indirectVertex;
+      Value *indirectOffset;
+      auto baseVertex = getIndirect(&insn->src[0], 0, indirectVertex);
+      auto idx = getIndirect(insn, 1, 0, indirectOffset);
+      Value *vtxBase = nullptr;
+
+      if (indirectVertex)
+         vtxBase = indirectVertex;
+      else
+         vtxBase = loadImm(nullptr, baseVertex);
+
+      vtxBase = mkOp2v(OP_ADD, TYPE_U32, getSSA(4, FILE_ADDRESS), outBase, vtxBase);
+
+      for (auto i = 0u; i < insn->num_components; ++i) {
+         uint32_t address = getSlotAddress(insn, idx, i);
+         loadFrom(FILE_SHADER_OUTPUT, 0, dType, newDefs[i], address, 0,
+                  indirectOffset, vtxBase, info->in[idx].patch);
+      }
+      break;
+   }
    case nir_intrinsic_emit_vertex:
    case nir_intrinsic_end_primitive: {
       auto idx = nir_intrinsic_stream_id(insn);
