@@ -954,6 +954,35 @@ GCRA::RIG_Node::init(const RegisterSet& regs, LValue *lval)
    livei.insert(lval->livei);
 }
 
+// Used when coalescing moves. The non-compound value will become one, e.g.:
+// mov b32 $r0 $r2            / merge b64 $r0d { $r0 $r1 }
+// split b64 { $r0 $r1 } $r0d / mov b64 $r0d f64 $r2d
+static inline void copyCompound(Value *dst, Value *src)
+{
+   LValue *ldst = dst->asLValue();
+   LValue *lsrc = src->asLValue();
+
+   if (ldst->compound && !lsrc->compound) {
+      LValue *swap = lsrc;
+      lsrc = ldst;
+      ldst = swap;
+   }
+
+   assert(!ldst->compound);
+
+   if (lsrc->compound) {
+      Value *dstRep = ldst->join;
+      for (Value::DefIterator d = dstRep->defs.begin(); d != dstRep->defs.end();
+           ++d) {
+         LValue *ldst = (*d)->get()->asLValue();
+         if (!ldst->compound)
+            ldst->compMask = 0xff;
+         ldst->compound = 1;
+         ldst->compMask &= lsrc->compMask;
+      }
+   }
+}
+
 bool
 GCRA::coalesceValues(Value *dst, Value *src, bool force)
 {
@@ -996,8 +1025,15 @@ GCRA::coalesceValues(Value *dst, Value *src, bool force)
    if (!force && nRep->livei.overlaps(nVal->livei))
       return false;
 
+   // TODO: Handle this case properly.
+   if (!force && rep->compound && val->compound)
+      return false;
+
    INFO_DBG(prog->dbgFlags, REG_ALLOC, "joining %%%i($%i) <- %%%i\n",
             rep->id, rep->reg.data.id, val->id);
+
+   if (!force)
+      copyCompound(dst, src);
 
    // set join pointer of all values joined with val
    const std::list<ValueDef *> &defs = mergedDefs(val);
@@ -1063,24 +1099,6 @@ static inline uint8_t makeCompMask(int compSize, int base, int size)
       assert(compSize <= 8);
       return m;
    }
-}
-
-// Used when coalescing moves. The non-compound value will become one, e.g.:
-// mov b32 $r0 $r2            / merge b64 $r0d { $r0 $r1 }
-// split b64 { $r0 $r1 } $r0d / mov b64 $r0d f64 $r2d
-static inline void copyCompound(Value *dst, Value *src)
-{
-   LValue *ldst = dst->asLValue();
-   LValue *lsrc = src->asLValue();
-
-   if (ldst->compound && !lsrc->compound) {
-      LValue *swap = lsrc;
-      lsrc = ldst;
-      ldst = swap;
-   }
-
-   ldst->compound = lsrc->compound;
-   ldst->compMask = lsrc->compMask;
 }
 
 void
@@ -1168,8 +1186,7 @@ GCRA::doCoalesce(ArrayList& insns, unsigned int mask)
             break;
          i = insn->getSrc(0)->getUniqueInsn();
          if (i && !i->constrainedDefs()) {
-            if (coalesceValues(insn->getDef(0), insn->getSrc(0), false))
-               copyCompound(insn->getSrc(0), insn->getDef(0));
+            coalesceValues(insn->getDef(0), insn->getSrc(0), false);
          }
          break;
       case OP_TEX:
@@ -2591,7 +2608,8 @@ RegAlloc::InsertConstraintsPass::insertConstraintMove(Instruction *cst, int s)
       defi->src(0).getFile() == FILE_MEMORY_CONST &&
       !defi->src(0).isIndirect(0);
    // catch some cases where don't really need MOVs
-   if (cst->getSrc(s)->refCount() == 1 && !defi->constrainedDefs()) {
+   if (cst->getSrc(s)->refCount() == 1 && !defi->constrainedDefs()
+       && defi->op != OP_MERGE && defi->op != OP_SPLIT) {
       if (imm || load) {
          // Move the defi right before the cst. No point in expanding
          // the range.
