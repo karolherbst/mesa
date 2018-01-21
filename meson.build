@@ -639,10 +639,18 @@ if _opencl != 'disabled'
 
   # TODO: alitvec?
   dep_clc = dependency('libclc')
+  dep_spirv_tools = dependency('SPIRV-Tools', required : false, version : '>= 2018.0')
+# LLVMSPIRVLib is available at https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+  dep_llvmspirvlib = dependency('LLVMSPIRVLib', required : false, version : '>= 0.2.1')
+  if dep_spirv_tools.found() and dep_llvmspirvlib.found()
+    pre_args += '-DCLOVER_ALLOW_SPIRV'
+  endif
   with_gallium_opencl = true
   with_opencl_icd = _opencl == 'icd'
 else
   dep_clc = null_dep
+  dep_spirv_tools = null_dep
+  dep_llvmspirvlib = null_dep
   with_gallium_opencl = false
   with_gallium_icd = false
 endif
