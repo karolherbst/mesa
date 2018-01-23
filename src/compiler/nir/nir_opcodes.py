@@ -822,4 +822,5 @@ dst.o = src14.x;
 dst.p = src15.x;
 """)
 
-
+binop("ihadd", tint, commutative, "((int64_t)src0 + (int64_t)src1) >> 1")
+binop("uhadd", tuint, commutative, "((uint64_t)src0 + (uint64_t)src1) >> 1")
