@@ -25,26 +25,48 @@
 
 using namespace clover;
 
+namespace {
+   module
+   compile_program(const program &prog, const device &dev,
+                   const std::string &opts, const header_map &headers,
+                   std::string &log) {
+      if (!prog.source().empty())
+         return llvm::compile_program(prog.source(), headers, dev, opts, log);
+#ifdef CLOVER_ALLOW_SPIRV
+      else if (prog.il_type() == program::il_type::spirv)
+         return llvm::compile_from_spirv(prog.il(), dev, log);
+#endif
+      else
+         throw error(CL_INVALID_VALUE);
+   }
+} // end of anonymous namespace
+
 program::program(clover::context &ctx, const std::string &source) :
-   has_source(true), context(ctx), _devices(ctx.devices()), _source(source),
-   _kernel_ref_counter(0) {
+   has_source(true), has_il(false), context(ctx), _devices(ctx.devices()),
+   _source(source), _kernel_ref_counter(0), _il(), _il_type(il_type::none) {
 }
 
 program::program(clover::context &ctx,
                  const ref_vector<device> &devs,
                  const std::vector<module> &binaries) :
-   has_source(false), context(ctx),
-   _devices(devs), _kernel_ref_counter(0) {
+   has_source(false), has_il(false), context(ctx), _devices(devs),
+   _kernel_ref_counter(0), _il(), _il_type(il_type::none) {
    for_each([&](device &dev, const module &bin) {
          _builds[&dev] = { bin };
       },
       devs, binaries);
 }
 
+program::program(clover::context &ctx, const char *il, size_t length,
+                 enum il_type il_type) :
+   has_source(false), has_il(true), context(ctx), _devices(ctx.devices()),
+   _kernel_ref_counter(0), _il(il, il + length), _il_type(il_type) {
+}
+
 void
 program::compile(const ref_vector<device> &devs, const std::string &opts,
                  const header_map &headers) {
-   if (has_source) {
+   if (has_source || has_il) {
       _devices = devs;
 
       for (auto &dev : devs) {
@@ -52,9 +74,8 @@ program::compile(const ref_vector<device> &devs, const std::string &opts,
 
          try {
             assert(dev.ir_format() == PIPE_SHADER_IR_NATIVE);
-            const module m = llvm::compile_program(_source, headers, dev, opts,
-                                                   log);
-            _builds[&dev] = { m, opts, log };
+            _builds[&dev] = { compile_program(*this, dev, opts, headers, log),
+               opts, log };
          } catch (...) {
             _builds[&dev] = { module(), opts, log };
             throw;
@@ -83,6 +104,16 @@ program::link(const ref_vector<device> &devs, const std::string &opts,
          throw;
       }
    }
+}
+
+const std::vector<char> &
+program::il() const {
+   return _il;
+}
+
+enum program::il_type
+program::il_type() const {
+   return _il_type;
 }
 
 const std::string &

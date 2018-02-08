@@ -974,6 +974,10 @@ namespace clover {
    cl_int
    IcdGetPlatformIDsKHR(cl_uint num_entries, cl_platform_id *rd_platforms,
                         cl_uint *rnum_platforms);
+
+   cl_program
+   CreateProgramWithILKHR(cl_context d_ctx, const void *il,
+                          size_t length, cl_int *r_errcode);
 }
 
 #endif
