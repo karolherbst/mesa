@@ -22,6 +22,7 @@
 
 #include "core/program.hpp"
 #include "llvm/invocation.hpp"
+#include "spirv/invocation.hpp"
 
 using namespace clover;
 
@@ -30,14 +31,26 @@ namespace {
    compile_program(const program &prog, const device &dev,
                    const std::string &opts, const header_map &headers,
                    std::string &log) {
-      if (!prog.source().empty())
-         return llvm::compile_program(prog.source(), headers, dev, opts, log);
+      if (dev.ir_format() == PIPE_SHADER_IR_SPIRV) {
 #ifdef CLOVER_ALLOW_SPIRV
-      else if (prog.il_type() == program::il_type::spirv)
-         return llvm::compile_from_spirv(prog.il(), dev, log);
+         if (!prog.source().empty())
+            return llvm::compile_to_spirv(prog.source(), headers, dev, opts,
+                                          log);
+         else if (prog.il_type() == program::il_type::spirv)
+            return spirv::process_program(prog.il(), dev, false, log);
+         else
 #endif
-      else
-         throw error(CL_INVALID_VALUE);
+            throw error(CL_INVALID_VALUE);
+      } else {
+         if (!prog.source().empty())
+            return llvm::compile_program(prog.source(), headers, dev, opts, log);
+#ifdef CLOVER_ALLOW_SPIRV
+         else if (prog.il_type() == program::il_type::spirv)
+            return llvm::compile_from_spirv(prog.il(), dev, log);
+#endif
+         else
+            throw error(CL_INVALID_VALUE);
+      }
    }
 } // end of anonymous namespace
 
@@ -73,7 +86,8 @@ program::compile(const ref_vector<device> &devs, const std::string &opts,
          std::string log;
 
          try {
-            assert(dev.ir_format() == PIPE_SHADER_IR_NATIVE);
+            assert(dev.ir_format() == PIPE_SHADER_IR_NATIVE ||
+                   dev.ir_format() == PIPE_SHADER_IR_SPIRV);
             _builds[&dev] = { compile_program(*this, dev, opts, headers, log),
                opts, log };
          } catch (...) {
@@ -96,8 +110,11 @@ program::link(const ref_vector<device> &devs, const std::string &opts,
       std::string log = _builds[&dev].log;
 
       try {
-         assert(dev.ir_format() == PIPE_SHADER_IR_NATIVE);
-         const module m = llvm::link_program(ms, dev, opts, log);
+         assert(dev.ir_format() == PIPE_SHADER_IR_NATIVE ||
+                dev.ir_format() == PIPE_SHADER_IR_SPIRV);
+         const module m = dev.ir_format() == PIPE_SHADER_IR_SPIRV ?
+            spirv::link_program(ms, dev, opts, log) :
+            llvm::link_program(ms, dev, opts, log);
          _builds[&dev] = { m, opts, log };
       } catch (...) {
          _builds[&dev] = { module(), opts, log };
