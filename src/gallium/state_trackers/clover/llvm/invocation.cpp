@@ -56,6 +56,9 @@
 #include "llvm/invocation.hpp"
 #include "llvm/metadata.hpp"
 #include "llvm/util.hpp"
+#ifdef CLOVER_ALLOW_SPIRV
+#include "spirv/invocation.hpp"
+#endif
 #include "util/algorithm.hpp"
 
 
@@ -187,7 +190,7 @@ namespace {
    }
 
    std::unique_ptr<clang::CompilerInstance>
-   create_compiler_instance(const device &dev,
+   create_compiler_instance(const device &dev, const std::string& ir_target,
                             const std::vector<std::string> &opts,
                             std::string &r_log) {
       std::unique_ptr<clang::CompilerInstance> c { new clang::CompilerInstance };
@@ -201,7 +204,7 @@ namespace {
       const std::vector<const char *> copts =
          map(std::mem_fn(&std::string::c_str), opts);
 
-      const target &target = dev.ir_target();
+      const target &target = ir_target;
       const std::string &device_clc_version = dev.device_clc_version();
 
       if (!clang::CompilerInvocation::CreateFromArgs(
@@ -240,19 +243,29 @@ namespace {
    compile(LLVMContext &ctx, clang::CompilerInstance &c,
            const std::string &name, const std::string &source,
            const header_map &headers, const device &dev,
-           const std::string &opts, std::string &r_log) {
+           const std::string &opts, bool use_libclc, std::string &r_log) {
       c.getFrontendOpts().ProgramAction = clang::frontend::EmitLLVMOnly;
       c.getHeaderSearchOpts().UseBuiltinIncludes = true;
       c.getHeaderSearchOpts().UseStandardSystemIncludes = true;
       c.getHeaderSearchOpts().ResourceDir = CLANG_RESOURCE_DIR;
 
-      // Add libclc generic search path
-      c.getHeaderSearchOpts().AddPath(LIBCLC_INCLUDEDIR,
-                                      clang::frontend::Angled,
-                                      false, false);
+      if (use_libclc) {
+         // Add libclc generic search path
+         c.getHeaderSearchOpts().AddPath(LIBCLC_INCLUDEDIR,
+                                         clang::frontend::Angled,
+                                         false, false);
 
-      // Add libclc include
-      c.getPreprocessorOpts().Includes.push_back("clc/clc.h");
+         // Add libclc include
+         c.getPreprocessorOpts().Includes.push_back("clc/clc.h");
+      } else {
+         // Add opencl-c generic search path
+         c.getHeaderSearchOpts().AddPath(CLANG_RESOURCE_DIR,
+                                         clang::frontend::Angled,
+                                         false, false);
+
+         // Add opencl include
+         c.getPreprocessorOpts().Includes.push_back("opencl-c.h");
+      }
 
       // Add definition for the OpenCL version
       c.getPreprocessorOpts().addMacroDef("__OPENCL_VERSION__=" +
@@ -284,8 +297,9 @@ namespace {
       // attribute will prevent Clang from creating illegal uses of
       // barrier() (e.g. Moving barrier() inside a conditional that is
       // no executed by all threads) during its optimizaton passes.
-      compat::add_link_bitcode_file(c.getCodeGenOpts(),
-                                    LIBCLC_LIBEXECDIR + dev.ir_target() + ".bc");
+      if (use_libclc)
+         compat::add_link_bitcode_file(c.getCodeGenOpts(),
+                                       LIBCLC_LIBEXECDIR + dev.ir_target() + ".bc");
 
       // Compile the code
       clang::EmitLLVMOnlyAction act(&ctx);
@@ -306,8 +320,10 @@ clover::llvm::compile_program(const std::string &source,
       debug::log(".cl", "// Options: " + opts + '\n' + source);
 
    auto ctx = create_context(r_log);
-   auto c = create_compiler_instance(dev, tokenize(opts + " input.cl"), r_log);
-   auto mod = compile(*ctx, *c, "input.cl", source, headers, dev, opts, r_log);
+   auto c = create_compiler_instance(dev, dev.ir_target(),
+                                     tokenize(opts + " input.cl"), r_log);
+   auto mod = compile(*ctx, *c, "input.cl", source, headers, dev, opts, true,
+                      r_log);
 
    if (has_flag(debug::llvm))
       debug::log(".ll", print_module_bitcode(*mod));
@@ -365,14 +381,14 @@ namespace {
 
 module
 clover::llvm::link_program(const std::vector<module> &modules,
-                           const device &dev,
-                           const std::string &opts, std::string &r_log) {
+                           const device &dev, const std::string &opts,
+                           std::string &r_log) {
    std::vector<std::string> options = tokenize(opts + " input.cl");
    const bool create_library = count("-create-library", options);
    erase_if(equals("-create-library"), options);
 
    auto ctx = create_context(r_log);
-   auto c = create_compiler_instance(dev, options, r_log);
+   auto c = create_compiler_instance(dev, dev.ir_target(), options, r_log);
    auto mod = link(*ctx, *c, modules, r_log);
 
    optimize(*mod, c->getCodeGenOpts().OptimizationLevel, !create_library);
@@ -386,7 +402,6 @@ clover::llvm::link_program(const std::vector<module> &modules,
 
    if (create_library) {
       return build_module_library(*mod, module::section::text_library);
-
    } else if (dev.ir_format() == PIPE_SHADER_IR_NATIVE) {
       if (has_flag(debug::native))
          debug::log(id +  ".asm", print_module_native(*mod, dev.ir_target()));
@@ -419,5 +434,51 @@ clover::llvm::compile_from_spirv(const std::vector<char> &binary,
       debug::log(".ll", print_module_bitcode(*mod));
 
    return build_module_library(*mod, module::section::text_intermediate);
+}
+
+module
+clover::llvm::compile_to_spirv(const std::string &source,
+                               const header_map &headers,
+                               const device &dev,
+                               const std::string &opts,
+                               std::string &r_log) {
+   if (has_flag(debug::clc))
+      debug::log(".cl", "// Options: " + opts + '\n' + source);
+
+   auto ctx = create_context(r_log);
+   const std::string target = dev.address_bits() == 32u ?
+      "-spir-unknown-unknown" :
+      "-spir64-unknown-unknown";
+   auto c = create_compiler_instance(dev, target,
+                                     tokenize(opts + " input.cl"), r_log);
+   auto mod = compile(*ctx, *c, "input.cl", source, headers, dev, opts, false,
+                      r_log);
+
+   if (has_flag(debug::llvm))
+      debug::log(".ll", print_module_bitcode(*mod));
+
+   std::string error_msg;
+   if (!::llvm::regularizeLlvmForSpirv(mod.get(), error_msg)) {
+      r_log += "Failed to regularize LLVM IR for SPIR-V: " + error_msg + ".\n";
+      throw error(CL_INVALID_VALUE);
+   }
+
+   ::llvm::SmallVector<char, 1024> data;
+   ::llvm::raw_svector_ostream os { data };
+   if (!::llvm::writeSpirv(mod.get(), os, error_msg)) {
+      r_log += "Translation from LLVM IR to SPIR-V failed: " + error_msg + ".\n";
+      throw error(CL_INVALID_VALUE);
+   }
+
+   std::vector<char> binary(os.str().begin(), os.str().end());
+   if (binary.empty()) {
+      r_log += "Failed to retrieve SPIR-V binary.\n";
+      throw error(CL_INVALID_VALUE);
+   }
+
+   if (has_flag(debug::spirv))
+      debug::log(".spv", binary);
+
+   return spirv::process_program(binary, dev, true, r_log);
 }
 #endif
