@@ -246,6 +246,8 @@ enum pipe_shader_ir
 device::ir_format() const {
    if (supports_ir(PIPE_SHADER_IR_NATIVE)) {
       return PIPE_SHADER_IR_NATIVE;
+   } else if (supports_ir(PIPE_SHADER_IR_SPIRV)) {
+      return PIPE_SHADER_IR_SPIRV;
    }
 
    return PIPE_SHADER_IR_TGSI;
@@ -286,7 +288,8 @@ device::supports_ir(enum pipe_shader_ir ir) const {
 std::string
 device::supported_extensions() const {
 #ifdef CLOVER_ALLOW_SPIRV
-   const bool supports_il_program = supports_ir(PIPE_SHADER_IR_NATIVE);
+   const bool supports_il_program = supports_ir(PIPE_SHADER_IR_NATIVE) ||
+                                    supports_ir(PIPE_SHADER_IR_SPIRV);
 #else
    const bool supports_il_program = false;
 #endif
