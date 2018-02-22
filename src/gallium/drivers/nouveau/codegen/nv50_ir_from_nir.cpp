@@ -1378,8 +1378,6 @@ Converter::parseNIR()
 bool
 Converter::visit(nir_function *function)
 {
-   /* we only support emiting the main function for now */
-   assert(!strcmp(function->name, "main"));
    assert(function->impl);
 
    /* usually the blocks will set everything up, but main is special */
