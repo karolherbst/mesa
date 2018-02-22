@@ -2370,6 +2370,16 @@ Converter::visit(nir_intrinsic_instr *insn)
       mkOp1(OP_RDSV, dType, newDefs[1], mkSysVal(SV_CLOCK, 0))->fixed = 1;
       break;
    }
+   case nir_intrinsic_load_param: {
+      const DataType dType = getDType(insn);
+      LValues &newDefs = convert(&insn->dest);
+      uint32_t offset = nir_shader_get_entrypoint(nir)->function->params[nir_intrinsic_param_idx(insn)].var->data.driver_location;
+
+      for (auto i = 0u; i < insn->num_components; ++i)
+         loadFrom(FILE_SHADER_INPUT, 0, dType, newDefs[i], offset, i, nullptr);
+
+      break;
+   }
    default:
       ERROR("unknown nir_intrinsic_op %s\n", nir_intrinsic_infos[op].name);
       return false;
