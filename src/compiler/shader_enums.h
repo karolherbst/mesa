@@ -592,6 +592,8 @@ typedef enum
     */
    SYSTEM_VALUE_VERTEX_CNT,
 
+   SYSTEM_VALUE_GLOBAL_SIZE,
+
    SYSTEM_VALUE_MAX             /**< Number of values */
 } gl_system_value;
 
