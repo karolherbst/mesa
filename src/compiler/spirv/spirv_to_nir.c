@@ -3344,8 +3344,8 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
       case SpvCapabilitySparseResidency:
       case SpvCapabilityMinLod:
       case SpvCapabilityTransformFeedback:
-         vtn_warn("Unsupported SPIR-V capability: %s",
-                  spirv_capability_to_string(cap));
+//         vtn_warn("Unsupported SPIR-V capability: %s",
+//                  spirv_capability_to_string(cap));
          break;
 
       case SpvCapabilityFloat64:
@@ -3374,8 +3374,8 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
       case SpvCapabilityDeviceEnqueue:
       case SpvCapabilityLiteralSampler:
       case SpvCapabilityGenericPointer:
-         vtn_warn("Unsupported OpenCL-style SPIR-V capability: %s",
-                  spirv_capability_to_string(cap));
+//         vtn_warn("Unsupported OpenCL-style SPIR-V capability: %s",
+//                  spirv_capability_to_string(cap));
          break;
 
       case SpvCapabilityImageMSArray:
