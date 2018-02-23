@@ -626,6 +626,12 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       vtn_handle_bitcast(b, val->ssa, src[0]);
       break;
 
+   case SpvOpConvertPtrToU: {
+      nir_ssa_def *fptr = nir_address_from_ssa(&b->nb, src[0]);
+      val->ssa->def = nir_channel(&b->nb, fptr, 0);
+      break;
+   }
+
    case SpvOpFConvert: {
       nir_alu_type src_alu_type = nir_get_nir_type_for_glsl_type(vtn_src[0]->type);
       nir_alu_type dst_alu_type = nir_get_nir_type_for_glsl_type(type);
