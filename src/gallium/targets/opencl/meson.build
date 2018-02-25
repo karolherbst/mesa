@@ -35,13 +35,19 @@ opencl_libname = with_opencl_icd ? 'MesaOpenCL' : 'OpenCL'
 
 libopencl = shared_library(
   opencl_libname,
-  [],
+  ['target.c'],
+  include_directories : [
+    inc_common, inc_util, inc_gallium_winsys, inc_gallium_drivers,
+  ],
   link_args : [ld_args_gc_sections, opencl_link_args],
   link_depends : opencl_link_deps,
   link_whole : libclover,
-  link_with : [libpipe_loader_dynamic, libgallium, libmesa_util],
+  link_with : [
+    libpipe_loader_static, libgallium, libmesa_util,
+    libgalliumvl, libws_null, libwsw, libswdri, libswkmsdri,
+  ],
   dependencies : [
-    dep_thread, dep_clock, dep_dl, dep_unwind, dep_elf, dep_expat,
+    dep_libdrm, dep_thread, dep_clock, dep_dl, dep_unwind, dep_elf, dep_expat,
     cpp.find_library('clangCodeGen', dirs : llvm_libdir),
     cpp.find_library('clangFrontendTool', dirs : llvm_libdir),
     cpp.find_library('clangFrontend', dirs : llvm_libdir),
@@ -54,6 +60,12 @@ libopencl = shared_library(
     cpp.find_library('clangEdit', dirs : llvm_libdir),
     cpp.find_library('clangLex', dirs : llvm_libdir),
     cpp.find_library('clangBasic', dirs : llvm_libdir),
+    # TODO only a small subset of these makes sense, but libpipe_loader_static
+    # depends on all.. maybe there is a way to have stub versions for the
+    # drivers which don't support OpenCL?
+    driver_swrast, driver_r300, driver_r600, driver_radeonsi, driver_nouveau,
+    driver_pl111, driver_vc4, driver_freedreno, driver_etnaviv,
+    driver_imx, driver_i915, driver_svga, driver_virgl, driver_swr,
   ],
   version : '@0@.0.0'.format(opencl_version),
   install : true,
