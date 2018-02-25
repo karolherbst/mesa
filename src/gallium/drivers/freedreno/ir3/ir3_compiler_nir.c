@@ -1464,7 +1464,7 @@ emit_intrinsic_load_ubo(struct ir3_context *ctx, nir_intrinsic_instr *intr,
 	for (int i = 0; i < intr->num_components; i++) {
 		struct ir3_instruction *load =
 				ir3_LDG(b, addr, 0, create_immed(b, 1), 0);
-		load->cat6.type = TYPE_U32;
+		load->cat6.type = utype_dst(intr->dest);
 		load->cat6.src_offset = off + i * 4;     /* byte offset */
 		dst[i] = load;
 	}
@@ -1484,6 +1484,86 @@ emit_intrinsic_load_param(struct ir3_context *ctx, nir_intrinsic_instr *intr,
 	compile_assert(ctx, !(loc & 0x3));
 
 	dst[0] = create_uniform(ctx, p + (loc / 4));
+}
+
+/* src[] = { address }. const_index[] = {} */
+static void
+emit_intrinsic_load_global(struct ir3_context *ctx, nir_intrinsic_instr *intr,
+		struct ir3_instruction **dst)
+{
+	struct ir3_block *b = ctx->block;
+	struct ir3_instruction *addr;
+
+	addr = get_src(ctx, &intr->src[0])[0];
+
+	/* TODO for 64b memory model, src[0] should be a 64b value */
+
+	/* TODO with a bit of refactoring load_ubo/load_global/store_global
+	 * could probably share some helpers for generating the address, etc?
+	 */
+
+	if (pointer_size(ctx) == 2) {
+		struct ir3_instruction *addr_hi = create_immed(b, 0);
+		addr = create_collect(ctx, (struct ir3_instruction*[]){ addr, addr_hi }, 2);
+	}
+
+	for (int i = 0; i < intr->num_components; i++) {
+		struct ir3_instruction *ldg =
+				ir3_LDG(b, addr, 0, create_immed(b, 1), 0);
+		ldg->cat6.type = utype_dst(intr->dest);
+		ldg->cat6.src_offset = i * nir_dest_bit_size(intr->dest) / 8; /* byte offset */
+		ldg->barrier_class = IR3_BARRIER_BUFFER_R;
+		ldg->barrier_conflict = IR3_BARRIER_BUFFER_W;
+		dst[i] = ldg;
+	}
+}
+
+/* src[] = { value, address }. const_index[] = { write_mask } */
+static void
+emit_intrisic_store_global(struct ir3_context *ctx, nir_intrinsic_instr *intr)
+{
+	struct ir3_block *b = ctx->block;
+	struct ir3_instruction *addr, *stg;
+	struct ir3_instruction * const *val;
+	unsigned wrmask = nir_intrinsic_write_mask(intr);
+
+	val  = get_src(ctx, &intr->src[0]);
+	addr = get_src(ctx, &intr->src[1])[0];
+
+	/* TODO for 64b memory model, src[0] should be a 64b value */
+
+	if (pointer_size(ctx) == 2) {
+		struct ir3_instruction *addr_hi = create_immed(b, 0);
+		addr = create_collect(ctx, (struct ir3_instruction*[]){ addr, addr_hi }, 2);
+	}
+
+	/* Combine groups of consecutive enabled channels in one write
+	 * message. We use ffs to find the first enabled channel and then ffs on
+	 * the bit-inverse, down-shifted writemask to determine the length of
+	 * the block of enabled bits.
+	 *
+	 * (trick stolen from i965's fs_visitor::nir_emit_cs_intrinsic())
+	 */
+	while (wrmask) {
+		unsigned first_component = ffs(wrmask) - 1;
+		unsigned length = ffs(~(wrmask >> first_component)) - 1;
+
+		stg = ir3_STG(b, addr, 0,
+			create_collect(ctx, &val[first_component], length), 0,
+			create_immed(b, length), 0);
+		stg->cat6.dst_offset = first_component *
+			nir_src_bit_size(intr->src[0]) / 8;
+		stg->cat6.type = utype_src(intr->src[0]);
+		stg->barrier_class = IR3_BARRIER_BUFFER_W;
+		stg->barrier_conflict = IR3_BARRIER_BUFFER_R | IR3_BARRIER_BUFFER_W;
+
+		array_insert(b, b->keeps, stg);
+
+		/* Clear the bits in the writemask that we just wrote, then try
+		 * again to see if more channels are left.
+		 */
+		wrmask &= (15 << (first_component + length));
+	}
 }
 
 /* src[] = { buffer_index, offset }. No const_index */
@@ -2316,6 +2396,12 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 		break;
 	case nir_intrinsic_load_param:
 		emit_intrinsic_load_param(ctx, intr, dst);
+		break;
+	case nir_intrinsic_load_global:
+		emit_intrinsic_load_global(ctx, intr, dst);
+		break;
+	case nir_intrinsic_store_global:
+		emit_intrisic_store_global(ctx, intr);
 		break;
 	case nir_intrinsic_load_ssbo:
 		emit_intrinsic_load_ssbo(ctx, intr, dst);
