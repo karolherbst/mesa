@@ -22,6 +22,10 @@ opencl_link_args = []
 opencl_link_deps = []
 opencl_version = '1'
 
+opencl_drivers = [
+  driver_r600, driver_radeonsi,
+]
+
 if with_ld_version_script
   opencl_link_args += [
     '-Wl,--version-script', join_paths(meson.current_source_dir(), 'opencl.sym')
@@ -35,13 +39,20 @@ opencl_libname = with_opencl_icd ? 'MesaOpenCL' : 'OpenCL'
 
 libopencl = shared_library(
   opencl_libname,
-  [],
+  ['target.c'],
+  include_directories : [
+    inc_common, inc_util, inc_gallium_winsys, inc_gallium_drivers,
+  ],
   link_args : [ld_args_gc_sections, opencl_link_args],
   link_depends : opencl_link_deps,
   link_whole : libclover,
-  link_with : [libpipe_loader_dynamic, libgallium, libmesa_util],
+  link_with : [
+    libpipe_loader_static, libgallium, libmesa_util,
+    libgalliumvl, libws_null, libwsw, libswdri, libswkmsdri,
+  ],
   dependencies : [
-    dep_thread, dep_clock, dep_dl, dep_unwind, dep_elf, dep_expat,
+    dep_libdrm, dep_thread, dep_clock, dep_dl, dep_unwind, dep_elf, dep_expat,
+    opencl_drivers,
     cpp.find_library('clangCodeGen', dirs : llvm_libdir),
     cpp.find_library('clangFrontendTool', dirs : llvm_libdir),
     cpp.find_library('clangFrontend', dirs : llvm_libdir),
