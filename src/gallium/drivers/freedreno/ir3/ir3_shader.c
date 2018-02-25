@@ -351,6 +351,7 @@ ir3_shader_create_compute(struct ir3_compiler *compiler,
 	shader->compiler = compiler;
 	shader->id = ++shader->compiler->shader_count;
 	shader->type = SHADER_COMPUTE;
+	shader->cs.req_input_mem = align(cso->req_input_mem, 4) / 4;     /* byte->dword */
 
 	nir_shader *nir;
 	if (cso->ir_type == PIPE_SHADER_IR_NIR) {
@@ -735,6 +736,20 @@ emit_tfbos(struct fd_context *ctx, const struct ir3_shader_variant *v,
 	}
 }
 
+/* emit kernel params */
+static void
+emit_kernel_params(struct fd_context *ctx, const struct ir3_shader_variant *v,
+		struct fd_ringbuffer *ring, const struct pipe_grid_info *info)
+{
+	uint32_t offset = v->constbase.kernel_params;
+	if (v->constlen > offset) {
+		fd_wfi(ctx->batch, ring);
+		ctx->emit_const(ring, v->type, offset * 4, 0,
+			align(v->shader->cs.req_input_mem, 4),
+			info->input, NULL);
+	}
+}
+
 static uint32_t
 max_tf_vtx(struct fd_context *ctx, const struct ir3_shader_variant *v)
 {
@@ -915,6 +930,7 @@ ir3_emit_cs_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *rin
 	debug_assert(v->type == SHADER_COMPUTE);
 
 	emit_common_consts(v, ring, ctx, PIPE_SHADER_COMPUTE);
+	emit_kernel_params(ctx, v, ring, info);
 
 	/* emit compute-shader driver-params: */
 	uint32_t offset = v->constbase.driver_param;
