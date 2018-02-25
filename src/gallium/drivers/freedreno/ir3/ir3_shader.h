@@ -322,6 +322,7 @@ struct ir3_shader_variant {
 		/* NOTE that a3xx might need a section for SSBO addresses too */
 		unsigned ssbo_sizes;
 		unsigned image_dims;
+		unsigned kernel_params;
 		unsigned driver_param;
 		unsigned tfbo;
 		unsigned immediate;
@@ -362,7 +363,16 @@ struct ir3_shader {
 	struct ir3_compiler *compiler;
 
 	struct nir_shader *nir;
-	struct pipe_stream_output_info stream_output;
+
+	/* per shader stage specific info: */
+	union {
+		struct pipe_stream_output_info stream_output;
+
+		/* for compute shaders: */
+		struct {
+			unsigned req_input_mem;    /* in dwords */
+		} cs;
+	};
 
 	struct ir3_shader_variant *variants;
 };

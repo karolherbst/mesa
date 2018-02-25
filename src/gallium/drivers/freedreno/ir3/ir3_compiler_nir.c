@@ -137,6 +137,7 @@ compile_init(struct ir3_compiler *compiler,
 		struct ir3_shader_variant *so)
 {
 	struct ir3_context *ctx = rzalloc(NULL, struct ir3_context);
+	nir_function_impl *fxn;
 
 	if (compiler->gpu_id >= 400) {
 		if (so->type == SHADER_VERTEX) {
@@ -175,6 +176,8 @@ compile_init(struct ir3_compiler *compiler,
 		ctx->s = so->shader->nir;
 	}
 
+	fxn = nir_shader_get_entrypoint(ctx->s);
+
 	/* this needs to be the last pass run, so do this here instead of
 	 * in ir3_optimize_nir():
 	 */
@@ -205,8 +208,13 @@ compile_init(struct ir3_compiler *compiler,
 	 *    user consts
 	 *    UBO addresses
 	 *    SSBO sizes
+	 *    image dimensions
+	 *    if (compute_shader) {
+	 *        kernel params
+	 *        driver params (IR3_DP_CS_COUNT)
+	 *    }
 	 *    if (vertex shader) {
-	 *        driver params (IR3_DP_*)
+	 *        driver params (IR3_DP_VS_COUNT)
 	 *        if (stream_output.num_outputs > 0)
 	 *           stream-out addresses
 	 *    }
@@ -235,6 +243,13 @@ compile_init(struct ir3_compiler *compiler,
 		unsigned cnt = so->const_layout.image_dims.count;
 		so->constbase.image_dims = constoff;
 		constoff += align(cnt, 4) / 4;
+	}
+
+	if (so->type == SHADER_COMPUTE) {
+		so->constbase.kernel_params = constoff;
+		constoff += align(so->shader->cs.req_input_mem, 4) / 4;
+	} else {
+		assert(fxn->function->num_params == 0);
 	}
 
 	unsigned num_driver_params = 0;
@@ -1455,6 +1470,22 @@ emit_intrinsic_load_ubo(struct ir3_context *ctx, nir_intrinsic_instr *intr,
 	}
 }
 
+/* Load a kernel param */
+static void
+emit_intrinsic_load_param(struct ir3_context *ctx, nir_intrinsic_instr *intr,
+		struct ir3_instruction **dst)
+{
+	nir_function *fxn = nir_shader_get_entrypoint(ctx->s)->function;
+	unsigned idx = nir_intrinsic_param_idx(intr);
+	unsigned loc = fxn->params[idx].var->data.driver_location;
+	unsigned p = regid(ctx->so->constbase.kernel_params, 0);
+
+	/* kernel param position is in bytes, but constant space is 32b registers: */
+	compile_assert(ctx, !(loc & 0x3));
+
+	dst[0] = create_uniform(ctx, p + (loc / 4));
+}
+
 /* src[] = { buffer_index, offset }. No const_index */
 static void
 emit_intrinsic_load_ssbo(struct ir3_context *ctx, nir_intrinsic_instr *intr,
@@ -2282,6 +2313,9 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 						n, addr, collect);
 			}
 		}
+		break;
+	case nir_intrinsic_load_param:
+		emit_intrinsic_load_param(ctx, intr, dst);
 		break;
 	case nir_intrinsic_load_ssbo:
 		emit_intrinsic_load_ssbo(ctx, intr, dst);
