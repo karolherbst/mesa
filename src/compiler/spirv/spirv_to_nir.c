@@ -760,8 +760,10 @@ struct_member_decoration_cb(struct vtn_builder *b,
    case SpvDecorationFPRoundingMode:
    case SpvDecorationFPFastMathMode:
    case SpvDecorationAlignment:
-      vtn_warn("Decoration only allowed for CL-style kernels: %s",
-               spirv_decoration_to_string(dec->decoration));
+      if (!b->kernel_mode) {
+         vtn_warn("Decoration only allowed for CL-style kernels: %s",
+                  spirv_decoration_to_string(dec->decoration));
+      }
       break;
 
    default:
@@ -3331,15 +3333,14 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
       case SpvCapabilityFloat16:
       case SpvCapabilityInt16:
       case SpvCapabilityVector16:
+      case SpvCapabilityLinkage:
          break;
 
       case SpvCapabilityGeometryStreams:
-      case SpvCapabilityLinkage:
       case SpvCapabilityFloat16Buffer:
       case SpvCapabilityInt64Atomics:
       case SpvCapabilityAtomicStorage:
       case SpvCapabilityStorageImageMultisample:
-      case SpvCapabilityInt8:
       case SpvCapabilitySparseResidency:
       case SpvCapabilityMinLod:
       case SpvCapabilityTransformFeedback:
@@ -3354,8 +3355,17 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
          spv_check_supported(int64, cap);
          break;
 
+      case SpvCapabilityInt8:
+         spv_check_supported(int8, cap);
+         break;
+
       case SpvCapabilityAddresses:
+         spv_check_supported(address, cap);
+         break;
       case SpvCapabilityKernel:
+         spv_check_supported(kernel, cap);
+         break;
+
       case SpvCapabilityImageBasic:
       case SpvCapabilityImageReadWrite:
       case SpvCapabilityImageMipmap:

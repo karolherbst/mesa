@@ -55,6 +55,9 @@ struct spirv_supported_capabilities {
    bool trinary_minmax;
    bool descriptor_array_dynamic_indexing;
    bool runtime_descriptor_array;
+   bool address;
+   bool kernel;
+   bool int8;
 };
 
 typedef struct shader_info {
