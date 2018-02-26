@@ -763,8 +763,10 @@ struct_member_decoration_cb(struct vtn_builder *b,
    case SpvDecorationFPRoundingMode:
    case SpvDecorationFPFastMathMode:
    case SpvDecorationAlignment:
-      vtn_warn("Decoration only allowed for CL-style kernels: %s",
-               spirv_decoration_to_string(dec->decoration));
+      if (!b->kernel_mode) {
+         vtn_warn("Decoration only allowed for CL-style kernels: %s",
+                  spirv_decoration_to_string(dec->decoration));
+      }
       break;
 
    default:
@@ -3455,7 +3457,6 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
       case SpvCapabilityFloat16Buffer:
       case SpvCapabilityInt64Atomics:
       case SpvCapabilityStorageImageMultisample:
-      case SpvCapabilityInt8:
       case SpvCapabilitySparseResidency:
       case SpvCapabilityMinLod:
          vtn_warn("Unsupported SPIR-V capability: %s",
@@ -3484,8 +3485,17 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
          spv_check_supported(geometry_streams, cap);
          break;
 
+      case SpvCapabilityInt8:
+         spv_check_supported(int8, cap);
+         break;
+
       case SpvCapabilityAddresses:
+         spv_check_supported(address, cap);
+         break;
       case SpvCapabilityKernel:
+         spv_check_supported(kernel, cap);
+         break;
+
       case SpvCapabilityImageBasic:
       case SpvCapabilityImageReadWrite:
       case SpvCapabilityImageMipmap:
