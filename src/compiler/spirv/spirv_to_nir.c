@@ -2708,7 +2708,7 @@ create_vec(struct vtn_builder *b, unsigned num_components, unsigned bit_size)
 {
    nir_op op;
    switch (num_components) {
-   case 1: op = nir_op_fmov; break;
+   case 1: op = nir_op_imov; break;
    case 2: op = nir_op_vec2; break;
    case 3: op = nir_op_vec3; break;
    case 4: op = nir_op_vec4; break;
@@ -2759,7 +2759,7 @@ nir_ssa_def *
 vtn_vector_extract(struct vtn_builder *b, nir_ssa_def *src, unsigned index)
 {
    unsigned swiz[16] = { index };
-   return nir_swizzle(&b->nb, src, swiz, 1, true);
+   return nir_swizzle(&b->nb, src, swiz, 1, false);
 }
 
 nir_ssa_def *
