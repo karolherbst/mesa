@@ -413,6 +413,7 @@ create_array_store(struct ir3_context *ctx, struct ir3_array *arr, int n,
 static inline type_t utype_for_size(unsigned bit_size)
 {
 	switch (bit_size) {
+	case 64: return TYPE_U32;  // XXX hack
 	case 32: return TYPE_U32;
 	case 16: return TYPE_U16;
 	case  8: return TYPE_U8;

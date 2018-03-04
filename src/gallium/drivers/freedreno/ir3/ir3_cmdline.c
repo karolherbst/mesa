@@ -213,8 +213,10 @@ load_spirv(const char *filename, const char *entry, gl_shader_stage stage)
 			.image_write_without_format = true,
 			.int64 = true,
 			.variable_pointers = true,
+			.address = true,
+			.kernel = true,
+			.int8 = true,
 		},
-		.lower_workgroup_access_to_offsets = true,
 		.debug = {
 			.func = debug_func,
 		}
@@ -232,6 +234,7 @@ load_spirv(const char *filename, const char *entry, gl_shader_stage stage)
 			ir3_get_compiler_options(compiler));
 
 	nir_print_shader(entry_point->shader, stdout);
+	nir_validate_shader(entry_point->shader);
 
 	return entry_point->shader;
 }
@@ -445,8 +448,12 @@ int main(int argc, char **argv)
 	} else if (from_spirv) {
 		nir = load_spirv(filenames[0], entry, stage);
 
-		NIR_PASS_V(nir, nir_lower_io, nir_var_all, ir3_glsl_type_size,
-				(nir_lower_io_options)0);
+		nir_memory_model mm = {
+			.type_size = glsl_get_cl_size,
+			.type_align = glsl_get_cl_alignment,
+		};
+
+		NIR_PASS_V(nir, nir_lower_io2, nir_var_all, &mm, 0);
 nir_print_shader(nir, stdout);
 
 		/* TODO do this somewhere else */
