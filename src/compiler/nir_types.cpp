@@ -465,3 +465,15 @@ glsl_channel_type(const glsl_type *t)
       unreachable("Unhandled base type glsl_channel_type()");
    }
 }
+
+int
+glsl_get_cl_size(const struct glsl_type *type)
+{
+   return type->cl_size();
+}
+
+int
+glsl_get_cl_alignment(const struct glsl_type *type)
+{
+   return type->cl_alignment();
+}
