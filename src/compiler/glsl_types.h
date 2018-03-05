@@ -422,6 +422,16 @@ public:
    unsigned std430_size(bool row_major) const;
 
    /**
+    * Alignment in bytes of the start of this type in OpenCL memory.
+    */
+   unsigned cl_alignment() const;
+
+   /**
+    * Size in bytes of this type in OpenCL memory
+    */
+   unsigned cl_size() const;
+
+   /**
     * \brief Can this type be implicitly converted to another?
     *
     * \return True if the types are identical or if this type can be converted
