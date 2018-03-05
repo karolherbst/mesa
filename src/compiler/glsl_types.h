@@ -1089,4 +1089,38 @@ glsl_align(unsigned int a, unsigned int align)
    return (a + align - 1) / align * align;
 }
 
+static inline unsigned
+glsl_base_get_byte_size(const enum glsl_base_type base_type)
+{
+   switch (base_type) {
+   case GLSL_TYPE_INT:
+   case GLSL_TYPE_UINT:
+   case GLSL_TYPE_BOOL:
+   case GLSL_TYPE_FLOAT: /* TODO handle mediump */
+   case GLSL_TYPE_SUBROUTINE:
+      return 4;
+
+   case GLSL_TYPE_FLOAT16:
+   case GLSL_TYPE_UINT16:
+   case GLSL_TYPE_INT16:
+      return 2;
+
+   case GLSL_TYPE_UINT8:
+   case GLSL_TYPE_INT8:
+      return 1;
+
+   case GLSL_TYPE_DOUBLE:
+   case GLSL_TYPE_INT64:
+   case GLSL_TYPE_UINT64:
+   case GLSL_TYPE_IMAGE:
+   case GLSL_TYPE_SAMPLER:
+      return 8;
+
+   default:
+      unreachable("unknown base type");
+   }
+
+   return 0;
+}
+
 #endif /* GLSL_TYPES_H */
