@@ -24,6 +24,9 @@ struct nouveau_screen {
    struct nouveau_client *client;
    struct nouveau_pushbuf *pushbuf;
 
+   void *hmm_hole;
+   unsigned long hmm_hole_size;
+
    int refcount;
 
    unsigned vidmem_bindings; /* PIPE_BIND_* where VRAM placement is desired */

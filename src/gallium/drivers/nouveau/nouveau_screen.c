@@ -14,6 +14,8 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include <sys/mman.h>
+
 #include <nouveau_drm.h>
 
 #include "nouveau_winsys.h"
@@ -168,6 +170,26 @@ nouveau_disk_cache_create(struct nouveau_screen *screen)
    }
 }
 
+static int
+nouveau_hmm_init(struct nouveau_screen *screen, struct nouveau_device *dev)
+{
+   int fd = screen->drm->fd;
+   uint64_t start = 1UL << 30;
+   uint64_t size = 4UL << 30;
+   uint64_t inc = 256UL << 20;
+   uint64_t offset = 0x100000000ULL;
+
+   screen->hmm_hole_size = size;
+   do {
+      screen->hmm_hole = mmap(start, size, PROT_NONE, MAP_PRIVATE, fd, offset);
+      if (screen->hmm_hole != MAP_FAILED) {
+          return 0;
+      }
+      start += inc;
+   } while ((start + size) < (1UL << 40));
+   return -1;
+}
+
 int
 nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
 {
@@ -218,14 +240,18 @@ nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
          screen->vram_domain = NOUVEAU_BO_GART;
    }
 
+   ret = nouveau_client_new(screen->device, &screen->client);
+   if (ret)
+      return ret;
+   /* FIXME set some flag in screen on failure to disable OpenCL 2.0 */
+   if (nouveau_hmm_init(screen, dev)) {
+   }
+
    ret = nouveau_object_new(&dev->object, 0, NOUVEAU_FIFO_CHANNEL_CLASS,
                             data, size, &screen->channel);
    if (ret)
       return ret;
 
-   ret = nouveau_client_new(screen->device, &screen->client);
-   if (ret)
-      return ret;
    ret = nouveau_pushbuf_new(screen->client, screen->channel,
                              4, 512 * 1024, 1,
                              &screen->pushbuf);
