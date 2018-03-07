@@ -238,6 +238,12 @@ namespace clover {
       std::string _name;
       exec_context exec;
       const ref_holder program_ref;
+
+      // for PIPE_SHADER_IR_NIR, when the kernel is created spirv_to_nir
+      // is run to convert to nir_shader:
+      std::map<const device *, void *> _nirs;
+
+      void *nir(const device &dev);
    };
 }
 

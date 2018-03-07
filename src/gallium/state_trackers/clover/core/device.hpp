@@ -92,9 +92,9 @@ namespace clover {
       supported_formats(const context &, cl_mem_object_type);
 
       clover::platform &platform;
+      pipe_screen *pipe;
 
    private:
-      pipe_screen *pipe;
       pipe_loader_device *ldev;
    };
 }
