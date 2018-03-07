@@ -594,6 +594,8 @@ struct vtn_builder {
    unsigned func_param_idx;
 
    bool has_loop_continue;
+
+   bool kernel_mode;
 };
 
 nir_ssa_def *

@@ -3353,6 +3353,9 @@ stage_for_execution_model(struct vtn_builder *b, SpvExecutionModel model)
       return MESA_SHADER_FRAGMENT;
    case SpvExecutionModelGLCompute:
       return MESA_SHADER_COMPUTE;
+   case SpvExecutionModelKernel:
+      b->kernel_mode = true;
+      return MESA_SHADER_COMPUTE;
    default:
       vtn_fail("Unsupported execution model");
    }
