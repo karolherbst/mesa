@@ -26,6 +26,7 @@
 #include "core/context.hpp"
 #include "core/module.hpp"
 #include "core/program.hpp"
+#include "compiler/nir/nir.h"
 
 namespace clover {
    namespace spirv {
@@ -53,6 +54,10 @@ namespace clover {
       // link dependencies between them.
       module link_program(const std::vector<module> &modules, const device &dev,
                           const std::string &opts, std::string &r_log);
+
+      // Generates a nir program for a linked spirv module
+      void *spirv_to_nir(const module &m, const std::string &name,
+            const nir_shader_compiler_options *options);
    }
 }
 

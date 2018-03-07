@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 clover_cpp_args = []
-clover_incs = [inc_include, inc_src, inc_gallium, inc_gallium_aux]
+clover_incs = [inc_include, inc_src, inc_gallium, inc_gallium_aux, inc_common, inc_compiler]
 
 if with_opencl_icd
   clover_cpp_args += '-DHAVE_CLOVER_ICD'
@@ -27,7 +27,7 @@ endif
 
 libclllvm = static_library(
   'clllvm',
-  files(
+  [files(
     'llvm/codegen/bitcode.cpp',
     'llvm/codegen/common.cpp',
     'llvm/codegen/native.cpp',
@@ -37,7 +37,7 @@ libclllvm = static_library(
     'llvm/invocation.hpp',
     'llvm/metadata.hpp',
     'llvm/util.hpp',
-  ),
+  ), nir_opcodes_h ],
   include_directories : clover_incs,
   cpp_args : [
     cpp_vis_args,
@@ -53,7 +53,7 @@ libclllvm = static_library(
 
 libclspirv = static_library(
   'clspirv',
-  files('spirv/invocation.cpp', 'spirv/invocation.hpp'),
+  [files('spirv/invocation.cpp', 'spirv/invocation.hpp'), nir_opcodes_h],
   include_directories : clover_incs,
   cpp_args : [cpp_vis_args],
   dependencies : [dep_spirv_tools],
@@ -116,8 +116,8 @@ clover_files = files(
 
 libclover = static_library(
   'clover',
-  clover_files,
+  [clover_files, nir_opcodes_h],
   include_directories : clover_incs,
   cpp_args : [clover_cpp_args, cpp_vis_args],
-  link_with : [libclllvm, libclspirv],
+  link_with : [libclllvm, libclspirv, libnir],
 )
