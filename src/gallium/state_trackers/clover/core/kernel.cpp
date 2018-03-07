@@ -25,6 +25,10 @@
 #include "util/factor.hpp"
 #include "util/u_math.h"
 #include "pipe/p_context.h"
+#include "pipe/p_screen.h"
+
+#include "spirv/invocation.hpp"
+#include "compiler/nir/nir.h"
 
 using namespace clover;
 
@@ -32,6 +36,17 @@ kernel::kernel(clover::program &prog, const std::string &name,
                const std::vector<module::argument> &margs) :
    program(prog), _name(name), exec(*this),
    program_ref(prog._kernel_ref_counter) {
+   auto valid_devs = ref_vector<device>(prog.devices());
+
+   for_each([&](const device &dev) {
+      const nir_shader_compiler_options *options =
+            (const nir_shader_compiler_options *)
+            dev.pipe->get_compiler_options(dev.pipe,
+                  PIPE_SHADER_IR_NIR, PIPE_SHADER_COMPUTE);
+      _nirs[&dev] =
+            spirv::spirv_to_nir(prog.build(dev).binary, name, options);
+   }, valid_devs);
+
    for (auto &marg : margs) {
       if (marg.semantic == module::argument::general)
          _args.emplace_back(argument::create(marg));
@@ -227,7 +242,12 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
          _q->pipe->delete_compute_state(_q->pipe, st);
 
       cs.ir_type = q->device().ir_format();
-      cs.prog = &(msec.data[0]);
+      if (cs.ir_type == PIPE_SHADER_IR_NIR) {
+         // driver takes ownership of nir_shader:
+         cs.prog = nir_shader_clone(NULL, (nir_shader *)kern.nir(q->device()));
+      } else {
+         cs.prog = &(msec.data[0]);
+      }
       cs.req_local_mem = mem_local;
       cs.req_input_mem = input.size();
       st = q->pipe->create_compute_state(q->pipe, &cs);
@@ -621,4 +641,9 @@ kernel::sampler_argument::bind(exec_context &ctx,
 void
 kernel::sampler_argument::unbind(exec_context &ctx) {
    s->unbind(*ctx.q, st);
+}
+
+void *
+kernel::nir(const device &dev) {
+   return _nirs.count(&dev) ? _nirs.find(&dev)->second : NULL;
 }
