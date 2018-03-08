@@ -1754,6 +1754,8 @@ nir_intrinsic_from_system_value(gl_system_value val)
       return nir_intrinsic_load_subgroup_id;
    case SYSTEM_VALUE_LOCAL_GROUP_SIZE:
       return nir_intrinsic_load_local_group_size;
+   case SYSTEM_VALUE_WORK_DIM:
+      return nir_intrinsic_load_work_dim;
    default:
       unreachable("system value does not directly correspond to intrinsic");
    }

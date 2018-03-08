@@ -578,6 +578,8 @@ typedef enum
    SYSTEM_VALUE_WORK_GROUP_ID,
    SYSTEM_VALUE_NUM_WORK_GROUPS,
    SYSTEM_VALUE_LOCAL_GROUP_SIZE,
+   SYSTEM_VALUE_GLOBAL_SIZE,
+   SYSTEM_VALUE_WORK_DIM,
    /*@}*/
 
    /** Required for VK_KHR_device_group */
@@ -592,7 +594,6 @@ typedef enum
     */
    SYSTEM_VALUE_VERTEX_CNT,
 
-   SYSTEM_VALUE_GLOBAL_SIZE,
 
    SYSTEM_VALUE_MAX             /**< Number of values */
 } gl_system_value;

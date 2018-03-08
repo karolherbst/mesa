@@ -447,6 +447,7 @@ system_value("subgroup_lt_mask", 0)
 system_value("num_subgroups", 1)
 system_value("subgroup_id", 1)
 system_value("local_group_size", 3)
+system_value("work_dim", 1)
 
 # Blend constant color values.  Float values are clamped.#
 system_value("blend_const_color_r_float", 1)
