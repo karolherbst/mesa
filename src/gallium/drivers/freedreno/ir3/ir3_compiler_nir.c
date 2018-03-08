@@ -2576,6 +2576,9 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 			dst[i] = create_driver_param(ctx, IR3_DP_LOCAL_GROUP_SIZE_X + i);
 		}
 		break;
+	case nir_intrinsic_load_work_dim:
+		dst[0] = create_driver_param(ctx, IR3_DP_WORK_DIM);
+		break;
 	case nir_intrinsic_discard_if:
 	case nir_intrinsic_discard: {
 		struct ir3_instruction *cond, *kill;
