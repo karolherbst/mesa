@@ -3328,16 +3328,16 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
       case SpvCapabilityInputAttachment:
       case SpvCapabilityImageGatherExtended:
       case SpvCapabilityStorageImageExtendedFormats:
+      case SpvCapabilityFloat16:
+      case SpvCapabilityInt16:
+      case SpvCapabilityVector16:
          break;
 
       case SpvCapabilityGeometryStreams:
       case SpvCapabilityLinkage:
-      case SpvCapabilityVector16:
       case SpvCapabilityFloat16Buffer:
-      case SpvCapabilityFloat16:
       case SpvCapabilityInt64Atomics:
       case SpvCapabilityAtomicStorage:
-      case SpvCapabilityInt16:
       case SpvCapabilityStorageImageMultisample:
       case SpvCapabilityInt8:
       case SpvCapabilitySparseResidency:
