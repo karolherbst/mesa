@@ -405,7 +405,7 @@ vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
    case SpvOpDPdyCoarse:   return nir_op_fddy_coarse;
 
    default:
-      vtn_fail("No NIR equivalent");
+      vtn_fail("No NIR equivalent: %u", opcode);
    }
 }
 
@@ -572,6 +572,24 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       val->ssa->def = nir_ieq(&b->nb, nir_fabs(&b->nb, src[0]), inf);
       break;
    }
+
+   case SpvOpIsFinite:
+      val->ssa->def = nir_feq(&b->nb,
+                              nir_fabs(&b->nb,
+                                       nir_fmul(&b->nb, src[0],
+                                                nir_imm_float(&b->nb, 0.0))),
+                              nir_imm_float(&b->nb, 0.0));
+      break;
+
+   case SpvOpIsNormal:
+      val->ssa->def = nir_ult(&b->nb,
+                              nir_iadd(&b->nb,
+                                       nir_ushr(&b->nb,
+                                                nir_fabs(&b->nb, src[0]),
+                                                nir_imm_int(&b->nb, 23)),
+                                       nir_imm_int(&b->nb, -1)),
+                              nir_imm_int(&b->nb, 254));
+      break;
 
    case SpvOpFUnordEqual:
    case SpvOpFUnordNotEqual:
