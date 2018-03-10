@@ -583,6 +583,38 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       break;
    }
 
+   case SpvOpIsFinite: {
+      nir_ssa_def *inf = nir_imm_floatN_t(&b->nb, INFINITY, src[0]->bit_size);
+      nir_ssa_def *is_number = nir_feq(&b->nb, src[0], src[0]);
+      nir_ssa_def *is_not_inf = nir_ine(&b->nb, nir_fabs(&b->nb, src[0]), inf);
+      val->ssa->def = nir_iand(&b->nb, is_number, is_not_inf);
+      break;
+   }
+
+   case SpvOpIsNormal: {
+      unsigned bit_size = src[0]->bit_size;
+
+      uint32_t m;
+      if (bit_size == 64)
+         m = 11;
+      else if (bit_size == 32)
+         m = 8;
+      else if (bit_size == 16)
+         m = 5;
+      else
+         assert(!"unknown float type");
+
+      nir_ssa_def *shift = nir_imm_int(&b->nb, bit_size - m - 1);
+      nir_ssa_def *abs = nir_fabs(&b->nb, src[0]);
+      nir_ssa_def *exp = nir_iadd(&b->nb,
+                                  nir_ushr(&b->nb, abs, shift),
+                                  nir_imm_intN_t(&b->nb, -1, bit_size));
+      val->ssa->def = nir_ult(&b->nb,
+                              exp,
+                              nir_imm_intN_t(&b->nb, (1 << m) - 2, bit_size));
+      break;
+   }
+
    case SpvOpFUnordEqual:
    case SpvOpFUnordNotEqual:
    case SpvOpFUnordLessThan:
