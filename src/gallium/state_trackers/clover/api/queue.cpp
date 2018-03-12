@@ -112,3 +112,19 @@ clFlush(cl_command_queue d_q) try {
 } catch (error &e) {
    return e.get();
 }
+
+CLOVER_API cl_command_queue
+clCreateCommandQueueWithProperties(cl_context context, cl_device_id device,
+                                   const cl_queue_properties *properties,
+                                   cl_int *errcode_ret)
+{
+   cl_command_queue_properties props = 0;
+   if (properties) {
+      for (auto idx = 0; properties[idx]; idx += 2) {
+         if (properties[idx] == CL_QUEUE_PROPERTIES)
+            props = properties[idx + 1];
+      }
+   }
+
+   return clCreateCommandQueue(context, device, props, errcode_ret);
+}
