@@ -158,7 +158,7 @@ namespace clover {
       NULL, // clEnqueueSVMMap
       NULL, // clEnqueueSVMUnmap
       NULL, // clCreateSamplerWithProperties
-      NULL, // clSetKernelArgSVMPointer
+      clSetKernelArgSVMPointer,
       NULL, // clSetKernelExecInfo
       NULL, // clGetKernelSubGroupInfoKHR
       NULL, // clCloneKernel
