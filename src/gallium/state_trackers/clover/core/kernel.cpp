@@ -414,6 +414,14 @@ kernel::global_argument::set(size_t size, const void *value) {
 }
 
 void
+kernel::global_argument::setPointer(const void *value) {
+   const void *addr = &value;
+   ptr = { (uint8_t *)addr, (uint8_t *)addr + sizeof(addr) };
+   buf = nullptr;
+   _set = true;
+}
+
+void
 kernel::global_argument::bind(exec_context &ctx,
                               const module::argument &marg) {
    align(ctx.input, marg.target_align);
@@ -430,6 +438,12 @@ kernel::global_argument::bind(exec_context &ctx,
       extend(v, marg.ext_type, marg.target_size);
       byteswap(v, ctx.q->device().endianness());
       insert(ctx.input, v);
+   } else if (!ptr.empty()) {
+      auto w = ptr;
+      extend(w, marg.ext_type, marg.size);
+      byteswap(w, ctx.q->device().endianness());
+      align(ctx.input, marg.size);
+      insert(ctx.input, w);
    } else {
       // Null pointer.
       allocate(ctx.input, marg.target_size);
@@ -484,6 +498,14 @@ kernel::constant_argument::set(size_t size, const void *value) {
 }
 
 void
+kernel::constant_argument::setPointer(const void *value) {
+   const void *addr = &value;
+   ptr = { (uint8_t *)addr, (uint8_t *)addr + sizeof(addr) };
+   buf = nullptr;
+   _set = true;
+}
+
+void
 kernel::constant_argument::bind(exec_context &ctx,
                                 const module::argument &marg) {
    align(ctx.input, marg.target_align);
@@ -498,6 +520,12 @@ kernel::constant_argument::bind(exec_context &ctx,
 
       st = r.bind_surface(*ctx.q, false);
       ctx.resources.push_back(st);
+   } else if (!ptr.empty()) {
+      auto w = ptr;
+      extend(w, marg.ext_type, marg.size);
+      byteswap(w, ctx.q->device().endianness());
+      align(ctx.input, marg.size);
+      insert(ctx.input, w);
    } else {
       // Null pointer.
       allocate(ctx.input, marg.target_size);
