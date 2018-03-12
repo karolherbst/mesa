@@ -333,3 +333,16 @@ clEnqueueNativeKernel(cl_command_queue d_q, void (*func)(void *),
                       const cl_event *d_deps, cl_event *rd_ev) {
    return CL_INVALID_OPERATION;
 }
+
+CLOVER_API cl_int
+clSetKernelArgSVMPointer(cl_kernel d_kern, cl_uint idx,
+                         const void *value) try {
+   obj(d_kern).args().at(idx).setPointer(value);
+   return CL_SUCCESS;
+
+} catch (std::out_of_range &e) {
+   return CL_INVALID_ARG_INDEX;
+
+} catch (error &e) {
+   return e.get();
+}
