@@ -573,6 +573,7 @@ nvc0_screen_get_compute_param(struct pipe_screen *pscreen,
 {
    struct nvc0_screen *screen = nvc0_screen(pscreen);
    const uint16_t obj_class = screen->compute->oclass;
+   struct nouveau_device *dev = screen->base.device;
 
 #define RET(x) do {                  \
    if (data)                         \
@@ -600,7 +601,8 @@ nvc0_screen_get_compute_param(struct pipe_screen *pscreen,
          RET((uint64_t []) { 512 });
       }
    case PIPE_COMPUTE_CAP_MAX_GLOBAL_SIZE: /* g[] */
-      RET((uint64_t []) { 1ULL << 40 });
+      // TODO what to do when vram_size is 0?
+      RET((uint64_t []) { dev->vram_size });
    case PIPE_COMPUTE_CAP_MAX_LOCAL_SIZE: /* s[] */
       switch (obj_class) {
       case GM200_COMPUTE_CLASS:
@@ -620,7 +622,8 @@ nvc0_screen_get_compute_param(struct pipe_screen *pscreen,
    case PIPE_COMPUTE_CAP_SUBGROUP_SIZE:
       RET((uint32_t []) { 32 });
    case PIPE_COMPUTE_CAP_MAX_MEM_ALLOC_SIZE:
-      RET((uint64_t []) { 1ULL << 40 });
+      // TODO what to do when vram_size is 0?
+      RET((uint64_t []) { dev->vram_size });
    case PIPE_COMPUTE_CAP_IMAGES_SUPPORTED:
       RET((uint32_t []) { NVC0_MAX_IMAGES });
    case PIPE_COMPUTE_CAP_MAX_COMPUTE_UNITS:

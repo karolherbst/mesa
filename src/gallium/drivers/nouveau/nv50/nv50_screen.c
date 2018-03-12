@@ -501,6 +501,7 @@ nv50_screen_get_compute_param(struct pipe_screen *pscreen,
                               enum pipe_compute_cap param, void *data)
 {
    struct nv50_screen *screen = nv50_screen(pscreen);
+   struct nouveau_device *dev = screen->base.device;
 
 #define RET(x) do {                  \
    if (data)                         \
@@ -518,7 +519,8 @@ nv50_screen_get_compute_param(struct pipe_screen *pscreen,
    case PIPE_COMPUTE_CAP_MAX_THREADS_PER_BLOCK:
       RET((uint64_t []) { 512 });
    case PIPE_COMPUTE_CAP_MAX_GLOBAL_SIZE: /* g0-15[] */
-      RET((uint64_t []) { 1ULL << 32 });
+      // TODO what to do if vram_size is 0?
+      RET((uint64_t []) { MIN2(1ULL << 32, dev->vram_size) });
    case PIPE_COMPUTE_CAP_MAX_LOCAL_SIZE: /* s[] */
       RET((uint64_t []) { 16 << 10 });
    case PIPE_COMPUTE_CAP_MAX_PRIVATE_SIZE: /* l[] */
@@ -528,7 +530,8 @@ nv50_screen_get_compute_param(struct pipe_screen *pscreen,
    case PIPE_COMPUTE_CAP_SUBGROUP_SIZE:
       RET((uint32_t []) { 32 });
    case PIPE_COMPUTE_CAP_MAX_MEM_ALLOC_SIZE:
-      RET((uint64_t []) { 1ULL << 40 });
+      // TODO what to do if vram_size is 0?
+      RET((uint64_t []) { dev->vram_size });
    case PIPE_COMPUTE_CAP_IMAGES_SUPPORTED:
       RET((uint32_t []) { 0 });
    case PIPE_COMPUTE_CAP_MAX_COMPUTE_UNITS:
