@@ -237,8 +237,8 @@ validate_alu_src(nir_alu_instr *instr, unsigned index, validate_state *state)
       else
          num_components = src->src.reg.reg->num_components;
    }
-   for (unsigned i = 0; i < 4; i++) {
-      validate_assert(state, src->swizzle[i] < 4);
+   for (unsigned i = 0; i < num_components; i++) {
+      validate_assert(state, src->swizzle[i] < num_components);
 
       if (nir_alu_instr_channel_used(instr, index, i))
          validate_assert(state, src->swizzle[i] < num_components);

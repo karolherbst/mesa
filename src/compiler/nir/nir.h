@@ -118,16 +118,16 @@ typedef enum {
 } nir_rounding_mode;
 
 typedef union {
-   float f32[4];
-   double f64[4];
-   int8_t i8[4];
-   uint8_t u8[4];
-   int16_t i16[4];
-   uint16_t u16[4];
-   int32_t i32[4];
-   uint32_t u32[4];
-   int64_t i64[4];
-   uint64_t u64[4];
+   float f32[16];
+   double f64[16];
+   int8_t i8[16];
+   uint8_t u8[16];
+   int16_t i16[16];
+   uint16_t u16[16];
+   int32_t i32[16];
+   uint32_t u32[16];
+   int64_t i64[16];
+   uint64_t u64[16];
 } nir_const_value;
 
 typedef struct nir_constant {
@@ -138,7 +138,7 @@ typedef struct nir_constant {
     * by the type associated with the \c nir_variable.  Constants may be
     * scalars, vectors, or matrices.
     */
-   nir_const_value values[4];
+   nir_const_value values[16];
 
    /* we could get this from the var->type but makes clone *much* easier to
     * not have to care about the type.
@@ -693,7 +693,7 @@ typedef struct {
     * a statement like "foo.xzw = bar.zyx" would have a writemask of 1101b and
     * a swizzle of {2, x, 1, 0} where x means "don't care."
     */
-   uint8_t swizzle[4];
+   uint8_t swizzle[16];
 } nir_alu_src;
 
 typedef struct {
@@ -708,7 +708,7 @@ typedef struct {
 
    bool saturate;
 
-   unsigned write_mask : 4; /* ignored if dest.is_ssa is true */
+   unsigned write_mask : 16; /* ignored if dest.is_ssa is true */
 } nir_alu_dest;
 
 typedef enum {
@@ -837,14 +837,14 @@ typedef struct {
    /**
     * The number of components in each input
     */
-   unsigned input_sizes[4];
+   unsigned input_sizes[16];
 
    /**
     * The type of vector that each input takes. Note that negate and
     * absolute value are only allowed on inputs with int or float type and
     * behave differently on the two.
     */
-   nir_alu_type input_types[4];
+   nir_alu_type input_types[16];
 
    nir_op_algebraic_property algebraic_properties;
 } nir_op_info;

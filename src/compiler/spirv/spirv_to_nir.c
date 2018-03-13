@@ -2712,6 +2712,8 @@ create_vec(struct vtn_builder *b, unsigned num_components, unsigned bit_size)
    case 2: op = nir_op_vec2; break;
    case 3: op = nir_op_vec3; break;
    case 4: op = nir_op_vec4; break;
+   case 8: op = nir_op_vec8; break;
+   case 16: op = nir_op_vec16; break;
    default: vtn_fail("bad vector size");
    }
 
@@ -2756,7 +2758,7 @@ vtn_ssa_transpose(struct vtn_builder *b, struct vtn_ssa_value *src)
 nir_ssa_def *
 vtn_vector_extract(struct vtn_builder *b, nir_ssa_def *src, unsigned index)
 {
-   unsigned swiz[4] = { index };
+   unsigned swiz[16] = { index };
    return nir_swizzle(&b->nb, src, swiz, 1, true);
 }
 
@@ -2973,7 +2975,7 @@ vtn_handle_composite(struct vtn_builder *b, SpvOp opcode,
       unsigned elems = count - 3;
       assume(elems >= 1);
       if (glsl_type_is_vector_or_scalar(type)) {
-         nir_ssa_def *srcs[4];
+         nir_ssa_def *srcs[16];
          for (unsigned i = 0; i < elems; i++)
             srcs[i] = vtn_ssa_value(b, w[3 + i])->def;
          val->ssa->def =

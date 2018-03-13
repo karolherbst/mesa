@@ -93,6 +93,8 @@ lower_alu_instr_scalar(nir_alu_instr *instr, nir_builder *b)
       return true;
 
    switch (instr->op) {
+   case nir_op_vec16:
+   case nir_op_vec8:
    case nir_op_vec4:
    case nir_op_vec3:
    case nir_op_vec2:
@@ -209,9 +211,9 @@ lower_alu_instr_scalar(nir_alu_instr *instr, nir_builder *b)
       return false;
 
    unsigned num_components = instr->dest.dest.ssa.num_components;
-   nir_ssa_def *comps[] = { NULL, NULL, NULL, NULL };
+   nir_ssa_def *comps[16] = {NULL};
 
-   for (chan = 0; chan < 4; chan++) {
+   for (chan = 0; chan < 16; chan++) {
       if (!(instr->dest.write_mask & (1 << chan)))
          continue;
 
@@ -225,7 +227,7 @@ lower_alu_instr_scalar(nir_alu_instr *instr, nir_builder *b)
                               0 : chan);
 
          nir_alu_src_copy(&lower->src[i], &instr->src[i], lower);
-         for (int j = 0; j < 4; j++)
+         for (int j = 0; j < 16; j++)
             lower->src[i].swizzle[j] = instr->src[i].swizzle[src_chan];
       }
 

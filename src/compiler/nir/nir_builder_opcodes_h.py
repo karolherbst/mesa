@@ -37,7 +37,12 @@ def src_list(num_srcs):
 static inline nir_ssa_def *
 nir_${name}(nir_builder *build, ${src_decl_list(opcode.num_inputs)})
 {
+% if opcode.num_inputs > 4:
+   nir_ssa_def *srcs[] = {${src_list(opcode.num_inputs)}};
+   return nir_build_alu2(build, nir_op_${name}, srcs);
+% else:
    return nir_build_alu(build, nir_op_${name}, ${src_list(opcode.num_inputs)});
+% endif
 }
 % endfor
 
