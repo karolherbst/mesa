@@ -1045,7 +1045,9 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
 	 */
 	if ((alu->op == nir_op_vec2) ||
 			(alu->op == nir_op_vec3) ||
-			(alu->op == nir_op_vec4)) {
+			(alu->op == nir_op_vec4) ||
+			(alu->op == nir_op_vec8) ||
+			(alu->op == nir_op_vec16)) {
 
 		for (int i = 0; i < info->num_inputs; i++) {
 			nir_alu_src *asrc = &alu->src[i];
@@ -1189,7 +1191,6 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
 	case nir_op_fddy:
 		dst[0] = ir3_DSY(b, src[0], 0);
 		dst[0]->cat5.type = TYPE_F32;
-		break;
 		break;
 	case nir_op_flt:
 		dst[0] = ir3_CMPS_F(b, src[0], 0, src[1], 0);
