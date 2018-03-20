@@ -308,6 +308,7 @@ dst = 0;
 for (unsigned bit = 0; bit < 32; bit++)
    dst |= ((src0 >> bit) & 1) << (31 - bit);
 """)
+
 unop_convert("bit_count", tuint32, tuint, """
 dst = 0;
 for (unsigned bit = 0; bit < bit_size; bit++) {
@@ -821,6 +822,3 @@ dst.n = src13.x;
 dst.o = src14.x;
 dst.p = src15.x;
 """)
-
-binop("ihadd", tint, commutative, "((int64_t)src0 + (int64_t)src1) >> 1")
-binop("uhadd", tuint, commutative, "((uint64_t)src0 + (uint64_t)src1) >> 1")

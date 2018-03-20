@@ -26,10 +26,35 @@
 
 #include "nir/nir_builder.h"
 
-nir_ssa_def* nir_cross(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
+nir_ssa_def* nir_cross3(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
+nir_ssa_def* nir_cross4(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_fast_length(nir_builder *b, nir_ssa_def *vec);
+nir_ssa_def* nir_length(nir_builder *b, nir_ssa_def *vec);
+nir_ssa_def* nir_normalize(nir_builder *b, nir_ssa_def *vec);
+nir_ssa_def* nir_ihadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
+nir_ssa_def* nir_uhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
+nir_ssa_def* nir_irhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
+nir_ssa_def* nir_urhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_smoothstep(nir_builder *b, nir_ssa_def *edge0,
                             nir_ssa_def *edge1, nir_ssa_def *x);
+
+static inline nir_ssa_def *
+nir_iabs_diff(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *cond = nir_ige(b, x, y);
+   nir_ssa_def *res0 = nir_isub(b, x, y);
+   nir_ssa_def *res1 = nir_isub(b, y, x);
+   return nir_bcsel(b, cond, res0, res1);
+}
+
+static inline nir_ssa_def *
+nir_uabs_diff(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *cond = nir_uge(b, x, y);
+   nir_ssa_def *res0 = nir_isub(b, x, y);
+   nir_ssa_def *res1 = nir_isub(b, y, x);
+   return nir_bcsel(b, cond, res0, res1);
+}
 
 static inline nir_ssa_def *
 nir_fclamp(nir_builder *b,
@@ -59,9 +84,21 @@ nir_degrees(nir_builder *b, nir_ssa_def *val)
 }
 
 static inline nir_ssa_def *
+nir_degrees64(nir_builder *b, nir_ssa_def *val)
+{
+   return nir_fmul(b, val, nir_imm_double(b, 57.29577951308232));
+}
+
+static inline nir_ssa_def *
 nir_fast_distance(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
 {
    return nir_fast_length(b, nir_fsub(b, x, y));
+}
+
+static inline nir_ssa_def *
+nir_distance(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   return nir_length(b, nir_fsub(b, x, y));
 }
 
 static inline nir_ssa_def*
@@ -74,6 +111,12 @@ static inline nir_ssa_def *
 nir_radians(nir_builder *b, nir_ssa_def *val)
 {
    return nir_fmul(b, val, nir_imm_float(b, 0.01745329251));
+}
+
+static inline nir_ssa_def *
+nir_radians64(nir_builder *b, nir_ssa_def *val)
+{
+   return nir_fmul(b, val, nir_imm_double(b, 0.017453292519943295));
 }
 
 #endif /* NIR_BUILTIN_BUILDER_H */

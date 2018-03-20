@@ -24,11 +24,16 @@
  *    Rob Clark (robdclark@gmail.com)
  */
 
+#include "math.h"
+
+#include "nir/nir_builtin_builder.h"
+
 #include "vtn_private.h"
 #include "OpenCL.std.h"
 
 typedef nir_ssa_def *(*nir_handler)(struct vtn_builder *b, enum OpenCLstd opcode,
-                                    unsigned num_srcs, nir_ssa_def **srcs);
+                                    unsigned num_srcs, nir_ssa_def **srcs,
+                                    const struct glsl_type *dest_type);
 
 static void
 handle_instr(struct vtn_builder *b, enum OpenCLstd opcode, const uint32_t *w,
@@ -44,7 +49,7 @@ handle_instr(struct vtn_builder *b, enum OpenCLstd opcode, const uint32_t *w,
       srcs[i] = vtn_ssa_value(b, w[i + 5])->def;
    }
 
-   nir_ssa_def *result = handler(b, opcode, num_srcs, srcs);
+   nir_ssa_def *result = handler(b, opcode, num_srcs, srcs, dest_type);
    if (result) {
       struct vtn_value *val = vtn_push_value(b, w[2], vtn_value_type_ssa);
       val->ssa = vtn_create_ssa_value(b, dest_type);
@@ -58,8 +63,21 @@ static nir_op
 nir_alu_op_for_opencl_opcode(struct vtn_builder *b, enum OpenCLstd opcode)
 {
    switch (opcode) {
-   case SHadd: return nir_op_ihadd;
-   case UHadd: return nir_op_uhadd;
+   case SAbs: return nir_op_iabs;
+   case Fma: return nir_op_ffma;
+   case Fmax: return nir_op_fmax;
+   case SMax: return nir_op_imax;
+   case UMax: return nir_op_umax;
+   case Fmin: return nir_op_fmin;
+   case SMin: return nir_op_imin;
+   case UMin: return nir_op_umin;
+   case Mix: return nir_op_flrp;
+   case SMul_hi: return nir_op_imul_high;
+   case UMul_hi: return nir_op_umul_high;
+   case Popcount: return nir_op_bit_count;
+   case Sign: return nir_op_fsign;
+   /* uhm... */
+   case UAbs: return nir_op_imov;
    default:
       vtn_fail("No NIR equivalent");
    }
@@ -67,15 +85,75 @@ nir_alu_op_for_opencl_opcode(struct vtn_builder *b, enum OpenCLstd opcode)
 
 static nir_ssa_def *
 handle_alu(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
-           nir_ssa_def **srcs)
+           nir_ssa_def **srcs, const struct glsl_type *dest_type)
 {
    return nir_build_alu(&b->nb, nir_alu_op_for_opencl_opcode(b, opcode),
                         srcs[0], srcs[1], srcs[2], NULL);
 }
 
 static nir_ssa_def *
+handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
+               nir_ssa_def **srcs, const struct glsl_type *dest_type)
+{
+   nir_builder *nb = &b->nb;
+   bool is64bit = glsl_type_is_64bit(dest_type);
+
+   switch (opcode) {
+   case SAbs_diff:
+      return nir_iabs_diff(nb, srcs[0], srcs[1]);
+   case UAbs_diff:
+      return nir_uabs_diff(nb, srcs[0], srcs[1]);
+   case FClamp:
+      return nir_fclamp(nb, srcs[0], srcs[1], srcs[2]);
+   case SClamp:
+      return nir_iclamp(nb, srcs[0], srcs[1], srcs[2]);
+   case UClamp:
+      return nir_uclamp(nb, srcs[0], srcs[1], srcs[2]);
+   case Cross:
+      if (glsl_get_components(dest_type) == 4)
+         return nir_cross4(nb, srcs[0], srcs[1]);
+      return nir_cross3(nb, srcs[0], srcs[1]);
+   case Degrees:
+      if (is64bit)
+         return nir_degrees64(nb, srcs[0]);
+      return nir_degrees(nb, srcs[0]);
+   case Distance:
+      return nir_distance(nb, srcs[0], srcs[1]);
+   case Fast_distance:
+      return nir_fast_distance(nb, srcs[0], srcs[1]);
+   case Fast_length:
+      return nir_fast_length(nb, srcs[0]);
+   case Fast_normalize:
+      return nir_fast_normalize(nb, srcs[0]);
+   case SHadd:
+      return nir_ihadd(nb, srcs[0], srcs[1]);
+   case UHadd:
+      return nir_uhadd(nb, srcs[0], srcs[1]);
+   case Length:
+      return nir_length(nb, srcs[0]);
+   case Normalize:
+      return nir_normalize(nb, srcs[0]);
+   case Radians:
+      if (is64bit)
+         return nir_radians64(nb, srcs[0]);
+      return nir_radians(nb, srcs[0]);
+   case SRhadd:
+      return nir_irhadd(nb, srcs[0], srcs[1]);
+   case URhadd:
+      return nir_urhadd(nb, srcs[0], srcs[1]);
+   case Smoothstep:
+      return nir_smoothstep(nb, srcs[0], srcs[1], srcs[2]);
+   case Step:
+      return nir_sge(nb, srcs[1], srcs[0]);
+   default:
+      vtn_fail("No NIR equivalent");
+      return NULL;
+   }
+}
+
+static nir_ssa_def *
 handle_printf(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
-              nir_ssa_def **srcs)
+              nir_ssa_def **srcs, const struct glsl_type *dest_type)
 {
    /* hahah, yeah, right.. */
    return nir_imm_int(&b->nb, -1);
@@ -220,9 +298,43 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
                               const uint32_t *w, unsigned count)
 {
    switch (ext_opcode) {
+   case SAbs:
+   case UAbs:
+   case Fma:
+   case Fmax:
+   case SMax:
+   case UMax:
+   case Fmin:
+   case SMin:
+   case UMin:
+   case Mix:
+   case SMul_hi:
+   case UMul_hi:
+   case Popcount:
+   case Sign:
+      handle_instr(b, ext_opcode, w, count, handle_alu);
+      return true;
+   case SAbs_diff:
+   case UAbs_diff:
+   case FClamp:
+   case SClamp:
+   case UClamp:
+   case Cross:
+   case Degrees:
+   case Distance:
+   case Fast_distance:
+   case Fast_length:
+   case Fast_normalize:
    case SHadd:
    case UHadd:
-      handle_instr(b, ext_opcode, w, count, handle_alu);
+   case Length:
+   case Normalize:
+   case Radians:
+   case SRhadd:
+   case URhadd:
+   case Step:
+   case Smoothstep:
+      handle_instr(b, ext_opcode, w, count, handle_special);
       return true;
    case Vloadn:
    case Vload_half:
