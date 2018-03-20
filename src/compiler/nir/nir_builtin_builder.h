@@ -36,6 +36,7 @@ nir_ssa_def* nir_ihadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_uhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_irhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_urhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
+nir_ssa_def* nir_rotate(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_smoothstep(nir_builder *b, nir_ssa_def *edge0,
                             nir_ssa_def *edge1, nir_ssa_def *x);
 nir_ssa_def* nir_isub_sat(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
@@ -123,6 +124,12 @@ static inline nir_ssa_def*
 nir_fast_normalize(nir_builder *b, nir_ssa_def *vec)
 {
    return nir_fdiv(b, vec, nir_fast_length(b, vec));
+}
+
+static inline nir_ssa_def*
+nir_mad(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, nir_ssa_def *z)
+{
+   return nir_iadd(b, nir_imul(b, x, y), z);
 }
 
 static inline nir_ssa_def *

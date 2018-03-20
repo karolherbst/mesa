@@ -137,6 +137,8 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
       return nir_uhadd(nb, srcs[0], srcs[1]);
    case Length:
       return nir_length(nb, srcs[0]);
+   case Mad:
+      return nir_mad(nb, srcs[0], srcs[1], srcs[2]);
    case Normalize:
       return nir_normalize(nb, srcs[0]);
    case Radians:
@@ -147,6 +149,8 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
       return nir_irhadd(nb, srcs[0], srcs[1]);
    case URhadd:
       return nir_urhadd(nb, srcs[0], srcs[1]);
+   case Rotate:
+      return nir_rotate(nb, srcs[0], srcs[1]);
    case Smoothstep:
       return nir_smoothstep(nb, srcs[0], srcs[1], srcs[2]);
    case Select:
@@ -347,10 +351,12 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
    case SHadd:
    case UHadd:
    case Length:
+   case Mad:
    case Normalize:
    case Radians:
    case SRhadd:
    case URhadd:
+   case Rotate:
    case Select:
    case Step:
    case Smoothstep:

@@ -185,6 +185,23 @@ nir_urhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
 }
 
 nir_ssa_def*
+nir_rotate(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *shift_mask = nir_imm_int(b, x->bit_size - 1);
+
+   if (y->bit_size != 32)
+      y = nir_u2u32(b, y);
+
+   nir_ssa_def *lshift = nir_iand(b, y, shift_mask);
+   nir_ssa_def *rshift = nir_isub(b, nir_imm_int(b, x->bit_size), lshift);
+
+   nir_ssa_def *hi = nir_ishl(b, x, lshift);
+   nir_ssa_def *lo = nir_ushr(b, x, rshift);
+
+   return nir_ior(b, hi, lo);
+}
+
+nir_ssa_def*
 nir_normalize(nir_builder *b, nir_ssa_def *vec)
 {
    bool is64bit = vec->bit_size == 64;
