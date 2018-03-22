@@ -61,11 +61,11 @@ lower_cs_intrinsics_convert_block(struct lower_intrinsics_state *state,
          if (state->local_workgroup_size <= state->dispatch_width)
             subgroup_id = nir_imm_int(b, 0);
          else
-            subgroup_id = nir_load_subgroup_id(b);
+            subgroup_id = nir_load_subgroup_id(b, 32);
 
          nir_ssa_def *thread_local_id =
             nir_imul(b, subgroup_id, nir_imm_int(b, state->dispatch_width));
-         nir_ssa_def *channel = nir_load_subgroup_invocation(b);
+         nir_ssa_def *channel = nir_load_subgroup_invocation(b, 32);
          sysval = nir_iadd(b, channel, thread_local_id);
          break;
       }
@@ -86,7 +86,7 @@ lower_cs_intrinsics_convert_block(struct lower_intrinsics_state *state,
           */
          unsigned *size = nir->info.cs.local_size;
 
-         nir_ssa_def *local_index = nir_load_local_invocation_index(b);
+         nir_ssa_def *local_index = nir_load_local_invocation_index(b, 32);
 
          nir_const_value uvec3;
          memset(&uvec3, 0, sizeof(uvec3));

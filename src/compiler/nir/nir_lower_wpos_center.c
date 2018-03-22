@@ -58,7 +58,7 @@ update_fragcoord(nir_builder *b, nir_intrinsic_instr *intr,
       wpos = nir_fadd(b, wpos, nir_imm_vec4(b, 0.5f, 0.5f, 0.0f, 0.0f));
    } else {
       nir_ssa_def *spos =
-         nir_load_system_value(b, nir_intrinsic_load_sample_pos, 0);
+         nir_load_system_value(b, nir_intrinsic_load_sample_pos, 0, 32);
 
       wpos = nir_fadd(b, wpos,
                       nir_vec4(b,

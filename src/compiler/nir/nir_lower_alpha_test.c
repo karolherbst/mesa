@@ -95,7 +95,7 @@ nir_lower_alpha_test(nir_shader *shader, enum compare_func func,
 
                nir_ssa_def *condition =
                   nir_compare_func(&b, func,
-                                   alpha, nir_load_alpha_ref_float(&b));
+                                   alpha, nir_load_alpha_ref_float(&b, 32));
 
                nir_intrinsic_instr *discard =
                   nir_intrinsic_instr_create(b.shader,

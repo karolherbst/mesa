@@ -114,7 +114,7 @@ blorp_blit_get_frag_coords(nir_builder *b,
 
    if (key->persample_msaa_dispatch) {
       return nir_vec3(b, nir_channel(b, coord, 0), nir_channel(b, coord, 1),
-                      nir_load_sample_id(b));
+                      nir_load_sample_id(b, 32));
    } else {
       return nir_vec2(b, nir_channel(b, coord, 0), nir_channel(b, coord, 1));
    }

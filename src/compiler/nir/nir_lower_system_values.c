@@ -29,7 +29,7 @@
 #include "nir_builder.h"
 
 static nir_ssa_def *
-load_local_size(nir_builder *b)
+load_local_size(nir_builder *b, unsigned bit_size)
 {
    /* if local_size[] is already known, use that, otherwise use
     * load_local_group_size intrinsic:
@@ -37,13 +37,19 @@ load_local_size(nir_builder *b)
    if (b->shader->info.cs.local_size[0]) {
       nir_const_value local_size;
       memset(&local_size, 0, sizeof(local_size));
-      local_size.u32[0] = b->shader->info.cs.local_size[0];
-      local_size.u32[1] = b->shader->info.cs.local_size[1];
-      local_size.u32[2] = b->shader->info.cs.local_size[2];
+      if (bit_size == 64) {
+         local_size.u64[0] = b->shader->info.cs.local_size[0];
+         local_size.u64[1] = b->shader->info.cs.local_size[1];
+         local_size.u64[2] = b->shader->info.cs.local_size[2];
+      } else {
+         local_size.u32[0] = b->shader->info.cs.local_size[0];
+         local_size.u32[1] = b->shader->info.cs.local_size[1];
+         local_size.u32[2] = b->shader->info.cs.local_size[2];
+      }
 
-      return nir_build_imm(b, 3, 32, local_size);
+      return nir_build_imm(b, 3, bit_size, local_size);
    } else {
-      return nir_load_local_group_size(b);
+      return nir_load_local_group_size(b, bit_size);
    }
 }
 
@@ -75,6 +81,7 @@ convert_block(nir_block *block, nir_builder *b)
       }
       nir_variable *var = deref->var;
 
+      unsigned bit_size = load_deref->dest.ssa.bit_size;
       b->cursor = nir_after_instr(&load_deref->instr);
 
       nir_ssa_def *sysval = NULL;
@@ -85,9 +92,9 @@ convert_block(nir_block *block, nir_builder *b)
           *    "The value of gl_GlobalInvocationID is equal to
           *    gl_WorkGroupID * gl_WorkGroupSize + gl_LocalInvocationID"
           */
-         nir_ssa_def *local_size = load_local_size(b);
-         nir_ssa_def *group_id = nir_load_work_group_id(b);
-         nir_ssa_def *local_id = nir_load_local_invocation_id(b);
+         nir_ssa_def *local_size = load_local_size(b, bit_size);
+         nir_ssa_def *group_id = nir_load_work_group_id(b, bit_size);
+         nir_ssa_def *local_id = nir_load_local_invocation_id(b, bit_size);
 
          sysval = nir_iadd(b, nir_imul(b, group_id, local_size), local_id);
          break;
@@ -107,9 +114,9 @@ convert_block(nir_block *block, nir_builder *b)
           *    gl_WorkGroupSize.y + gl_LocalInvocationID.y *
           *    gl_WorkGroupSize.x + gl_LocalInvocationID.x"
           */
-         nir_ssa_def *local_id = nir_load_local_invocation_id(b);
+         nir_ssa_def *local_id = nir_load_local_invocation_id(b, bit_size);
 
-         nir_ssa_def *local_size = load_local_size(b);
+         nir_ssa_def *local_size = load_local_size(b, bit_size);
          nir_ssa_def *size_x = nir_channel(b, local_size, 0);
          nir_ssa_def *size_y = nir_channel(b, local_size, 1);
 
@@ -122,23 +129,23 @@ convert_block(nir_block *block, nir_builder *b)
       }
 
       case SYSTEM_VALUE_LOCAL_GROUP_SIZE:
-         sysval = load_local_size(b);
+         sysval = load_local_size(b, bit_size);
          break;
 
       case SYSTEM_VALUE_VERTEX_ID:
          if (b->shader->options->vertex_id_zero_based) {
             sysval = nir_iadd(b,
-                              nir_load_vertex_id_zero_base(b),
-                              nir_load_first_vertex(b));
+                              nir_load_vertex_id_zero_base(b, bit_size),
+                              nir_load_first_vertex(b, bit_size));
          } else {
-            sysval = nir_load_vertex_id(b);
+            sysval = nir_load_vertex_id(b, bit_size);
          }
          break;
 
       case SYSTEM_VALUE_INSTANCE_INDEX:
          sysval = nir_iadd(b,
-                           nir_load_instance_id(b),
-                           nir_load_base_instance(b));
+                           nir_load_instance_id(b, bit_size),
+                           nir_load_base_instance(b, bit_size));
          break;
 
       case SYSTEM_VALUE_SUBGROUP_EQ_MASK:
@@ -163,8 +170,8 @@ convert_block(nir_block *block, nir_builder *b)
          break;
 
       case SYSTEM_VALUE_GLOBAL_SIZE: {
-         nir_ssa_def *group_size = nir_load_local_group_size(b);
-         nir_ssa_def *num_work_groups = nir_load_num_work_groups(b);
+         nir_ssa_def *group_size = nir_load_local_group_size(b, bit_size);
+         nir_ssa_def *num_work_groups = nir_load_num_work_groups(b, bit_size);
          sysval = nir_imul(b, group_size, num_work_groups);
 
          break;
@@ -177,7 +184,7 @@ convert_block(nir_block *block, nir_builder *b)
       if (sysval == NULL) {
          nir_intrinsic_op sysval_op =
             nir_intrinsic_from_system_value(var->data.location);
-         sysval = nir_load_system_value(b, sysval_op, 0);
+         sysval = nir_load_system_value(b, sysval_op, 0, bit_size);
       }
 
       nir_ssa_def_rewrite_uses(&load_deref->dest.ssa, nir_src_for_ssa(sysval));

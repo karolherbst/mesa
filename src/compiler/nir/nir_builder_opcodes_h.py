@@ -44,22 +44,23 @@ nir_${name}(nir_builder *build, ${src_decl_list(opcode.num_inputs)})
 
 /* Generic builder for system values. */
 static inline nir_ssa_def *
-nir_load_system_value(nir_builder *build, nir_intrinsic_op op, int index)
+nir_load_system_value(nir_builder *build, nir_intrinsic_op op, int index,
+                      unsigned bit_size)
 {
    nir_intrinsic_instr *load = nir_intrinsic_instr_create(build->shader, op);
    load->num_components = nir_intrinsic_infos[op].dest_components;
    load->const_index[0] = index;
    nir_ssa_dest_init(&load->instr, &load->dest,
-                     nir_intrinsic_infos[op].dest_components, 32, NULL);
+                     nir_intrinsic_infos[op].dest_components, bit_size, NULL);
    nir_builder_instr_insert(build, &load->instr);
    return &load->dest.ssa;
 }
 
 % for name, opcode in filter(lambda v: v[1].sysval, sorted(INTR_OPCODES.iteritems())):
 static inline nir_ssa_def *
-nir_${name}(nir_builder *build)
+nir_${name}(nir_builder *build, unsigned bit_size)
 {
-   return nir_load_system_value(build, nir_intrinsic_${name}, 0);
+   return nir_load_system_value(build, nir_intrinsic_${name}, 0, bit_size);
 }
 % endfor
 

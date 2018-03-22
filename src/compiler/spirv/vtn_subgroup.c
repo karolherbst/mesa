@@ -110,7 +110,7 @@ vtn_handle_subgroup(struct vtn_builder *b, SpvOp opcode,
                                     nir_intrinsic_ballot_bitfield_extract);
 
       intrin->src[0] = nir_src_for_ssa(vtn_ssa_value(b, w[4])->def);
-      intrin->src[1] = nir_src_for_ssa(nir_load_subgroup_invocation(&b->nb));
+      intrin->src[1] = nir_src_for_ssa(nir_load_subgroup_invocation(&b->nb, 32));
 
       nir_ssa_dest_init(&intrin->instr, &intrin->dest, 1, 32, NULL);
       nir_builder_instr_insert(&b->nb, &intrin->instr);

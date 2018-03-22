@@ -226,7 +226,7 @@ static nir_ssa_def *
 lower_shuffle(nir_builder *b, nir_intrinsic_instr *intrin,
               bool lower_to_scalar, bool lower_to_32bit)
 {
-   nir_ssa_def *index = nir_load_subgroup_invocation(b);
+   nir_ssa_def *index = nir_load_subgroup_invocation(b, 32);
    switch (intrin->intrinsic) {
    case nir_intrinsic_shuffle_xor:
       assert(intrin->src[1].is_ssa);
@@ -338,7 +338,7 @@ lower_subgroups_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
       assert(options->subgroup_size <= 64);
       uint64_t group_mask = ~0ull >> (64 - options->subgroup_size);
 
-      nir_ssa_def *count = nir_load_subgroup_invocation(b);
+      nir_ssa_def *count = nir_load_subgroup_invocation(b, 32);
       nir_ssa_def *val;
       switch (intrin->intrinsic) {
       case nir_intrinsic_load_subgroup_eq_mask:
@@ -411,7 +411,7 @@ lower_subgroups_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
 
    case nir_intrinsic_ballot_bit_count_exclusive:
    case nir_intrinsic_ballot_bit_count_inclusive: {
-      nir_ssa_def *count = nir_load_subgroup_invocation(b);
+      nir_ssa_def *count = nir_load_subgroup_invocation(b, 32);
       nir_ssa_def *mask = nir_imm_intN_t(b, ~0ull, options->ballot_bit_size);
       if (intrin->intrinsic == nir_intrinsic_ballot_bit_count_inclusive) {
          const unsigned bits = options->ballot_bit_size;
@@ -434,7 +434,7 @@ lower_subgroups_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
       nir_ssa_dest_init(&first->instr, &first->dest, 1, 32, NULL);
       nir_builder_instr_insert(b, &first->instr);
 
-      return nir_ieq(b, nir_load_subgroup_invocation(b), &first->dest.ssa);
+      return nir_ieq(b, nir_load_subgroup_invocation(b, 32), &first->dest.ssa);
    }
 
    case nir_intrinsic_shuffle:

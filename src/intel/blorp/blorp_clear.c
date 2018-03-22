@@ -880,7 +880,7 @@ blorp_params_get_mcs_partial_resolve_kernel(struct blorp_context *blorp,
    /* Do an MCS fetch and check if it is equal to the magic clear value */
    nir_ssa_def *mcs =
       blorp_nir_txf_ms_mcs(&b, nir_f2i32(&b, blorp_nir_frag_coord(&b)),
-                               nir_load_layer_id(&b));
+                               nir_load_layer_id(&b, 32));
    nir_ssa_def *is_clear =
       blorp_nir_mcs_is_clear_color(&b, mcs, blorp_key.num_samples);
 
