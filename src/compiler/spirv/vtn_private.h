@@ -270,7 +270,8 @@ enum vtn_base_type {
    vtn_base_type_matrix,
    vtn_base_type_array,
    vtn_base_type_struct,
-   vtn_base_type_pointer,
+   vtn_base_type_pointer,         /* logical pointer */
+   vtn_base_type_phys_pointer,    /* physical pointer */
    vtn_base_type_image,
    vtn_base_type_sampler,
    vtn_base_type_sampled_image,
@@ -418,7 +419,9 @@ enum vtn_variable_mode {
    vtn_variable_mode_ubo,
    vtn_variable_mode_ssbo,
    vtn_variable_mode_push_constant,
+   vtn_variable_mode_uniform_constant,
    vtn_variable_mode_workgroup,
+   vtn_variable_mode_cross_workgroup,
    vtn_variable_mode_input,
    vtn_variable_mode_output,
 };
@@ -708,6 +711,11 @@ vtn_variable_load(struct vtn_builder *b, struct vtn_pointer *src);
 
 void vtn_variable_store(struct vtn_builder *b, struct vtn_ssa_value *src,
                         struct vtn_pointer *dest);
+enum vtn_variable_mode
+vtn_storage_class_to_mode(struct vtn_builder *b,
+                          SpvStorageClass class,
+                          struct vtn_type *interface_type,
+                          nir_variable_mode *nir_mode_out);
 
 void vtn_handle_variables(struct vtn_builder *b, SpvOp opcode,
                           const uint32_t *w, unsigned count);
