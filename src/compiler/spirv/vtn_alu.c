@@ -215,6 +215,9 @@ static void
 vtn_handle_bitcast(struct vtn_builder *b, struct vtn_ssa_value *dest,
                    struct nir_ssa_def *src)
 {
+   /* in case the src is a deref instruction, recover the pointer: */
+   src = nir_address_from_ssa(&b->nb, src);
+
    if (glsl_get_vector_elements(dest->type) == src->num_components) {
       /* From the definition of OpBitcast in the SPIR-V 1.2 spec:
        *
