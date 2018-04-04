@@ -52,6 +52,9 @@ vtn_access_chain_extend(struct vtn_builder *b, struct vtn_access_chain *old,
    unsigned old_len = old ? old->length : 0;
    chain = vtn_access_chain_create(b, old_len + new_ids);
 
+   if (old)
+      chain->ptr_as_array = old->ptr_as_array;
+
    for (unsigned i = 0; i < old_len; i++)
       chain->link[i] = old->link[i];
 
