@@ -30,7 +30,8 @@ vtn_load_param_pointer(struct vtn_builder *b,
                        uint32_t param_idx)
 {
    struct vtn_type *ptr_type = param_type;
-   if (param_type->base_type != vtn_base_type_pointer) {
+   if (param_type->base_type != vtn_base_type_pointer &&
+       param_type->base_type != vtn_base_type_phys_pointer) {
       assert(param_type->base_type == vtn_base_type_image ||
              param_type->base_type == vtn_base_type_sampler);
       ptr_type = rzalloc(b, struct vtn_type);
@@ -230,6 +231,15 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
             vtn_load_param_pointer(b, type, b->func_param_idx++);
          val->sampled_image->sampler =
             vtn_load_param_pointer(b, sampler_type, b->func_param_idx++);
+      } else if (type->base_type == vtn_base_type_phys_pointer) {
+         vtn_assert(b->shader->ptr_size);
+         struct vtn_value *val =
+            vtn_push_value(b, w[2], vtn_value_type_ssa);
+         nir_ssa_def *ssa_ptr = nir_load_param(&b->nb, b->func_param_idx++);
+         nir_variable_mode nir_mode;
+         vtn_storage_class_to_mode(b, type->storage_class, type, &nir_mode);
+         val->ssa = vtn_create_ssa_value(b, type->type);
+         val->ssa->def = nir_build_fptr(&b->nb, ssa_ptr, nir_mode);
       } else if (type->base_type == vtn_base_type_pointer &&
                  type->type != NULL) {
          /* This is a pointer with an actual storage type */

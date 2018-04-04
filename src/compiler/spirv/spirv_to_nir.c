@@ -591,6 +591,7 @@ vtn_types_compatible(struct vtn_builder *b,
              vtn_types_compatible(b, t1->array_element, t2->array_element);
 
    case vtn_base_type_pointer:
+   case vtn_base_type_phys_pointer:
       return vtn_types_compatible(b, t1->deref, t2->deref);
 
    case vtn_base_type_struct:
@@ -628,6 +629,7 @@ vtn_type_copy(struct vtn_builder *b, struct vtn_type *src)
    case vtn_base_type_matrix:
    case vtn_base_type_array:
    case vtn_base_type_pointer:
+   case vtn_base_type_phys_pointer:
    case vtn_base_type_image:
    case vtn_base_type_sampler:
    case vtn_base_type_sampled_image:
@@ -1199,6 +1201,24 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
       SpvStorageClass storage_class = w[2];
       struct vtn_type *deref_type =
          vtn_value(b, w[3], vtn_value_type_type)->type;
+
+      if (b->shader->ptr_size) {
+         /* physical memory model, things are real pointers: */
+         val->type->base_type = vtn_base_type_phys_pointer;
+         val->type->storage_class = storage_class;
+         val->type->deref = deref_type;
+
+         /* "fat" pointer consists of address and pointer type (ie.
+          * local/global/const) in the .y component
+          */
+         if (b->shader->ptr_size == 64) {
+            val->type->type = glsl_vector_type(GLSL_TYPE_UINT64, 2);
+         } else if (b->shader->ptr_size == 32) {
+            val->type->type = glsl_vector_type(GLSL_TYPE_UINT, 2);
+         }
+
+         break;
+      }
 
       val->type->base_type = vtn_base_type_pointer;
       val->type->storage_class = storage_class;
@@ -3868,6 +3888,7 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpAccessChain:
    case SpvOpPtrAccessChain:
    case SpvOpInBoundsAccessChain:
+   case SpvOpInBoundsPtrAccessChain:
    case SpvOpArrayLength:
       vtn_handle_variables(b, opcode, w, count);
       break;
@@ -3959,6 +3980,10 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
       struct vtn_value *obj1_val = vtn_untyped_value(b, w[4]);
       struct vtn_value *obj2_val = vtn_untyped_value(b, w[5]);
 
+      nir_ssa_def *sel  = vtn_ssa_value(b, w[3])->def;
+      nir_ssa_def *obj1 = vtn_ssa_value(b, w[4])->def;
+      nir_ssa_def *obj2 = vtn_ssa_value(b, w[5])->def;
+
       const struct glsl_type *sel_type;
       switch (res_val->type->base_type) {
       case vtn_base_type_scalar:
@@ -3972,6 +3997,11 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
          vtn_fail_if(res_val->type->type == NULL,
                      "Invalid pointer result type for OpSelect");
          sel_type = glsl_bool_type();
+         break;
+      case vtn_base_type_phys_pointer:
+         sel  = nir_vec2(&b->nb, sel, sel);
+         obj1 = nir_address_from_ssa(&b->nb, obj1);
+         obj2 = nir_address_from_ssa(&b->nb, obj2);
          break;
       default:
          vtn_fail("Result type of OpSelect must be a scalar, vector, or pointer");
@@ -4005,9 +4035,8 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
 
       struct vtn_type *res_type = vtn_value(b, w[1], vtn_value_type_type)->type;
       struct vtn_ssa_value *ssa = vtn_create_ssa_value(b, res_type->type);
-      ssa->def = nir_bcsel(&b->nb, vtn_ssa_value(b, w[3])->def,
-                                   vtn_ssa_value(b, w[4])->def,
-                                   vtn_ssa_value(b, w[5])->def);
+      ssa->def = nir_bcsel(&b->nb, sel, obj1, obj2);
+
       vtn_push_ssa(b, w[2], res_type, ssa);
       break;
    }
