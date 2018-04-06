@@ -898,7 +898,10 @@ nvc0_program_library_upload(struct nvc0_context *nvc0)
    if (screen->lib_code)
       return;
 
-   nv50_ir_get_target_library(screen->base.device->chipset, &code, &size);
+   if (true)
+      nv50_ir_get_target_library_compiled(screen->base.device->chipset, &code, &size);
+   else
+      nv50_ir_get_target_library(screen->base.device->chipset, &code, &size);
    if (!size)
       return;
 

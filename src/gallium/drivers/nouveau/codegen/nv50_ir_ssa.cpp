@@ -478,7 +478,7 @@ void RenamePass::search(BasicBlock *bb)
       if (stmt->op != OP_PHI) {
          for (s = 0; stmt->srcExists(s); ++s) {
             lval = stmt->getSrc(s)->asLValue();
-            if (!lval)
+            if (!lval || lval->reg.data.id >= 0)
                continue;
             // Values on the stack created in previously visited blocks, and
             // function inputs, will be valid because they dominate this one.

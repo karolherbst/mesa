@@ -264,6 +264,8 @@ LoadPropagation::visit(BasicBlock *bb)
             continue;
          if (!targ->insnCanLoad(i, s, ld))
             continue;
+         if (ld->getSrc(0)->reg.data.id >= 0)
+            continue;
 
          // propagate !
          i->setSrc(s, ld->getSrc(0));

@@ -1241,7 +1241,9 @@ public:
       TYPE_TESSELLATION_EVAL,
       TYPE_GEOMETRY,
       TYPE_FRAGMENT,
-      TYPE_COMPUTE
+      TYPE_COMPUTE,
+      /* for builtin library */
+      TYPE_INTERNAL
    };
 
    Program(Type type, Target *targ);

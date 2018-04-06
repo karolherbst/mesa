@@ -1204,35 +1204,46 @@ nv50_ir_generate_code(struct nv50_ir_prog_info *info)
 #define PROG_TYPE_CASE(a, b)                                      \
    case PIPE_SHADER_##a: type = nv50_ir::Program::TYPE_##b; break
 
-   switch (info->type) {
-   PROG_TYPE_CASE(VERTEX, VERTEX);
-   PROG_TYPE_CASE(TESS_CTRL, TESSELLATION_CONTROL);
-   PROG_TYPE_CASE(TESS_EVAL, TESSELLATION_EVAL);
-   PROG_TYPE_CASE(GEOMETRY, GEOMETRY);
-   PROG_TYPE_CASE(FRAGMENT, FRAGMENT);
-   PROG_TYPE_CASE(COMPUTE, COMPUTE);
-   default:
-      INFO_DBG(info->dbgFlags, VERBOSE, "unsupported program type %u\n", info->type);
-      return -1;
-   }
+   if (info->internal)
+      type = nv50_ir::Program::TYPE_INTERNAL;
+   else
+      switch (info->type) {
+      PROG_TYPE_CASE(VERTEX, VERTEX);
+      PROG_TYPE_CASE(TESS_CTRL, TESSELLATION_CONTROL);
+      PROG_TYPE_CASE(TESS_EVAL, TESSELLATION_EVAL);
+      PROG_TYPE_CASE(GEOMETRY, GEOMETRY);
+      PROG_TYPE_CASE(FRAGMENT, FRAGMENT);
+      PROG_TYPE_CASE(COMPUTE, COMPUTE);
+      default:
+         INFO_DBG(info->dbgFlags, VERBOSE, "unsupported program type %u\n", info->type);
+         return -1;
+      }
    INFO_DBG(info->dbgFlags, VERBOSE, "translating program of type %u\n", type);
 
-   nv50_ir::Target *targ = nv50_ir::Target::create(info->target);
-   if (!targ)
-      return -1;
+   const nv50_ir::Target *targ;
+   nv50_ir::Program *prog;
+   if (!info->internal) {
+      nv50_ir::Target *ttarg = nv50_ir::Target::create(info->target);
+      if (!ttarg)
+         return -1;
 
-   nv50_ir::Program *prog = new nv50_ir::Program(type, targ);
-   if (!prog) {
-      nv50_ir::Target::destroy(targ);
-      return -1;
+      prog = new nv50_ir::Program(type, ttarg);
+      if (!prog) {
+         nv50_ir::Target::destroy(ttarg);
+         return -1;
+      }
+      ttarg->parseDriverInfo(info);
+      targ = ttarg;
    }
-   prog->driver = info;
-   prog->dbgFlags = info->dbgFlags;
-   prog->optLevel = info->optLevel;
 
    switch (info->bin.sourceRep) {
    case PIPE_SHADER_IR_TGSI:
       ret = prog->makeFromTGSI(info) ? 0 : -2;
+      break;
+   case PIPE_SHADER_IR_NATIVE:
+      assert(info->internal);
+      prog = (nv50_ir::Program*)info->bin.source;
+      targ = prog->getTarget();
       break;
    default:
       ret = -1;
@@ -1240,10 +1251,14 @@ nv50_ir_generate_code(struct nv50_ir_prog_info *info)
    }
    if (ret < 0)
       goto out;
+
+   prog->driver = info;
+   prog->dbgFlags = info->dbgFlags;
+   prog->optLevel = info->optLevel;
+
    if (prog->dbgFlags & NV50_IR_DEBUG_VERBOSE)
       prog->print();
 
-   targ->parseDriverInfo(info);
    prog->getTarget()->runLegalizePass(prog, nv50_ir::CG_STAGE_PRE_SSA);
 
    prog->convertToSSA();

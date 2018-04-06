@@ -21,6 +21,7 @@
  */
 
 #include "codegen/nv50_ir.h"
+#include "codegen/nv50_ir_build_util.h"
 #include "codegen/nv50_ir_target.h"
 
 namespace nv50_ir {
@@ -169,7 +170,7 @@ Target *Target::create(unsigned int chipset)
    }
 }
 
-void Target::destroy(Target *targ)
+void Target::destroy(const Target *targ)
 {
    delete targ;
 }
@@ -528,6 +529,134 @@ nv50_ir_get_target_library(uint32_t chipset,
    nv50_ir::Target *targ = nv50_ir::Target::create(chipset);
    targ->getBuiltinCode(code, size);
    nv50_ir::Target::destroy(targ);
+}
+
+void
+nv50_ir_get_target_library_compiled(uint32_t chipset,
+                                    const uint32_t **code,
+                                    uint32_t *size)
+{
+   using namespace nv50_ir;
+
+   nv50_ir_prog_info info = {};
+   nv50_ir::Target *targ = nv50_ir::Target::create(chipset);
+   assert(targ);
+
+#ifdef DEBUG
+   info.target = debug_get_num_option("NV50_PROG_CHIPSET", chipset);
+   info.optLevel = debug_get_num_option("NV50_PROG_OPTIMIZE", 3);
+   info.dbgFlags = debug_get_num_option("NV50_PROG_DEBUG", 0);
+   info.omitLineNum = debug_get_num_option("NV50_PROG_DEBUG_OMIT_LINENUM", 0);
+#else
+   info.optLevel = 3;
+#endif
+
+   info.internal = true;
+   info.target = chipset;
+   info.bin.sourceRep = PIPE_SHADER_IR_NATIVE;
+
+   Program *prog = new Program(Program::TYPE_INTERNAL, targ);
+   assert(prog);
+
+   targ->parseDriverInfo(&info);
+
+   info.bin.source = prog;
+
+   BasicBlock *entry = new BasicBlock(prog->main);
+   BasicBlock *leave = new BasicBlock(prog->main);
+
+   prog->main->setEntry(entry);
+   prog->main->setExit(leave);
+
+   BuildUtil bld(prog);
+
+   // DIV U32
+   //
+   // UNR recurrence (q = a / b):
+   // look for z such that 2^32 - b <= b * z < 2^32
+   // then q - 1 <= (a * z) / 2^32 <= q
+   //
+   // INPUT:   $r0: dividend, $r1: divisor
+   // OUTPUT:  $r0: result, $r1: modulus
+   // CLOBBER: $r2 - $r3, $p0 - $p1
+   // SIZE:    22 / 14 * 8 bytes
+   //
+
+   bld.setPosition(entry, true);
+   Value *r0 = bld.getScratch();
+   Value *r1 = bld.getScratch();
+   Value *r2 = bld.getScratch();
+   Value *r3 = bld.getScratch();
+   Value *pred = bld.getScratch(1, FILE_PREDICATE);
+
+   bld.mkMovFromReg(r0, 0);
+   bld.mkMovFromReg(r1, 1);
+
+   bld.mkOp1(OP_BFIND, TYPE_U32, r2, r1);
+   bld.mkOp2(OP_XOR, TYPE_U32, r2, r2, bld.loadImm(bld.getSSA(), 0x1f));
+   bld.loadImm(r3, 0x1);
+   bld.mkOp2(OP_SHL, TYPE_U32, r2, r3, r2);
+   bld.mkOp1(OP_NEG, TYPE_U32, r1, r1);
+   bld.mkOp2(OP_MUL, TYPE_U32, r3, r1, r2);
+   bld.mkOp3(OP_MAD, TYPE_U32, r2, r2, r3, r2)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkOp2(OP_MUL, TYPE_U32, r3, r1, r2);
+   bld.mkOp3(OP_MAD, TYPE_U32, r2, r2, r3, r2)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkOp2(OP_MUL, TYPE_U32, r3, r1, r2);
+   bld.mkOp3(OP_MAD, TYPE_U32, r2, r2, r3, r2)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkOp2(OP_MUL, TYPE_U32, r3, r1, r2);
+   bld.mkOp3(OP_MAD, TYPE_U32, r2, r2, r3, r2)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkOp2(OP_MUL, TYPE_U32, r3, r1, r2);
+   bld.mkOp3(OP_MAD, TYPE_U32, r2, r2, r3, r2)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkMov(r3, r0);
+   bld.mkOp2(OP_MUL, TYPE_U32, r0, r0, r2)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkOp1(OP_NEG, TYPE_U32, r2, r1);
+   bld.mkOp3(OP_MAD, TYPE_U32, r1, r1, r0, r3)->subOp = NV50_IR_SUBOP_MUL_HIGH;
+   bld.mkCmp(OP_SET, CC_GE, TYPE_U8, pred, TYPE_U32, r1, r2);
+
+   BasicBlock *t1 = new BasicBlock(prog->main);
+   bld.mkFlow(OP_BRA, leave, CC_NOT_P, pred);
+
+   entry->cfg.attach(&t1->cfg, Graph::Edge::TREE);
+   bld.setPosition(t1, true);
+
+   bld.mkOp2(OP_SUB, TYPE_U32, r1, r1, r2);
+   bld.mkOp2(OP_ADD, TYPE_U32, r0, r0, bld.loadImm(bld.getSSA(), 1));
+   bld.mkCmp(OP_SET, CC_GE, TYPE_U8, pred, TYPE_U32, r1, r2);
+
+   BasicBlock *t2 = new BasicBlock(prog->main);
+   bld.mkFlow(OP_BRA, leave, CC_NOT_P, pred);
+
+   t1->cfg.attach(&t2->cfg, Graph::Edge::TREE);
+   bld.setPosition(t2, true);
+
+   bld.mkOp2(OP_SUB, TYPE_U32, r1, r1, r2);
+   bld.mkOp2(OP_ADD, TYPE_U32, r0, r0, bld.loadImm(bld.getSSA(), 1));
+   bld.mkFlow(OP_BRA, leave, CC_ALWAYS, NULL);
+
+   entry->cfg.attach(&leave->cfg, Graph::Edge::TREE);
+   t1->cfg.attach(&leave->cfg, Graph::Edge::TREE);
+   t2->cfg.attach(&leave->cfg, Graph::Edge::TREE);
+
+   bld.setPosition(leave, true);
+
+   bld.mkMovToReg(0, r0);
+   bld.mkMovToReg(1, r1);
+   bld.mkFlow(OP_RET, NULL, CC_ALWAYS, NULL)->fixed = 1;
+
+   assert(nv50_ir_generate_code(&info) == 0);
+
+   *code = info.bin.code;
+   *size = info.bin.codeSize;
+
+   unsigned pos;
+
+   debug_printf("shader binary code (0x%x bytes):", *size);
+   for (pos = 0; pos < *size / 4; ++pos) {
+      if ((pos % 8) == 0)
+         debug_printf("\n");
+      debug_printf("%08x ", (*code)[pos]);
+   }
+   debug_printf("\n");
 }
 
 }

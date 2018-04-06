@@ -79,6 +79,7 @@ struct nv50_ir_prog_info
    uint16_t target; /* chipset (0x50, 0x84, 0xc0, ...) */
 
    uint8_t type; /* PIPE_SHADER */
+   bool internal;
 
    uint8_t optLevel; /* optimization level (0 to 3) */
    uint8_t dbgFlags;
@@ -213,6 +214,10 @@ nv50_ir_apply_fixups(void *fixupData, uint32_t *code,
 /* obtain code that will be shared among programs */
 extern void nv50_ir_get_target_library(uint32_t chipset,
                                        const uint32_t **code, uint32_t *size);
+/* same as above, but compiled through codegen */
+extern void nv50_ir_get_target_library_compiled(uint32_t chipset,
+                                                const uint32_t **code,
+                                                uint32_t *size);
 
 #ifdef __cplusplus
 }
