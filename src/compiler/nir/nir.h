@@ -2526,6 +2526,15 @@ bool nir_inline_functions(nir_shader *shader);
 
 bool nir_propagate_invariant(nir_shader *shader);
 
+enum nir_lower_deref_flags {
+   nir_lower_load_store_derefs =       (1 << 0),
+   nir_lower_texture_derefs =          (1 << 1),
+   nir_lower_interp_derefs =           (1 << 2),
+   nir_lower_atomic_counter_derefs =   (1 << 3),
+   nir_lower_atomic_derefs =           (1 << 4),
+   nir_lower_image_derefs =            (1 << 5),
+};
+
 void nir_lower_var_copy_instr(nir_intrinsic_instr *copy, nir_shader *shader);
 void nir_lower_deref_copy_instr(struct nir_builder *b,
                                 nir_intrinsic_instr *copy);
