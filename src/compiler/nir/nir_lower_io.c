@@ -87,11 +87,11 @@ nir_is_per_vertex_io(const nir_variable *var, gl_shader_stage stage)
 }
 
 static nir_ssa_def *
-get_io_offset(nir_builder *b, nir_deref_instr *deref,
-              nir_ssa_def **vertex_index,
-              int (*type_size)(const struct glsl_type *),
-              unsigned *component)
+get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
+              struct lower_io_state *state, unsigned *component)
 {
+   nir_builder *b = &state->builder;
+   int (*type_size)(const struct glsl_type *) = state->type_size;
    nir_deref_path path;
    nir_deref_path_init(&path, deref, NULL);
 
@@ -424,8 +424,8 @@ nir_lower_io_block(nir_block *block,
       nir_ssa_def *vertex_index = NULL;
       unsigned component_offset = var->data.location_frac;
 
-      offset = get_io_offset(b, deref, per_vertex ? &vertex_index : NULL,
-                             state->type_size, &component_offset);
+      offset = get_io_offset(deref, per_vertex ? &vertex_index : NULL,
+                             state, &component_offset);
 
       nir_intrinsic_instr *replacement;
 
