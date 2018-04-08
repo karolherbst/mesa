@@ -102,6 +102,10 @@ typedef enum {
    nir_var_shader_storage  = (1 << 5),
    nir_var_system_value    = (1 << 6),
    nir_var_shared          = (1 << 8),
+   /* deref mode for something that is a pointer to global/
+    * shared/private/constant address space:
+    */
+   nir_var_pointer         = (1 << 9),
    nir_var_all             = ~0,
 } nir_variable_mode;
 
