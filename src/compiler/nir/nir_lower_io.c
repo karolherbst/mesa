@@ -154,6 +154,22 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
 }
 
 static nir_intrinsic_instr *
+build_load(nir_intrinsic_instr *intrin, nir_intrinsic_op op,
+           struct lower_io_state *state, nir_ssa_def *src0,
+           nir_ssa_def *src1)
+{
+   nir_intrinsic_instr *load =
+      nir_intrinsic_instr_create(state->builder.shader, op);
+   load->num_components = intrin->num_components;
+
+   load->src[0] = nir_src_for_ssa(src0);
+   if (src1)
+      load->src[1] = nir_src_for_ssa(src1);
+
+   return load;
+}
+
+static nir_intrinsic_instr *
 lower_load(nir_intrinsic_instr *intrin, struct lower_io_state *state,
            nir_ssa_def *vertex_index, nir_variable *var, nir_ssa_def *offset,
            unsigned component)
@@ -202,8 +218,9 @@ lower_load(nir_intrinsic_instr *intrin, struct lower_io_state *state,
    }
 
    nir_intrinsic_instr *load =
-      nir_intrinsic_instr_create(state->builder.shader, op);
-   load->num_components = intrin->num_components;
+      build_load(intrin, op, state,
+                 barycentric ? barycentric : vertex_index,
+                 offset);
 
    nir_intrinsic_set_base(load, var->data.driver_location);
    if (mode == nir_var_shader_in || mode == nir_var_shader_out)
@@ -212,17 +229,28 @@ lower_load(nir_intrinsic_instr *intrin, struct lower_io_state *state,
    if (load->intrinsic == nir_intrinsic_load_uniform)
       nir_intrinsic_set_range(load, state->type_size(var->type));
 
-   if (vertex_index) {
-      load->src[0] = nir_src_for_ssa(vertex_index);
-      load->src[1] = nir_src_for_ssa(offset);
-   } else if (barycentric) {
-      load->src[0] = nir_src_for_ssa(barycentric);
-      load->src[1] = nir_src_for_ssa(offset);
-   } else {
-      load->src[0] = nir_src_for_ssa(offset);
-   }
-
    return load;
+}
+
+static nir_intrinsic_instr *
+build_store(nir_intrinsic_instr *intrin, nir_intrinsic_op op,
+            struct lower_io_state *state, nir_ssa_def *vertex_index,
+            nir_ssa_def *offset)
+{
+   nir_intrinsic_instr *store =
+      nir_intrinsic_instr_create(state->builder.shader, op);
+   store->num_components = intrin->num_components;
+
+   nir_src_copy(&store->src[0], &intrin->src[1], store);
+
+   nir_intrinsic_set_write_mask(store, nir_intrinsic_write_mask(intrin));
+
+   if (vertex_index)
+      store->src[1] = nir_src_for_ssa(vertex_index);
+
+   store->src[vertex_index ? 2 : 1] = nir_src_for_ssa(offset);
+
+   return store;
 }
 
 static nir_intrinsic_instr *
@@ -242,22 +270,12 @@ lower_store(nir_intrinsic_instr *intrin, struct lower_io_state *state,
    }
 
    nir_intrinsic_instr *store =
-      nir_intrinsic_instr_create(state->builder.shader, op);
-   store->num_components = intrin->num_components;
-
-   nir_src_copy(&store->src[0], &intrin->src[1], store);
+      build_store(intrin, op, state, vertex_index, offset);
 
    nir_intrinsic_set_base(store, var->data.driver_location);
 
    if (mode == nir_var_shader_out)
       nir_intrinsic_set_component(store, component);
-
-   nir_intrinsic_set_write_mask(store, nir_intrinsic_write_mask(intrin));
-
-   if (vertex_index)
-      store->src[1] = nir_src_for_ssa(vertex_index);
-
-   store->src[vertex_index ? 2 : 1] = nir_src_for_ssa(offset);
 
    return store;
 }
