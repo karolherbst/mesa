@@ -783,6 +783,30 @@ nir_store_deref(nir_builder *build, nir_deref_instr *deref,
    nir_builder_instr_insert(build, &store->instr);
 }
 
+/* get pointer from deref.. this is the equiv of & operator (ie &foo->bar) */
+static inline nir_ssa_def *
+nir_address_from_deref(nir_builder *build, nir_deref_instr *deref)
+{
+   unsigned bitsize = build->shader->ptr_size;
+   assert(bitsize);
+
+   nir_intrinsic_instr *load_addr =
+      nir_intrinsic_instr_create(build->shader, nir_intrinsic_address_from_deref);
+   load_addr->num_components = 2;
+   load_addr->src[0] = nir_src_for_ssa(&deref->dest.ssa);
+   nir_ssa_dest_init(&load_addr->instr, &load_addr->dest, 2, bitsize, NULL);
+   nir_builder_instr_insert(build, &load_addr->instr);
+   return &load_addr->dest.ssa;
+}
+
+static inline nir_ssa_def *
+nir_address_from_ssa(nir_builder *build, nir_ssa_def *ssa)
+{
+   if (ssa->parent_instr->type == nir_instr_type_deref)
+      return nir_address_from_deref(build, nir_instr_as_deref(ssa->parent_instr));
+   return ssa;
+}
+
 static inline void
 nir_copy_deref(nir_builder *build, nir_deref_instr *dest, nir_deref_instr *src)
 {
@@ -836,6 +860,16 @@ static inline nir_ssa_def *
 nir_build_fptr(nir_builder *build, nir_ssa_def *addr, nir_variable_mode mode)
 {
    return nir_vec2(build, addr, nir_imm_intN_t(build, mode, addr->bit_size));
+}
+
+/* helper to convert unsigned value to pointer-size, for pointer arithmetic */
+static inline nir_ssa_def *
+nir_u2ptr(nir_builder *build, nir_ssa_def *src)
+{
+   if (build->shader->ptr_size == 64)
+      return nir_u2u64(build, src);
+   else
+      return nir_u2u32(build, src);
 }
 
 static inline nir_ssa_def *

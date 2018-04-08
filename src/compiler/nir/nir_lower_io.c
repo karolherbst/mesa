@@ -41,6 +41,7 @@ struct lower_io_state {
    int (*type_size)(const struct glsl_type *type);
    nir_variable_mode modes;
    nir_lower_io_options options;
+   nir_metadata metadata;
 };
 
 void
@@ -95,7 +96,8 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
    nir_deref_path path;
    nir_deref_path_init(&path, deref, NULL);
 
-   assert(path.path[0]->deref_type == nir_deref_type_var);
+   assert(path.path[0]->deref_type == nir_deref_type_var ||
+          path.path[0]->deref_type == nir_deref_type_cast);
    nir_deref_instr **p = &path.path[1];
 
    /* For per-vertex input arrays (i.e. geometry shader inputs), keep the
@@ -122,18 +124,26 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
    }
 
    /* Just emit code and let constant-folding go to town */
-   nir_ssa_def *offset = nir_imm_int(b, 0);
+   nir_ssa_def *offset;
+
+   /* for pointer derefs, initial offset is the .x component of src ptr: */
+   nir_ssa_def *fptr = NULL;
+   if (path.path[0]->deref_type == nir_deref_type_cast) {
+      fptr = nir_ssa_for_src(b, path.path[0]->parent, 2);
+      offset = nir_channel(b, fptr, 0);
+   } else {
+      offset = nir_imm_int(b, 0);
+   }
 
    for (; *p; p++) {
       if ((*p)->deref_type == nir_deref_type_array ||
           (*p)->deref_type == nir_deref_type_ptr_as_array) {
          unsigned size = type_size((*p)->type);
-
+         nir_ssa_def *index = nir_ssa_for_src(b, (*p)->arr.index, 1);
          nir_ssa_def *mul =
-            nir_imul(b, nir_imm_int(b, size),
-                     nir_ssa_for_src(b, (*p)->arr.index, 1));
+            nir_imul(b, nir_imm_intN_t(b, size, index->bit_size), index);
 
-         offset = nir_iadd(b, offset, mul);
+         offset = nir_iadd(b, offset, nir_u2ptr(b, mul));
       } else if ((*p)->deref_type == nir_deref_type_struct) {
          /* p starts at path[1], so this is safe */
          nir_deref_instr *parent = *(p - 1);
@@ -142,11 +152,16 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
          for (unsigned i = 0; i < (*p)->strct.index; i++) {
             field_offset += type_size(glsl_get_struct_field(parent->type, i));
          }
-         offset = nir_iadd(b, offset, nir_imm_int(b, field_offset));
+         offset = nir_iadd(b, offset,
+                           nir_imm_intN_t(b, field_offset, offset->bit_size));
       } else {
          unreachable("Unsupported deref type");
       }
    }
+
+   /* for pointer deref's, repack the resulting pointer as a fat ptr: */
+   if (path.path[0]->deref_type == nir_deref_type_cast)
+      offset = nir_vec2(b, offset, nir_channel(b, fptr, 1));
 
    nir_deref_path_finish(&path);
 
@@ -165,6 +180,22 @@ build_load(nir_intrinsic_instr *intrin, nir_intrinsic_op op,
    load->src[0] = nir_src_for_ssa(src0);
    if (src1)
       load->src[1] = nir_src_for_ssa(src1);
+
+   return load;
+}
+
+static nir_intrinsic_instr *
+insert_load(nir_intrinsic_instr *intrin, nir_intrinsic_op op,
+            struct lower_io_state *state, nir_ssa_def *src0,
+            nir_ssa_def *src1)
+{
+   static nir_intrinsic_instr *load;
+
+   load = build_load(intrin, op, state, src0, src1);
+   nir_ssa_dest_init(&load->instr, &load->dest,
+                     intrin->dest.ssa.num_components,
+                     intrin->dest.ssa.bit_size, NULL);
+   nir_builder_instr_insert(&state->builder, &load->instr);
 
    return load;
 }
@@ -377,6 +408,126 @@ lower_interpolate_at(nir_intrinsic_instr *intrin, struct lower_io_state *state,
 }
 
 static bool
+lower_pointer_deref(nir_intrinsic_instr *intrin, struct lower_io_state *state)
+{
+   nir_builder *b = &state->builder;
+   nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
+   nir_ssa_def *fptr, *addr, *atype, *result = NULL;
+
+   if (nir_intrinsic_infos[intrin->intrinsic].has_dest)
+      assert(intrin->dest.is_ssa);
+
+   b->cursor = nir_before_instr(&intrin->instr);
+
+   fptr = get_io_offset(deref, NULL, state, NULL);
+   addr = nir_channel(b, fptr, 0);     /* fptr.x is address */
+   atype = nir_channel(b, fptr, 1);    /* fptr.y is address type */
+
+   /* if ptrsize==64, we can still do the atype comparision in 32b: */
+   atype = nir_u2u32(b, atype);
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_deref: {
+      nir_intrinsic_instr *load;
+      nir_ssa_def *g, *l, *p, *c;
+
+      nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_global)));
+      {
+         load = insert_load(intrin, nir_intrinsic_load_global, state, addr, NULL);
+         g = &load->dest.ssa;
+      }
+      nir_push_else(b, NULL);
+      {
+         nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_shared)));
+         {
+            load = insert_load(intrin, nir_intrinsic_load_shared, state, addr, NULL);
+            l = &load->dest.ssa;
+         }
+         nir_push_else(b, NULL);
+         {
+            nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_uniform)));
+            {
+               /* for __constant buffers, clover puts the buffer index in the
+                * upper 8 bits and the offset in the lower 24 bits.  (Also, it
+                * should only be a 32b value.)
+                */
+               nir_ssa_def *off, *index;
+
+               off   = nir_u2u32(b, addr);
+               index = nir_ishr(b, off, nir_imm_int(b, 24));
+               off   = nir_iand(b, off, nir_imm_int(b, 0x00ffffff));
+
+               load = insert_load(intrin, nir_intrinsic_load_ubo, state, index, off);
+               c = &load->dest.ssa;
+            }
+            nir_push_else(b, NULL);
+            {
+               load = insert_load(intrin, nir_intrinsic_load_private, state, addr, NULL);
+               p = &load->dest.ssa;
+            }
+            nir_pop_if(b, NULL);
+
+            result = nir_if_phi(b, c, p);
+         }
+         nir_pop_if(b, NULL);
+
+         result = nir_if_phi(b, l, result);
+      }
+      nir_pop_if(b, NULL);
+
+      result = nir_if_phi(b, g, result);
+
+      break;
+   }
+   case nir_intrinsic_store_deref: {
+      nir_intrinsic_instr *store;
+
+      nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_global)));
+      {
+         store = build_store(intrin, nir_intrinsic_store_global, state, NULL, addr);
+         nir_builder_instr_insert(b, &store->instr);
+      }
+      nir_push_else(b, NULL);
+      {
+         nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_shared)));
+         {
+            store = build_store(intrin, nir_intrinsic_store_shared, state, NULL, addr);
+            nir_builder_instr_insert(b, &store->instr);
+         }
+         nir_push_else(b, NULL);
+         {
+            store = build_store(intrin, nir_intrinsic_store_private, state, NULL, addr);
+            nir_builder_instr_insert(b, &store->instr);
+         }
+         nir_pop_if(b, NULL);
+      }
+      nir_pop_if(b, NULL);
+
+      break;
+   }
+   case nir_intrinsic_address_from_deref: {
+      result = fptr;
+      break;
+   }
+   // TODO atomics??
+   default:
+      unreachable("Unsupported pointer deref type");
+      return false;
+   }
+
+   if (intrin->intrinsic != nir_intrinsic_address_from_deref)
+      state->metadata = nir_metadata_none;
+
+   if (nir_intrinsic_infos[intrin->intrinsic].has_dest)
+      nir_ssa_def_rewrite_uses(&intrin->dest.ssa, nir_src_for_ssa(result));
+
+   nir_instr_remove(&intrin->instr);
+   nir_deref_instr_remove_if_unused(deref);
+
+   return true;
+}
+
+static bool
 nir_lower_io_block(nir_block *block,
                    struct lower_io_state *state)
 {
@@ -393,6 +544,7 @@ nir_lower_io_block(nir_block *block,
       switch (intrin->intrinsic) {
       case nir_intrinsic_load_deref:
       case nir_intrinsic_store_deref:
+      case nir_intrinsic_address_from_deref:
       case nir_intrinsic_deref_atomic_add:
       case nir_intrinsic_deref_atomic_imin:
       case nir_intrinsic_deref_atomic_umin:
@@ -422,7 +574,13 @@ nir_lower_io_block(nir_block *block,
 
       nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
 
+      if (deref->mode == nir_var_pointer) {
+         progress |= lower_pointer_deref(intrin, state);
+         continue;
+      }
+
       nir_variable *var = nir_deref_instr_get_variable(deref);
+
       nir_variable_mode mode = var->data.mode;
 
       if ((state->modes & mode) == 0)
@@ -522,6 +680,8 @@ nir_lower_io_impl(nir_function_impl *impl,
    state.modes = modes;
    state.type_size = type_size;
    state.options = options;
+   state.metadata = nir_metadata_block_index |
+                    nir_metadata_dominance;
 
    nir_foreach_block(block, impl) {
       progress |= nir_lower_io_block(block, &state);
@@ -529,8 +689,7 @@ nir_lower_io_impl(nir_function_impl *impl,
 
    ralloc_free(state.dead_ctx);
 
-   nir_metadata_preserve(impl, nir_metadata_block_index |
-                               nir_metadata_dominance);
+   nir_metadata_preserve(impl, state.metadata);
    return progress;
 }
 

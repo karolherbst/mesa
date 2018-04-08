@@ -420,6 +420,7 @@ get_variable_mode_str(nir_variable_mode mode, bool want_local_global_mode)
       return want_local_global_mode ? "global" : "";
    case nir_var_local:
       return want_local_global_mode ? "local" : "";
+   case nir_var_pointer:
    default:
       return "";
    }

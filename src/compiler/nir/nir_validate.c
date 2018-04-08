@@ -447,7 +447,8 @@ validate_deref_instr(nir_deref_instr *instr, validate_state *state)
 
       case nir_deref_type_array:
       case nir_deref_type_array_wildcard:
-         if (instr->mode == nir_var_shared) {
+         if (instr->mode == nir_var_shared ||
+             instr->mode == nir_var_pointer) {
             /* Shared variables have a bit more relaxed rules because we need
              * to be able to handle array derefs on vectors.  Fortunately,
              * nir_lower_io handles these just fine.
@@ -464,11 +465,11 @@ validate_deref_instr(nir_deref_instr *instr, validate_state *state)
             instr->type == glsl_get_array_element(parent->type));
 
          if (instr->deref_type == nir_deref_type_array)
-            validate_src(&instr->arr.index, state, 32, 1);
+            validate_src(&instr->arr.index, state, 0, 1);
          break;
 
       case nir_deref_type_ptr_as_array:
-         validate_src(&instr->arr.index, state, 32, 1);
+         validate_src(&instr->arr.index, state, 0, 1);
          break;
 
       default:

@@ -260,7 +260,10 @@ nir_fixup_deref_modes(nir_shader *shader)
             if (deref->deref_type == nir_deref_type_var) {
                parent_mode = deref->var->data.mode;
             } else if (deref->deref_type == nir_deref_type_cast) {
-               parent_mode = 0;
+               // TODO any case where deref_type_cast *isn't* a
+               // pointer?  If so then maybe we should just keep
+               // the current mode
+               parent_mode = nir_var_pointer;
             } else {
                assert(deref->parent.is_ssa);
                nir_deref_instr *parent =
