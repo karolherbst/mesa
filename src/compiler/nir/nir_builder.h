@@ -686,12 +686,16 @@ nir_build_deref_cast(nir_builder *build, nir_ssa_def *parent,
    nir_deref_instr *deref =
       nir_deref_instr_create(build->shader, nir_deref_type_cast);
 
+   assert(parent->num_components == 2);     /* src should be fat pointer */
+
    deref->mode = mode;
    deref->type = type;
    deref->parent = nir_src_for_ssa(parent);
 
-   nir_ssa_dest_init(&deref->instr, &deref->dest,
-                     parent->num_components, parent->bit_size, NULL);
+   /* Note the deref instruction result doesn't have physical storage,
+    * just call it a 32b vec1 to make the rest of nir happy
+    */
+   nir_ssa_dest_init(&deref->instr, &deref->dest, 1, 32, NULL);
 
    nir_builder_instr_insert(build, &deref->instr);
 
@@ -826,6 +830,13 @@ nir_load_param(nir_builder *build, uint32_t param_idx)
 }
 
 #include "nir_builder_opcodes.h"
+
+/* helper to build a fat-pointer: */
+static inline nir_ssa_def *
+nir_build_fptr(nir_builder *build, nir_ssa_def *addr, nir_variable_mode mode)
+{
+   return nir_vec2(build, addr, nir_imm_intN_t(build, mode, addr->bit_size));
+}
 
 static inline nir_ssa_def *
 nir_load_barycentric(nir_builder *build, nir_intrinsic_op op,

@@ -1016,7 +1016,8 @@ nir_src_as_deref(nir_src src)
 static inline nir_deref_instr *
 nir_deref_instr_parent(const nir_deref_instr *instr)
 {
-   if (instr->deref_type == nir_deref_type_var)
+   if (instr->deref_type == nir_deref_type_var ||
+       instr->deref_type == nir_deref_type_cast)
       return NULL;
    else
       return nir_src_as_deref(instr->parent);
@@ -1025,12 +1026,15 @@ nir_deref_instr_parent(const nir_deref_instr *instr)
 static inline nir_variable *
 nir_deref_instr_get_variable(const nir_deref_instr *instr)
 {
-   while (instr->deref_type != nir_deref_type_var) {
+   while (instr && instr->deref_type != nir_deref_type_var) {
       if (instr->deref_type == nir_deref_type_cast)
          return NULL;
 
       instr = nir_deref_instr_parent(instr);
    }
+
+   if (!instr)
+      return NULL;
 
    return instr->var;
 }

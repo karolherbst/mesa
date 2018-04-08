@@ -69,7 +69,8 @@ nir_deref_path_init(nir_deref_path *path,
 done:
    assert(head == path->path);
    assert(tail == head + count);
-   assert((*head)->deref_type == nir_deref_type_var);
+   assert((*head)->deref_type == nir_deref_type_var ||
+          (*head)->deref_type == nir_deref_type_cast);
    assert(*tail == NULL);
 }
 
@@ -258,6 +259,8 @@ nir_fixup_deref_modes(nir_shader *shader)
             nir_variable_mode parent_mode;
             if (deref->deref_type == nir_deref_type_var) {
                parent_mode = deref->var->data.mode;
+            } else if (deref->deref_type == nir_deref_type_cast) {
+               parent_mode = 0;
             } else {
                assert(deref->parent.is_ssa);
                nir_deref_instr *parent =
