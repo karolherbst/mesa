@@ -71,6 +71,8 @@ add_var(nir_variable *var, struct set *invariants)
 static bool
 var_is_invariant(nir_variable *var, struct set * invariants)
 {
+   if (!var)
+      return false;
    return var->data.invariant || _mesa_set_search(invariants, var);
 }
 
