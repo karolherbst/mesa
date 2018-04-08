@@ -415,8 +415,7 @@ validate_deref_instr(nir_deref_instr *instr, validate_state *state)
        */
       validate_src(&instr->parent, state, 0, 0);
 
-      /* We just validate that the type and mode are there */
-      validate_assert(state, instr->mode);
+      /* We just validate that the type is there */
       validate_assert(state, instr->type);
    } else {
       /* We require the parent to be SSA.  This may be lifted in the future */

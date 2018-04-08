@@ -103,12 +103,17 @@ remove_dead_var_writes(nir_shader *shader, struct set *live)
             switch (instr->type) {
             case nir_instr_type_deref: {
                nir_deref_instr *deref = nir_instr_as_deref(instr);
-
                nir_variable_mode parent_mode;
-               if (deref->deref_type == nir_deref_type_var)
+               if (deref->deref_type == nir_deref_type_var) {
                   parent_mode = deref->var->data.mode;
-               else
-                  parent_mode = nir_deref_instr_parent(deref)->mode;
+               } else {
+                  nir_deref_instr *parent = nir_deref_instr_parent(deref);
+                  /* ignore deref's that don't start with a var */
+                  // XXX check this after rebase
+                  if (!parent)
+                     break;
+                  parent_mode = parent->mode;
+               }
 
                /* If the parent mode is 0, then it references a dead variable.
                 * Flag this deref as dead and remove it.

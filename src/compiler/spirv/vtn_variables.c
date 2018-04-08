@@ -1643,7 +1643,8 @@ vtn_pointer_from_ssa(struct vtn_builder *b, nir_ssa_def *ssa,
       ptr->block_index = NULL;
       ptr->offset = ssa;
    } else {
-      ptr->deref = nir_build_deref_cast(&b->nb, ssa, nir_mode,
+      nir_ssa_def *fptr = nir_build_fptr(&b->nb, ssa, nir_mode);
+      ptr->deref = nir_build_deref_cast(&b->nb, fptr, nir_mode,
                                         ptr_type->deref->type);
    }
 

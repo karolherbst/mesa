@@ -247,8 +247,9 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
       } else {
          /* We're a regular SSA value. */
          nir_ssa_def *param_val = nir_load_param(&b->nb, b->func_param_idx++);
+         nir_ssa_def *fptr = nir_build_fptr(&b->nb, param_val, nir_var_local);
          nir_deref_instr *deref =
-            nir_build_deref_cast(&b->nb, param_val, nir_var_local, type->type);
+            nir_build_deref_cast(&b->nb, fptr, nir_var_local, type->type);
          vtn_push_ssa(b, w[2], type, vtn_local_load(b, deref));
       }
       break;
@@ -787,9 +788,10 @@ vtn_emit_cf_list(struct vtn_builder *b, struct list_head *cf_list,
                         vtn_base_type_void,
                         "Return with a value from a function returning void");
             struct vtn_ssa_value *src = vtn_ssa_value(b, block->branch[1]);
+            nir_ssa_def *fptr =
+               nir_build_fptr(&b->nb, nir_load_param(&b->nb, 0), nir_var_local);
             nir_deref_instr *ret_deref =
-               nir_build_deref_cast(&b->nb, nir_load_param(&b->nb, 0),
-                                    nir_var_local, src->type);
+               nir_build_deref_cast(&b->nb, fptr, nir_var_local, src->type);
             vtn_local_store(b, src, ret_deref);
          }
 
