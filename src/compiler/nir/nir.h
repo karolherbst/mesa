@@ -103,6 +103,10 @@ typedef enum {
    nir_var_shader_storage  = (1 << 5),
    nir_var_system_value    = (1 << 6),
    nir_var_shared          = (1 << 8),
+   /* deref mode for something that is a pointer to global/
+    * shared/private/constant address space:
+    */
+   nir_var_pointer         = (1 << 9),
    nir_var_all             = ~0,
 } nir_variable_mode;
 
@@ -2011,6 +2015,15 @@ typedef struct nir_shader {
     * access plus one
     */
    unsigned num_inputs, num_uniforms, num_outputs, num_shared;
+
+   /**
+    * pointer size is:
+    *   AddressingModelLogical:    0    (default)
+    *   AddressingModelPhysical32: 32
+    *   AddressingModelPhysical64: 64
+    */
+   unsigned ptr_size;
+
 } nir_shader;
 
 static inline nir_function_impl *
