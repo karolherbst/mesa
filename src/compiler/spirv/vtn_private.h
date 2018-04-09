@@ -36,6 +36,8 @@
 #include "nir_spirv.h"
 #include "spirv.h"
 
+#define D(fmt, ...) if (0) printf("### %s(%d): "fmt"\n", __func__, __LINE__, ##__VA_ARGS__)
+
 struct vtn_builder;
 struct vtn_decoration;
 

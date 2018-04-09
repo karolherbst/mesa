@@ -3419,6 +3419,7 @@ static bool
 vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
                                 const uint32_t *w, unsigned count)
 {
+D("opcode: %s", &spirv_op_to_string(opcode)[3]);
    switch (opcode) {
    case SpvOpSource: {
       const char *lang;
@@ -3840,6 +3841,7 @@ static bool
 vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
                                         const uint32_t *w, unsigned count)
 {
+D("opcode: %s", &spirv_op_to_string(opcode)[3]);
    vtn_set_instruction_result_type(b, opcode, w, count);
 
    switch (opcode) {
@@ -3916,6 +3918,7 @@ static bool
 vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
                             const uint32_t *w, unsigned count)
 {
+D("opcode: %s", &spirv_op_to_string(opcode)[3]);
    switch (opcode) {
    case SpvOpLabel:
       break;

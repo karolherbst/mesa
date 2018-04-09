@@ -447,6 +447,7 @@ int main(int argc, char **argv)
 
 		NIR_PASS_V(nir, nir_lower_io, nir_var_all, ir3_glsl_type_size,
 				(nir_lower_io_options)0);
+nir_print_shader(nir, stdout);
 
 		/* TODO do this somewhere else */
 		nir_lower_int64(nir, ~0);
