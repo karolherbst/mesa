@@ -23,6 +23,7 @@
 
 #include "vtn_private.h"
 #include "nir/nir_vla.h"
+#include "spirv_info.h"
 
 static struct vtn_pointer *
 vtn_load_param_pointer(struct vtn_builder *b,
@@ -116,6 +117,7 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
    else
       ptr_size = 32;
 
+D("opcode: %s", &spirv_op_to_string(opcode)[3]);
    switch (opcode) {
    case SpvOpFunction: {
       vtn_assert(b->func == NULL);
@@ -492,6 +494,7 @@ vtn_cfg_walk_blocks(struct vtn_builder *b, struct list_head *cf_list,
       vtn_assert(block->node.link.next == NULL);
       list_addtail(&block->node.link, cf_list);
 
+D("opcode: %s", &spirv_op_to_string(*block->branch & SpvOpCodeMask)[3]);
       switch (*block->branch & SpvOpCodeMask) {
       case SpvOpBranch: {
          struct vtn_block *branch_block =
