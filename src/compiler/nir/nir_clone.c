@@ -682,6 +682,9 @@ clone_function(clone_state *state, const nir_function *fxn, nir_shader *ns)
    nfxn->params = ralloc_array(state->ns, nir_parameter, fxn->num_params);
    memcpy(nfxn->params, fxn->params, sizeof(nir_parameter) * fxn->num_params);
 
+   for (unsigned i = 0; i < nfxn->num_params; i++)
+      nfxn->params[i].var = clone_variable(state, fxn->params[i].var);
+
    /* At first glance, it looks like we should clone the function_impl here.
     * However, call instructions need to be able to reference at least the
     * function and those will get processed as we clone the function_impls.
