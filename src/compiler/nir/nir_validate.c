@@ -468,6 +468,10 @@ validate_deref_instr(nir_deref_instr *instr, validate_state *state)
             validate_src(&instr->arr.index, state, 32, 1);
          break;
 
+      case nir_deref_type_ptr_as_array:
+         validate_src(&instr->arr.index, state, 32, 1);
+         break;
+
       default:
          unreachable("Invalid deref instruction type");
       }

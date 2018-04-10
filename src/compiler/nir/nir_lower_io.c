@@ -125,7 +125,8 @@ get_io_offset(nir_builder *b, nir_deref_instr *deref,
    nir_ssa_def *offset = nir_imm_int(b, 0);
 
    for (; *p; p++) {
-      if ((*p)->deref_type == nir_deref_type_array) {
+      if ((*p)->deref_type == nir_deref_type_array ||
+          (*p)->deref_type == nir_deref_type_ptr_as_array) {
          unsigned size = type_size((*p)->type);
 
          nir_ssa_def *mul =

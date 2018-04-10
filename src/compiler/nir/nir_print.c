@@ -584,6 +584,7 @@ print_deref_link(nir_deref_instr *instr, bool whole_chain, print_state *state)
               glsl_get_struct_elem_name(parent->type, instr->strct.index));
       break;
 
+   case nir_deref_type_ptr_as_array:
    case nir_deref_type_array: {
       nir_const_value *const_index = nir_src_as_const_value(instr->arr.index);
       if (const_index) {
@@ -619,6 +620,9 @@ print_deref_instr(nir_deref_instr *instr, print_state *state)
    case nir_deref_type_array:
    case nir_deref_type_array_wildcard:
       fprintf(fp, " = deref_array ");
+      break;
+   case nir_deref_type_ptr_as_array:
+      fprintf(fp, " = deref_ptr_as_array ");
       break;
    case nir_deref_type_struct:
       fprintf(fp, " = deref_struct ");

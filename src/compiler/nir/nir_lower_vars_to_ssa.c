@@ -231,6 +231,29 @@ get_deref_node(nir_deref_instr *deref, struct lower_variables_state *state)
    return node;
 }
 
+/* filter out pointer deref's, which should not be lowered and would
+ * otherwise confuse get_deref_node()
+ */
+static bool
+handled_deref(nir_deref_instr *deref)
+{
+   while (deref) {
+      if (deref->mode != nir_var_local)
+         return false;
+      switch (deref->deref_type) {
+      case nir_deref_type_var:
+         return true;
+      case nir_deref_type_cast:
+      case nir_deref_type_ptr_as_array:
+         return false;
+      default:
+         deref = nir_deref_instr_parent(deref);
+      }
+   }
+   unreachable("bad deref chain!");
+   return false;
+}
+
 /* \sa foreach_deref_node_match */
 static void
 foreach_deref_node_worker(struct deref_node *node, nir_deref_instr **path,
@@ -375,6 +398,11 @@ register_load_instr(nir_intrinsic_instr *load_instr,
                     struct lower_variables_state *state)
 {
    nir_deref_instr *deref = nir_src_as_deref(load_instr->src[0]);
+
+   /* skip over pointers: */
+   if (!handled_deref(deref))
+      return;
+
    struct deref_node *node = get_deref_node(deref, state);
    if (node == NULL)
       return;
@@ -391,6 +419,11 @@ register_store_instr(nir_intrinsic_instr *store_instr,
                      struct lower_variables_state *state)
 {
    nir_deref_instr *deref = nir_src_as_deref(store_instr->src[0]);
+
+   /* skip over pointers: */
+   if (!handled_deref(deref))
+      return;
+
    struct deref_node *node = get_deref_node(deref, state);
    if (node == NULL)
       return;
@@ -408,6 +441,10 @@ register_copy_instr(nir_intrinsic_instr *copy_instr,
 {
    for (unsigned idx = 0; idx < 2; idx++) {
       nir_deref_instr *deref = nir_src_as_deref(copy_instr->src[idx]);
+
+      /* copy_var should not happenn on pointers: */
+      assert(handled_deref(deref));
+
       struct deref_node *node = get_deref_node(deref, state);
       if (node == NULL)
          continue;
@@ -512,7 +549,9 @@ rename_variables(struct lower_variables_state *state)
          switch (intrin->intrinsic) {
          case nir_intrinsic_load_deref: {
             nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
-            if (deref->mode != nir_var_local)
+
+            /* skip over pointers: */
+            if (!handled_deref(deref))
                continue;
 
             struct deref_node *node = get_deref_node(deref, state);
@@ -562,7 +601,8 @@ rename_variables(struct lower_variables_state *state)
 
          case nir_intrinsic_store_deref: {
             nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
-            if (deref->mode != nir_var_local)
+            /* skip over pointers: */
+            if (!handled_deref(deref))
                continue;
 
             struct deref_node *node = get_deref_node(deref, state);
