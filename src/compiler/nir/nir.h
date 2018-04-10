@@ -101,6 +101,7 @@ typedef enum {
    nir_var_uniform         = (1 << 4),
    nir_var_shader_storage  = (1 << 5),
    nir_var_system_value    = (1 << 6),
+   nir_var_param           = (1 << 7),
    nir_var_shared          = (1 << 8),
    /* deref mode for something that is a pointer to global/
     * shared/private/constant address space:
@@ -442,7 +443,7 @@ typedef struct nir_variable {
 static inline bool
 nir_variable_is_global(const nir_variable *var)
 {
-   return var->data.mode != nir_var_local;
+   return var->data.mode != nir_var_local && var->data.mode != nir_var_param;
 }
 
 typedef struct nir_register {
@@ -1989,6 +1990,7 @@ nir_loop_last_block(nir_loop *loop)
 }
 
 typedef struct {
+   nir_variable *var;
    uint8_t num_components;
    uint8_t bit_size;
 } nir_parameter;

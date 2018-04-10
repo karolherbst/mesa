@@ -1038,6 +1038,7 @@ write_function(write_ctx *ctx, const nir_function *fxn)
          ((uint32_t)fxn->params[i].num_components) |
          ((uint32_t)fxn->params[i].bit_size) << 8;
       blob_write_uint32(ctx->blob, val);
+      write_variable(ctx, fxn->params[i].var);
    }
 
    /* At first glance, it looks like we should write the function_impl here.
@@ -1063,6 +1064,7 @@ read_function(read_ctx *ctx)
       uint32_t val = blob_read_uint32(ctx->blob);
       fxn->params[i].num_components = val & 0xff;
       fxn->params[i].bit_size = (val >> 8) & 0xff;
+      fxn->params[i].var = read_variable(ctx);
    }
 }
 

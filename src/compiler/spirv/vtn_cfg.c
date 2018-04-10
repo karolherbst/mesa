@@ -154,38 +154,53 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
       }
 
       for (unsigned i = 0; i < func_type->length; i++) {
+         nir_variable *var = rzalloc(b->shader, nir_variable);
          enum vtn_base_type base_type = func_type->params[i]->base_type;
          const struct glsl_type *type = func_type->params[i]->type;
 
-         if (base_type == vtn_base_type_sampled_image) {
+         /* pointers are internally represented as vec2, aka 'fat pointers'
+          * but externally, as a kernel parameter, they are just a single
+          * component:
+          */
+         if (func_type->params[i]->base_type == vtn_base_type_phys_pointer)
+            type = glsl_scalar_type(glsl_get_base_type(type));
+
+         var->type = type;
+         var->data.mode = nir_var_param;
+         var->data.location = i;
+
+         if (func_type->params[i]->base_type == vtn_base_type_sampled_image) {
             /* Sampled images are two pointer parameters */
             func->params[idx++] = (nir_parameter) {
-               .num_components = 1, .bit_size = 32,
+               .var = var, .num_components = 1, .bit_size = 32,
             };
             func->params[idx++] = (nir_parameter) {
-               .num_components = 1, .bit_size = 32,
+               .var = var, .num_components = 1, .bit_size = 32,
             };
          } else if (base_type == vtn_base_type_pointer && type != NULL) {
             /* Pointers with as storage class get passed by-value */
             assert(glsl_type_is_vector_or_scalar(type));
             func->params[idx++] = (nir_parameter) {
+               .var = var,
                .num_components = glsl_get_vector_elements(type),
                .bit_size = glsl_get_bit_size(type),
             };
          } else if (base_type == vtn_base_type_scalar) {
             func->params[idx++] = (nir_parameter) {
+               .var = var,
                .num_components = 1,
                .bit_size = glsl_get_bit_size(type),
             };
          } else if (base_type == vtn_base_type_vector) {
             func->params[idx++] = (nir_parameter) {
+               .var = var,
                .num_components = glsl_get_components(type),
                .bit_size = glsl_get_bit_size(type),
             };
          } else {
             /* Everything else is a regular pointer */
             func->params[idx++] = (nir_parameter) {
-               .num_components = 1, .bit_size = 32,
+               .var = var, .num_components = 1, .bit_size = 32,
             };
          }
       }

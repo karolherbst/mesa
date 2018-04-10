@@ -414,6 +414,7 @@ get_variable_mode_str(nir_variable_mode mode, bool want_local_global_mode)
    case nir_var_local:
       return want_local_global_mode ? "local" : "";
    case nir_var_pointer:
+   case nir_var_param:
    default:
       return "";
    }
@@ -1212,10 +1213,16 @@ print_function(nir_function *function, print_state *state)
 {
    FILE *fp = state->fp;
 
-   fprintf(fp, "decl_function %s (%d params)", function->name,
-           function->num_params);
+   fprintf(fp, "decl_function %s (", function->name);
 
-   fprintf(fp, "\n");
+   for (unsigned i = 0; i < function->num_params; i++) {
+      nir_variable *var = function->params[i].var;
+      const char *typename = glsl_get_type_name(var->type);
+      fprintf(fp, "%s%s %s /* %u */", (i > 0) ? ", " : "",
+              typename, var->name, var->data.driver_location);
+   }
+
+   fprintf(fp, ")\n");
 
    if (function->impl != NULL) {
       print_function_impl(function->impl, state);
