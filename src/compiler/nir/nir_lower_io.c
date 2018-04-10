@@ -721,6 +721,21 @@ nir_lower_io2(nir_shader *shader, nir_variable_mode modes,
       }
    }
 
+   /* calculate position for entrypoint parameters (for CL style
+    * kernel shaders)
+    */
+   if (modes & nir_var_param) {
+      nir_function *function =
+         nir_shader_get_entrypoint(shader)->function;
+      unsigned offset = 0;
+      for (unsigned i = 0; i < function->num_params; i++) {
+         nir_variable *var = function->params[i].var;
+         offset = align(offset, mm->type_align(var->type));
+         var->data.driver_location = offset;
+         offset += mm->type_size(var->type);
+      }
+   }
+
    return progress;
 }
 
