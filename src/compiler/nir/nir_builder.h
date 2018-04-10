@@ -618,6 +618,27 @@ nir_build_deref_array_wildcard(nir_builder *build, nir_deref_instr *parent)
 }
 
 static inline nir_deref_instr *
+nir_build_deref_ptr_as_array(nir_builder *build, nir_deref_instr *parent,
+                             nir_ssa_def *index)
+{
+   nir_deref_instr *deref =
+      nir_deref_instr_create(build->shader, nir_deref_type_ptr_as_array);
+
+   deref->mode = parent->mode;
+   deref->type = parent->type;
+   deref->parent = nir_src_for_ssa(&parent->dest.ssa);
+   deref->arr.index = nir_src_for_ssa(index);
+
+   nir_ssa_dest_init(&deref->instr, &deref->dest,
+                     parent->dest.ssa.num_components,
+                     parent->dest.ssa.bit_size, NULL);
+
+   nir_builder_instr_insert(build, &deref->instr);
+
+   return deref;
+}
+
+static inline nir_deref_instr *
 nir_build_deref_struct(nir_builder *build, nir_deref_instr *parent,
                        unsigned index)
 {

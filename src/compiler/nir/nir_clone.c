@@ -311,6 +311,7 @@ clone_deref_instr(clone_state *state, const nir_deref_instr *deref)
       break;
 
    case nir_deref_type_array:
+   case nir_deref_type_ptr_as_array:
       __clone_src(state, &nderef->instr,
                   &nderef->arr.index, &deref->arr.index);
       break;

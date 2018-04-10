@@ -958,6 +958,7 @@ typedef enum {
    nir_deref_type_var,
    nir_deref_type_array,
    nir_deref_type_array_wildcard,
+   nir_deref_type_ptr_as_array,
    nir_deref_type_struct,
    nir_deref_type_cast,
 } nir_deref_type;
