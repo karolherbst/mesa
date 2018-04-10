@@ -156,9 +156,15 @@ nouveau_disk_cache_create(struct nouveau_screen *screen)
                                           &mesa_id)) {
       res = asprintf(&mesa_id_str, "%u", mesa_id);
       if (res != -1) {
+         uint64_t driver_flags = 0;
+         if (screen->prefer_nir)
+            driver_flags |= NOUVEAU_SHADER_CACHE_FLAGS_IR_NIR;
+         else
+            driver_flags |= NOUVEAU_SHADER_CACHE_FLAGS_IR_TGSI;
+
          screen->disk_shader_cache =
             disk_cache_create(nouveau_screen_get_name(&screen->base),
-                              mesa_id_str, 0);
+                              mesa_id_str, driver_flags);
          free(mesa_id_str);
       }
    }
