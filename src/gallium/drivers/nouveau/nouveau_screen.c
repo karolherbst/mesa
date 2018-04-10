@@ -156,9 +156,13 @@ nouveau_disk_cache_create(struct nouveau_screen *screen)
                                          &mesa_timestamp)) {
       res = asprintf(&timestamp_str, "%u", mesa_timestamp);
       if (res != -1) {
+         uint64_t shader_debug_flags = 0;
+         if (screen->prefer_nir)
+            shader_debug_flags |= 1 << 0;
+
          screen->disk_shader_cache =
             disk_cache_create(nouveau_screen_get_name(&screen->base),
-                              timestamp_str, 0);
+                              timestamp_str, shader_debug_flags);
          free(timestamp_str);
       }
    }
