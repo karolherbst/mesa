@@ -60,6 +60,9 @@ hash_deref(const void *void_deref)
          hash = _mesa_fnv32_1a_accumulate(hash, deref->strct.index);
          continue;
 
+      case nir_deref_type_ptr_as_array:
+      case nir_deref_type_cast:
+         /* I don't think we should encounter anything with ptrs */
       default:
          unreachable("Invalid deref type");
       }
