@@ -2760,10 +2760,20 @@ typedef enum {
     */
    nir_lower_io_force_sample_interpolation = (1 << 1),
 } nir_lower_io_options;
+typedef struct nir_memory_model {
+   int (*type_size)(const struct glsl_type *);
+   int (*type_align)(const struct glsl_type *);
+} nir_memory_model;
 bool nir_lower_io(nir_shader *shader,
                   nir_variable_mode modes,
                   int (*type_size)(const struct glsl_type *),
                   nir_lower_io_options);
+// TEMP use different name to avoid fixing all the callers yet:
+bool nir_lower_io2(nir_shader *shader,
+                  nir_variable_mode modes,
+                  const nir_memory_model *mm,
+                  nir_lower_io_options);
+
 nir_src *nir_get_io_offset_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_vertex_index_src(nir_intrinsic_instr *instr);
 
