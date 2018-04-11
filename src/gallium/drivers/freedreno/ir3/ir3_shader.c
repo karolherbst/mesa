@@ -374,8 +374,13 @@ ir3_shader_create_compute(struct ir3_compiler *compiler,
 		/* we take ownership of the reference: */
 		nir = (nir_shader *)cso->prog;
 
-		NIR_PASS_V(nir, nir_lower_io, nir_var_all, ir3_glsl_type_size,
-			   (nir_lower_io_options)0);
+		// TODO we need a way to differentiate clover vs glsl compute!
+		nir_memory_model mm = {
+			.type_size = glsl_get_cl_size,
+			.type_align = glsl_get_cl_alignment,
+		};
+
+		NIR_PASS_V(nir, nir_lower_io2, nir_var_all, &mm, 0);
 	} else {
 		debug_assert(cso->ir_type == PIPE_SHADER_IR_TGSI);
 		if (fd_mesa_debug & FD_DBG_DISASM) {
