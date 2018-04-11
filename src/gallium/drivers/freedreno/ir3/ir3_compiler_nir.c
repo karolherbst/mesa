@@ -2390,9 +2390,11 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 		emit_intrinsic_load_param(ctx, intr, dst);
 		break;
 	case nir_intrinsic_load_global:
+	case nir_intrinsic_load_private:
 		emit_intrinsic_load_global(ctx, intr, dst);
 		break;
 	case nir_intrinsic_store_global:
+	case nir_intrinsic_store_private:
 		emit_intrisic_store_global(ctx, intr);
 		break;
 	case nir_intrinsic_load_ssbo:
