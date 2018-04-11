@@ -1947,6 +1947,16 @@ vtn_create_variable(struct vtn_builder *b, struct vtn_value *val,
    }
 
    case vtn_variable_mode_uniform_constant:
+      /* normally we don't need a variable, unless there is an initializer */
+      // TODO maybe instead we want to pass the initializer to driver
+      // instead to setup uniform state?
+      if (initializer) {
+         var->var = rzalloc(b->shader, nir_variable);
+         var->var->name = ralloc_strdup(var->var, val->name);
+         var->var->type = var->type->type;
+         var->var->data.mode = nir_mode;
+      }
+      break;
    case vtn_variable_mode_cross_workgroup:
    case vtn_variable_mode_ubo:
    case vtn_variable_mode_ssbo:
@@ -1956,6 +1966,9 @@ vtn_create_variable(struct vtn_builder *b, struct vtn_value *val,
    }
 
    if (initializer) {
+      // TODO how to handle __constant with initalizer.. I think in
+      // this case clover needs to be aware of the constant initializer
+      vtn_assert(var->var);
       var->var->constant_initializer =
          nir_constant_clone(initializer, var->var);
    }
