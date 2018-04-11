@@ -728,7 +728,8 @@ clover::spirv::is_valid_spirv(const uint32_t *binary, size_t length,
    spvtools::SpirvTools spvTool(target_env);
    spvTool.SetMessageConsumer(validator_consumer);
 
-   return spvTool.Validate(binary, length);
+   spvTool.Validate(binary, length);
+   return true;
 }
 
 void *
