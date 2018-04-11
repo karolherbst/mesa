@@ -131,7 +131,8 @@ remove_dead_var_writes(nir_shader *shader, struct set *live)
                    intrin->intrinsic != nir_intrinsic_store_deref)
                   break;
 
-               if (nir_src_as_deref(intrin->src[0])->mode == 0)
+               nir_variable *var = nir_intrinsic_get_var(intrin, 0);
+               if (var && var->data.mode == 0)
                   nir_instr_remove(instr);
                break;
             }
