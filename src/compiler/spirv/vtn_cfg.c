@@ -211,10 +211,21 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
       } else {
          /* We're a regular SSA value. */
          nir_ssa_def *param_val = nir_load_param(&b->nb, b->func_param_idx++);
+#if 0
+// TODO is load_param expected to return a *pointer* to a (for example)
+// scalar value?  Currently I expect it to return a value (which for
+// for value passed by pointer could be a pointer).  But for a non-
+// pointer argument I expect to get the value, not a pointer to the
+// value.. so this is doing the *completely* wrong thing:
          nir_ssa_def *fptr = nir_build_fptr(&b->nb, param_val, nir_var_local);
          nir_deref_instr *deref =
             nir_build_deref_cast(&b->nb, fptr, nir_var_local, type->type);
          vtn_push_ssa(b, w[2], type, vtn_local_load(b, deref));
+#else
+         struct vtn_ssa_value *ssa = vtn_create_ssa_value(b, type->type);
+         ssa->def = param_val;
+         vtn_push_ssa(b, w[2], type, ssa);
+#endif
       }
       break;
    }
