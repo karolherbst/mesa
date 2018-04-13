@@ -1865,6 +1865,10 @@ vtn_create_variable(struct vtn_builder *b, struct vtn_value *val,
          var->var->name = ralloc_strdup(var->var, val->name);
          var->var->type = var->type->type;
          var->var->data.mode = nir_var_shared;
+         /* indicate that position in shared memory is not
+          * assigned yet:
+          */
+         var->var->data.location = -1;
       }
       break;
 

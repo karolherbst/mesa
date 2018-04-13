@@ -2826,6 +2826,7 @@ bool nir_lower_io2(nir_shader *shader,
                   nir_variable_mode modes,
                   const nir_memory_model *mm,
                   nir_lower_io_options);
+void nir_assign_shared_storage(nir_shader *shader, nir_memory_model *mm);
 
 nir_src *nir_get_io_offset_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_vertex_index_src(nir_intrinsic_instr *instr);
