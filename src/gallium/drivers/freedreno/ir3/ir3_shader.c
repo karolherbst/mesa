@@ -353,16 +353,16 @@ ir3_shader_create_compute(struct ir3_compiler *compiler,
 	shader->type = SHADER_COMPUTE;
 	shader->cs.req_input_mem = align(cso->req_input_mem, 4) / 4;     /* byte->dword */
 
+	// TODO we need a way to differentiate clover vs glsl compute!
+	nir_memory_model mm = {
+		.type_size = glsl_get_cl_size,
+		.type_align = glsl_get_cl_alignment,
+	};
+
 	nir_shader *nir;
 	if (cso->ir_type == PIPE_SHADER_IR_NIR) {
 		/* we take ownership of the reference: */
 		nir = (nir_shader *)cso->prog;
-
-		// TODO we need a way to differentiate clover vs glsl compute!
-		nir_memory_model mm = {
-			.type_size = glsl_get_cl_size,
-			.type_align = glsl_get_cl_alignment,
-		};
 
 		NIR_PASS_V(nir, nir_lower_io2, nir_var_all, &mm, 0);
 	} else {
@@ -374,8 +374,14 @@ ir3_shader_create_compute(struct ir3_compiler *compiler,
 		nir = ir3_tgsi_to_nir(cso->prog);
 	}
 
-	/* do first pass optimization, ignoring the key: */
-	shader->nir = ir3_optimize_nir(shader, nir, NULL);
+	nir = ir3_optimize_nir(shader, nir, NULL);
+
+	NIR_PASS_V(nir, nir_assign_shared_storage, &mm);
+	NIR_PASS_V(nir, nir_lower_io2, nir_var_all, &mm, 0);
+	nir = ir3_optimize_nir(shader, nir, NULL);
+
+	shader->nir = nir;
+
 	if (fd_mesa_debug & FD_DBG_DISASM) {
 		printf("dump nir%d: type=%d\n", shader->id, shader->type);
 		nir_print_shader(shader->nir, stdout);

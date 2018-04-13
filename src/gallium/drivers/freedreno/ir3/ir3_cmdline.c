@@ -467,7 +467,19 @@ nir_print_shader(nir, stdout);
 	}
 
 	s.compiler = compiler;
-	s.nir = ir3_optimize_nir(&s, nir, NULL);
+	nir = ir3_optimize_nir(&s, nir, NULL);
+
+	if (from_spirv) {
+		nir_memory_model mm = {
+			.type_size = glsl_get_cl_size,
+			.type_align = glsl_get_cl_alignment,
+		};
+		NIR_PASS_V(nir, nir_assign_shared_storage, &mm);
+		NIR_PASS_V(nir, nir_lower_io2, nir_var_all, &mm, 0);
+		nir = ir3_optimize_nir(&s, nir, NULL);
+	}
+
+	s.nir = nir;
 
 	v.key = key;
 	v.shader = &s;

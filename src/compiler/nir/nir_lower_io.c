@@ -144,6 +144,28 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
    nir_ssa_def *fptr = NULL;
    if (path.path[0]->deref_type == nir_deref_type_cast) {
       fptr = nir_ssa_for_src(b, path.path[0]->parent, 2);
+   } else if (path.path[0]->deref_type == nir_deref_type_var) {
+      nir_variable *var = path.path[0]->var;
+      /* if offset of shared var's are assigned already, we can
+       * lower away the deref_var into a pointer so that things
+       * like address_from_deref work.
+       */
+// XXX are constant ptr in the same category as __local ?  Maybe this
+// should be conditional on shader->ptr_size != 0 ??
+      if (var->data.mode == nir_var_shared) {
+         if (var->data.location != -1) {
+            unsigned bitsize = b->shader->ptr_size;
+            nir_ssa_def *addr =
+               nir_imm_intN_t(b, var->data.driver_location, bitsize);
+            fptr = nir_build_fptr(b, addr, nir_var_shared);
+         } else {
+            /* skip things we can't lower yet: */
+            return NULL;
+         }
+      }
+   }
+
+   if (fptr) {
       offset = nir_channel(b, fptr, 0);
    } else {
       offset = nir_imm_int(b, 0);
@@ -177,7 +199,7 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
    }
 
    /* for pointer deref's, repack the resulting pointer as a fat ptr: */
-   if (path.path[0]->deref_type == nir_deref_type_cast)
+   if (fptr)
       offset = nir_vec2(b, offset, nir_channel(b, fptr, 1));
 
    nir_deref_path_finish(&path);
@@ -437,6 +459,8 @@ lower_pointer_deref(nir_intrinsic_instr *intrin, struct lower_io_state *state)
    b->cursor = nir_before_instr(&intrin->instr);
 
    fptr = get_io_offset(deref, NULL, state, NULL);
+   if (!fptr)
+      return false;
    addr = nir_channel(b, fptr, 0);     /* fptr.x is address */
    atype = nir_channel(b, fptr, 1);    /* fptr.y is address type */
 
@@ -591,7 +615,10 @@ nir_lower_io_block(nir_block *block,
 
       nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
 
-      if (deref->mode == nir_var_pointer) {
+      // TODO shared and perhaps const deref's can start with a var,
+      // but they really are pointers.. how should we handle that?
+      if (deref->mode == nir_var_pointer ||
+          deref->mode == nir_var_shared) {
          progress |= lower_pointer_deref(intrin, state);
          continue;
       }
@@ -619,6 +646,9 @@ nir_lower_io_block(nir_block *block,
 
       offset = get_io_offset(deref, per_vertex ? &vertex_index : NULL,
                              state, &component_offset);
+
+      if (!offset)
+         continue;
 
       nir_intrinsic_instr *replacement;
 
@@ -749,6 +779,22 @@ nir_lower_io(nir_shader *shader, nir_variable_mode modes,
          .type_size = type_size,
    };
    return nir_lower_io2(shader, modes, &mm, options);
+}
+
+/* assign locations for shared variables.  This can be done after,
+ * for ex, remove_dead_variables.
+ */
+void
+nir_assign_shared_storage(nir_shader *shader, nir_memory_model *mm)
+{
+   unsigned offset = 0;
+   unsigned idx = 0;
+   nir_foreach_variable(var, &shader->shared) {
+      var->data.location = idx++;
+      offset = align(offset, mm->type_align(var->type));
+      var->data.driver_location = offset;
+      offset += mm->type_size(var->type);
+   }
 }
 
 /**
