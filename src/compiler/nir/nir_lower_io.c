@@ -472,21 +472,21 @@ lower_pointer_deref(nir_intrinsic_instr *intrin, struct lower_io_state *state)
       nir_intrinsic_instr *load;
       nir_ssa_def *g, *l, *p, *c;
 
-      nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_global)));
+      nir_push_if(b, nir_ieq(b, atype, nir_imm_intN_t(b, nir_var_global, atype->bit_size)));
       {
          load = insert_load(intrin, nir_intrinsic_load_global, state, addr, NULL);
          g = &load->dest.ssa;
       }
       nir_push_else(b, NULL);
       {
-         nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_shared)));
+         nir_push_if(b, nir_ieq(b, atype, nir_imm_intN_t(b, nir_var_shared, atype->bit_size)));
          {
             load = insert_load(intrin, nir_intrinsic_load_shared, state, addr, NULL);
             l = &load->dest.ssa;
          }
          nir_push_else(b, NULL);
          {
-            nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_uniform)));
+            nir_push_if(b, nir_ieq(b, atype, nir_imm_intN_t(b, nir_var_uniform, atype->bit_size)));
             {
                /* for __constant buffers, clover puts the buffer index in the
                 * upper 8 bits and the offset in the lower 24 bits.  (Also, it
@@ -523,14 +523,14 @@ lower_pointer_deref(nir_intrinsic_instr *intrin, struct lower_io_state *state)
    case nir_intrinsic_store_deref: {
       nir_intrinsic_instr *store;
 
-      nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_global)));
+      nir_push_if(b, nir_ieq(b, atype, nir_imm_intN_t(b, nir_var_global, atype->bit_size)));
       {
          store = build_store(intrin, nir_intrinsic_store_global, state, NULL, addr);
          nir_builder_instr_insert(b, &store->instr);
       }
       nir_push_else(b, NULL);
       {
-         nir_push_if(b, nir_ieq(b, atype, nir_imm_int(b, nir_var_shared)));
+         nir_push_if(b, nir_ieq(b, atype, nir_imm_intN_t(b, nir_var_shared, atype->bit_size)));
          {
             store = build_store(intrin, nir_intrinsic_store_shared, state, NULL, addr);
             nir_builder_instr_insert(b, &store->instr);

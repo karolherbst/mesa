@@ -48,6 +48,12 @@ static bool
 vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
                                    const uint32_t *w, unsigned count)
 {
+   unsigned ptr_size;
+   if (b->shader->ptr_size == 64)
+      ptr_size = 64;
+   else
+      ptr_size = 32;
+
 D("opcode: %s", &spirv_op_to_string(opcode)[3]);
    switch (opcode) {
    case SpvOpFunction: {
@@ -88,7 +94,7 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
       if (func_type->return_type->base_type != vtn_base_type_void) {
          /* The return value is a regular pointer */
          func->params[idx++] = (nir_parameter) {
-            .num_components = 1, .bit_size = 32,
+            .num_components = 1, .bit_size = ptr_size,
          };
       }
 
@@ -139,7 +145,7 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
          } else {
             /* Everything else is a regular pointer */
             func->params[idx++] = (nir_parameter) {
-               .var = var, .num_components = 1, .bit_size = 32,
+               .var = var, .num_components = 1, .bit_size = ptr_size,
             };
          }
       }

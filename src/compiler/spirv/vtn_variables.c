@@ -81,8 +81,13 @@ vtn_access_chain_type(struct vtn_builder *b, struct vtn_access_chain *chain,
 static inline nir_ssa_def *
 vtn_access_link_index(struct vtn_builder *b, struct vtn_access_link *link)
 {
+   unsigned bit_size;
+   if (b->shader->ptr_size == 64)
+      bit_size = 64;
+   else
+      bit_size = 32;
    if (link->mode == vtn_access_mode_literal) {
-      return nir_imm_int(&b->nb, link->id);
+      return nir_imm_intN_t(&b->nb, link->id, bit_size);
    } else {
       vtn_assert(link->mode == vtn_access_mode_id);
       return vtn_ssa_value(b, link->id)->def;

@@ -515,7 +515,6 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
       validate_assert(state, glsl_type_is_vector_or_scalar(dst->type));
       validate_assert(state, instr->num_components ==
                              glsl_get_vector_elements(dst->type));
-      src_bit_sizes[1] = glsl_get_bit_size(dst->type);
       validate_assert(state, (dst->mode & (nir_var_shader_in |
                                            nir_var_uniform |
                                            nir_var_shader_storage)) == 0);
