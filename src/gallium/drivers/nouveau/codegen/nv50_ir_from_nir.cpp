@@ -91,8 +91,6 @@ private:
    LValues& convert(nir_register *);
    LValues& convert(nir_ssa_def *);
 
-   ImgFormat convertGLImgFormat(GLuint);
-
    Value* getSrc(nir_alu_src *, uint8_t component = 0);
    Value* getSrc(nir_register *, uint8_t);
    Value* getSrc(nir_src *, uint8_t, bool indirect = false);
@@ -156,11 +154,6 @@ private:
 
    /* tex stuff */
    Value* applyProjection(Value *src, Value *proj);
-   unsigned int getNIRArgCount(TexInstruction::Target&);
-
-   /* image stuff */
-   uint16_t derefImageVar(nir_deref_var *, Value *&indirect, const glsl_type *&);
-   CacheMode getCacheModeFromVar(nir_variable *);
 
    nir_shader *nir;
 
@@ -444,22 +437,6 @@ Converter::getOperation(nir_intrinsic_op op)
       return OP_EMIT;
    case nir_intrinsic_end_primitive:
       return OP_RESTART;
-   case nir_intrinsic_image_var_atomic_add:
-   case nir_intrinsic_image_var_atomic_and:
-   case nir_intrinsic_image_var_atomic_comp_swap:
-   case nir_intrinsic_image_var_atomic_exchange:
-   case nir_intrinsic_image_var_atomic_max:
-   case nir_intrinsic_image_var_atomic_min:
-   case nir_intrinsic_image_var_atomic_or:
-   case nir_intrinsic_image_var_atomic_xor:
-      return OP_SUREDP;
-   case nir_intrinsic_image_var_load:
-      return OP_SULDP;
-   case nir_intrinsic_image_var_samples:
-   case nir_intrinsic_image_var_size:
-      return OP_SUQ;
-   case nir_intrinsic_image_var_store:
-      return OP_SUSTP;
    default:
       ERROR("couldn't get operation for nir_intrinsic_op %u\n", op);
       assert(false);
@@ -490,7 +467,6 @@ Converter::getSubOp(nir_op op)
 }
 
 #define CASE_OP_INTR_ATOM(nir, nvir) \
-   case nir_intrinsic_image_var_atomic_ ## nir : \
    case nir_intrinsic_shared_atomic_ ## nir : \
    case nir_intrinsic_ssbo_atomic_ ## nir : \
       return NV50_IR_SUBOP_ATOM_ ## nvir
@@ -515,10 +491,8 @@ Converter::getSubOp(nir_intrinsic_op op)
    case nir_intrinsic_memory_barrier_shared:
       return NV50_IR_SUBOP_MEMBAR(M, CTA);
    CASE_OP_INTR_ATOM(or, OR);
-   case nir_intrinsic_image_var_atomic_max:
    CASE_OP_INTR_ATOM_S(imax, MAX);
    CASE_OP_INTR_ATOM_S(umax, MAX);
-   case nir_intrinsic_image_var_atomic_min:
    CASE_OP_INTR_ATOM_S(imin, MIN);
    CASE_OP_INTR_ATOM_S(umin, MIN);
    CASE_OP_INTR_ATOM(xor, XOR);
@@ -1694,73 +1668,10 @@ Converter::convert(nir_intrinsic_op intr)
    }
 }
 
-ImgFormat
-Converter::convertGLImgFormat(GLuint format)
-{
-#define FMT_CASE(a, b) \
-  case GL_ ## a: return nv50_ir::FMT_ ## b
-
-   switch (format) {
-   FMT_CASE(NONE, NONE);
-
-   FMT_CASE(RGBA32F, RGBA32F);
-   FMT_CASE(RGBA16F, RGBA16F);
-   FMT_CASE(RG32F, RG32F);
-   FMT_CASE(RG16F, RG16F);
-   FMT_CASE(R11F_G11F_B10F, R11G11B10F);
-   FMT_CASE(R32F, R32F);
-   FMT_CASE(R16F, R16F);
-
-   FMT_CASE(RGBA32UI, RGBA32UI);
-   FMT_CASE(RGBA16UI, RGBA16UI);
-   FMT_CASE(RGB10_A2UI, RGB10A2UI);
-   FMT_CASE(RGBA8UI, RGBA8UI);
-   FMT_CASE(RG32UI, RG32UI);
-   FMT_CASE(RG16UI, RG16UI);
-   FMT_CASE(RG8UI, RG8UI);
-   FMT_CASE(R32UI, R32UI);
-   FMT_CASE(R16UI, R16UI);
-   FMT_CASE(R8UI, R8UI);
-
-   FMT_CASE(RGBA32I, RGBA32I);
-   FMT_CASE(RGBA16I, RGBA16I);
-   FMT_CASE(RGBA8I, RGBA8I);
-   FMT_CASE(RG32I, RG32I);
-   FMT_CASE(RG16I, RG16I);
-   FMT_CASE(RG8I, RG8I);
-   FMT_CASE(R32I, R32I);
-   FMT_CASE(R16I, R16I);
-   FMT_CASE(R8I, R8I);
-
-   FMT_CASE(RGBA16, RGBA16);
-   FMT_CASE(RGB10_A2, RGB10A2);
-   FMT_CASE(RGBA8, RGBA8);
-   FMT_CASE(RG16, RG16);
-   FMT_CASE(RG8, RG8);
-   FMT_CASE(R16, R16);
-   FMT_CASE(R8, R8);
-
-   FMT_CASE(RGBA16_SNORM, RGBA16_SNORM);
-   FMT_CASE(RGBA8_SNORM, RGBA8_SNORM);
-   FMT_CASE(RG16_SNORM, RG16_SNORM);
-   FMT_CASE(RG8_SNORM, RG8_SNORM);
-   FMT_CASE(R16_SNORM, R16_SNORM);
-   FMT_CASE(R8_SNORM, R8_SNORM);
-
-   FMT_CASE(BGRA_INTEGER, BGRA8);
-   default:
-      ERROR("unknown format %x\n", format);
-      assert(false);
-      return nv50_ir::FMT_NONE;
-   }
-#undef FMT_CASE
-}
-
 bool
 Converter::visit(nir_intrinsic_instr *insn)
 {
    nir_intrinsic_op op = insn->intrinsic;
-   const nir_intrinsic_info &opInfo = nir_intrinsic_infos[op];
 
    switch (op) {
    case nir_intrinsic_load_uniform: {
@@ -2204,111 +2115,6 @@ Converter::visit(nir_intrinsic_instr *insn)
       atom->subOp = getSubOp(op);
 
       info->io.globalAccess |= 0x2;
-      break;
-   }
-   case nir_intrinsic_image_var_atomic_add:
-   case nir_intrinsic_image_var_atomic_and:
-   case nir_intrinsic_image_var_atomic_comp_swap:
-   case nir_intrinsic_image_var_atomic_exchange:
-   case nir_intrinsic_image_var_atomic_max:
-   case nir_intrinsic_image_var_atomic_min:
-   case nir_intrinsic_image_var_atomic_or:
-   case nir_intrinsic_image_var_atomic_xor:
-   case nir_intrinsic_image_var_load:
-   case nir_intrinsic_image_var_samples:
-   case nir_intrinsic_image_var_size:
-   case nir_intrinsic_image_var_store: {
-      nir_variable *tex = insn->variables[0]->var;
-      std::vector<Value*> srcs, defs;
-      uint32_t mask = 0;
-      Value *indirect;
-      const glsl_type *type;
-      DataType ty;
-      unsigned handle;
-      auto location = derefImageVar(insn->variables[0], indirect, type);
-      TexInstruction::Target target =
-         convert((glsl_sampler_dim)type->sampler_dimensionality,
-                 type->sampler_array, type->sampler_shadow);
-      unsigned int argCount = getNIRArgCount(target);
-
-      if (opInfo.has_dest) {
-         LValues &newDefs = convert(&insn->dest);
-         for (auto i = 0u; i < newDefs.size(); ++i) {
-            defs.push_back(newDefs[i]);
-            mask |= 1 << i;
-         }
-      }
-
-      switch (op) {
-      case nir_intrinsic_image_var_atomic_add:
-      case nir_intrinsic_image_var_atomic_and:
-      case nir_intrinsic_image_var_atomic_comp_swap:
-      case nir_intrinsic_image_var_atomic_exchange:
-      case nir_intrinsic_image_var_atomic_max:
-      case nir_intrinsic_image_var_atomic_min:
-      case nir_intrinsic_image_var_atomic_or:
-      case nir_intrinsic_image_var_atomic_xor:
-         ty = getDType(insn);
-         mask = 0x1;
-         handle = 2;
-         info->io.globalAccess |= 0x2;
-         break;
-      case nir_intrinsic_image_var_load:
-         ty = TYPE_U32;
-         handle = 2;
-         info->io.globalAccess |= 0x1;
-         break;
-      case nir_intrinsic_image_var_store:
-         ty = TYPE_U32;
-         mask = 0xf;
-         handle = 2;
-         info->io.globalAccess |= 0x2;
-         break;
-      case nir_intrinsic_image_var_samples:
-      case nir_intrinsic_image_var_size:
-         ty = TYPE_U32;
-         handle = 0;
-         break;
-      default:
-         unreachable("unhandled image opcode");
-         break;
-      }
-
-      /* coords */
-      if (opInfo.num_srcs >= 1 && handle != 0)
-         for (auto i = 0u; i < argCount; ++i)
-            srcs.push_back(getSrc(&insn->src[0], i));
-
-      /* TODO: MS sampler in src[1] */
-
-      if (opInfo.num_srcs >= 2)
-         /* 4 for store, 1 for aotmics */
-         for (auto i = 0u; i < opInfo.src_components[2]; ++i)
-            srcs.push_back(getSrc(&insn->src[2], i));
-
-      if (opInfo.num_srcs >= 3)
-         /* 1 for aotmic swap */
-         for (auto i = 0u; i < opInfo.src_components[3]; ++i)
-            srcs.push_back(getSrc(&insn->src[3], i));
-
-      if (tex->data.bindless) {
-         indirect = getSrc(&insn->src[handle], 0);
-         Value *split[2];
-         mkSplit(split, 4, indirect);
-         indirect = split[0];
-      }
-
-      TexInstruction *texi = mkTex(getOperation(op), target.getEnum(), location, 0, defs, srcs);
-      texi->tex.bindless = tex->data.bindless;
-      texi->tex.format = &nv50_ir::TexInstruction::formatTable[convertGLImgFormat(tex->data.image.format)];
-      texi->tex.mask = mask;
-      texi->cache = getCacheModeFromVar(tex);
-      texi->setType(ty);
-      texi->subOp = getSubOp(op);
-
-      if (indirect)
-         texi->setIndirectR(indirect);
-
       break;
    }
    case nir_intrinsic_store_shared: {
@@ -2830,98 +2636,6 @@ Converter::applyProjection(Value *src, Value *proj)
    if (!proj)
       return src;
    return mkOp2v(OP_MUL, TYPE_F32, getScratch(), src, proj);
-}
-
-unsigned int
-Converter::getNIRArgCount(TexInstruction::Target& target)
-{
-   unsigned int result = target.getArgCount();
-   if (target.isCube() && target.isArray())
-      return result - 1;
-   return result;
-}
-
-uint16_t
-Converter::derefImageVar(nir_deref_var *deref, Value *&indirect, const glsl_type *&image)
-{
-   bool bindless = deref->var->data.bindless;
-   uint16_t offset = bindless ? 0 : deref->var->data.driver_location;
-   std::vector<std::pair<uint32_t,nir_deref_array*>> derefs;
-   image = deref->deref.type;
-
-   if (bindless) {
-      assert(!"no support for bindless images\n");
-      indirect = nullptr;
-      return 0;
-   }
-
-   /* we have to iterate through the deref to get two things: offset chain and
-    * the tex variable
-    */
-   for (nir_deref *child = deref->deref.child; child; child = child->child) {
-      image = child->type;
-
-      if (bindless)
-         continue;
-
-      switch (child->deref_type) {
-      case nir_deref_type_array: {
-         nir_deref_array *arr = nir_deref_as_array(child);
-         auto size = type_size(child->type);
-         offset += size * arr->base_offset;
-
-         switch (arr->deref_array_type) {
-         case nir_deref_array_type_direct:
-            break;
-         case nir_deref_array_type_indirect:
-            derefs.push_back(std::make_pair(size, arr));
-            break;
-         case nir_deref_array_type_wildcard:
-            ERROR("Wildcard derefs not supported!!\n");
-            assert(false);
-            break;
-         default:
-            ERROR("Unknown deref type!\n");
-            assert(false);
-            break;
-         }
-         break;
-      }
-      default:
-         ERROR("Only array derefs supported yet!\n");
-         assert(false);
-      }
-   }
-
-   if (bindless)
-      return 0;
-
-   indirect = nullptr;
-   if (derefs.empty()) {
-      return offset;
-   }
-
-   for (const auto &p : derefs) {
-      Value *offset =
-         mkOp2v(OP_MUL, TYPE_U32, getSSA(), loadImm(getSSA(), p.first),
-                getSrc(&p.second->indirect, 0, false));
-      if (indirect)
-         indirect = mkOp2v(OP_ADD, TYPE_U32, getSSA(), indirect, offset);
-      else
-         indirect = offset;
-   }
-
-   return offset;
-}
-
-CacheMode
-Converter::getCacheModeFromVar(nir_variable *var)
-{
-   if (var->data.image._volatile)
-      return CACHE_CV;
-   if (var->data.image.coherent)
-      return CACHE_CG;
-   return CACHE_CA;
 }
 
 bool
