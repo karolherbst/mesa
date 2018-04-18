@@ -3115,7 +3115,14 @@ Converter::run()
       .ballot_bit_size = 32,
    };
 
-   NIR_PASS_V(nir, nir_lower_io, nir_var_all, type_size, (nir_lower_io_options)0);
+   nir_memory_model mm = {
+      .type_size = glsl_get_cl_size,
+      .type_align = glsl_get_cl_alignment,
+   };
+
+   NIR_PASS_V(nir, nir_assign_shared_storage, &mm);
+   NIR_PASS_V(nir, nir_lower_io2, nir_var_param, &mm, (nir_lower_io_options)0);
+   NIR_PASS_V(nir, nir_lower_io, (nir_variable_mode)(nir_var_all ^ nir_var_param), type_size, (nir_lower_io_options)0);
    NIR_PASS_V(nir, nir_lower_subgroups, &subgroup_options);
    NIR_PASS_V(nir, nir_lower_regs_to_ssa);
    NIR_PASS_V(nir, nir_lower_load_const_to_scalar);
