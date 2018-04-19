@@ -153,7 +153,10 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
       }
 
       for (unsigned i = 0; i < func_type->length; i++) {
-         if (func_type->params[i]->base_type == vtn_base_type_sampled_image) {
+         enum vtn_base_type base_type = func_type->params[i]->base_type;
+         const struct glsl_type *type = func_type->params[i]->type;
+
+         if (base_type == vtn_base_type_sampled_image) {
             /* Sampled images are two pointer parameters */
             func->params[idx++] = (nir_parameter) {
                .num_components = 1, .bit_size = 32,
@@ -161,14 +164,22 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
             func->params[idx++] = (nir_parameter) {
                .num_components = 1, .bit_size = 32,
             };
-         } else if (func_type->params[i]->base_type == vtn_base_type_pointer &&
-                    func_type->params[i]->type != NULL) {
+         } else if (base_type == vtn_base_type_pointer && type != NULL) {
             /* Pointers with as storage class get passed by-value */
-            assert(glsl_type_is_vector_or_scalar(func_type->params[i]->type));
+            assert(glsl_type_is_vector_or_scalar(type));
             func->params[idx++] = (nir_parameter) {
-               .num_components =
-                  glsl_get_vector_elements(func_type->params[i]->type),
-               .bit_size = glsl_get_bit_size(func_type->params[i]->type),
+               .num_components = glsl_get_vector_elements(type),
+               .bit_size = glsl_get_bit_size(type),
+            };
+         } else if (base_type == vtn_base_type_scalar) {
+            func->params[idx++] = (nir_parameter) {
+               .num_components = 1,
+               .bit_size = glsl_get_bit_size(type),
+            };
+         } else if (base_type == vtn_base_type_vector) {
+            func->params[idx++] = (nir_parameter) {
+               .num_components = glsl_get_components(type),
+               .bit_size = glsl_get_bit_size(type),
             };
          } else {
             /* Everything else is a regular pointer */
