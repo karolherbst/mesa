@@ -125,6 +125,14 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
                   glsl_get_vector_elements(func_type->params[i]->type),
                .bit_size = glsl_get_bit_size(func_type->params[i]->type),
             };
+         } else if (func_type->params[i]->base_type == vtn_base_type_scalar) {
+            func->params[idx++] = (nir_parameter) {
+               .var = var, .num_components = 1, .bit_size = glsl_get_bit_size(type),
+            };
+         } else if (func_type->params[i]->base_type == vtn_base_type_vector) {
+            func->params[idx++] = (nir_parameter) {
+               .var = var, .num_components = glsl_get_components(type), .bit_size = glsl_get_bit_size(type),
+            };
          } else {
             /* Everything else is a regular pointer */
             func->params[idx++] = (nir_parameter) {
