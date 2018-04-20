@@ -88,6 +88,7 @@ print_register(nir_register *reg, print_state *state)
 
 static const char *sizes[] = { "error", "vec1", "vec2", "vec3", "vec4",
                                "error", "error", "error", "vec8",
+                               "error", "error", "error", "error",
                                "error", "error", "error", "vec16"};
 
 static void
@@ -193,7 +194,7 @@ print_alu_src(nir_alu_instr *instr, unsigned src, print_state *state)
    bool print_swizzle = false;
    unsigned used_channels = 0;
 
-   for (unsigned i = 0; i < 4; i++) {
+   for (unsigned i = 0; i < 16; i++) {
       if (!nir_alu_instr_channel_used(instr, src, i))
          continue;
 
@@ -211,7 +212,7 @@ print_alu_src(nir_alu_instr *instr, unsigned src, print_state *state)
 
    if (print_swizzle || used_channels != live_channels) {
       fprintf(fp, ".");
-      for (unsigned i = 0; i < 4; i++) {
+      for (unsigned i = 0; i < 16; i++) {
          if (!nir_alu_instr_channel_used(instr, src, i))
             continue;
 
@@ -427,7 +428,7 @@ print_var_decl(nir_variable *var, print_state *state)
        var->data.mode == nir_var_uniform ||
        var->data.mode == nir_var_shader_storage) {
       const char *loc = NULL;
-      char buf[4];
+      char buf[16];
 
       switch (state->shader->info.stage) {
       case MESA_SHADER_VERTEX:

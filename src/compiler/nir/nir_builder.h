@@ -349,7 +349,7 @@ nir_build_alu_tail(nir_builder *build, nir_alu_instr *instr)
     * scalar value was passed into a multiply with a vector).
     */
    for (unsigned i = 0; i < op_info->num_inputs; i++) {
-      for (unsigned j = instr->src[i].src.ssa->num_components; j < 4; j++) {
+      for (unsigned j = instr->src[i].src.ssa->num_components; j < 16; j++) {
          instr->src[i].swizzle[j] = instr->src[i].src.ssa->num_components - 1;
       }
    }

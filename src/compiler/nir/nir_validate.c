@@ -233,7 +233,7 @@ validate_alu_src(nir_alu_instr *instr, unsigned index, validate_state *state)
       num_components = src->src.ssa->num_components;
    } else {
       if (src->src.reg.reg->is_packed)
-         num_components = 4; /* can't check anything */
+         num_components = 16; /* can't check anything */
       else
          num_components = src->src.reg.reg->num_components;
    }
