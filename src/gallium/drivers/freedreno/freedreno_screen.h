@@ -92,6 +92,15 @@ struct fd_screen {
 	uint32_t (*setup_slices)(struct fd_resource *rsc);
 	unsigned (*tile_mode)(const struct pipe_resource *prsc);
 
+	/* for backends that support compute, access compute param.  If hwcso
+	 * is not NULL, then it is the compute_state cso, in which case the
+	 * returned param value should take into account limits imposed by
+	 * resources used by compute shader, such as # of registers used.
+	 * Otherwise the best-case value is returned.
+	 */
+	int (*get_compute_param)(struct fd_screen *screen, enum pipe_compute_cap param,
+			void *hwcso, void *ret);
+
 	int64_t cpu_gpu_time_delta;
 
 	struct fd_batch_cache batch_cache;

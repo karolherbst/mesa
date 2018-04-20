@@ -351,6 +351,8 @@ ir3_shader_create_compute(struct ir3_compiler *compiler,
 	shader->compiler = compiler;
 	shader->id = ++shader->compiler->shader_count;
 	shader->type = SHADER_COMPUTE;
+	// TODO if we figure this out by scanning input params we could
+	// avoid a shader recompile by dropping PIPE_SHADER_DEP_INPUT_MEM
 	shader->cs.req_input_mem = align(cso->req_input_mem, 4) / 4;     /* byte->dword */
 
 	// TODO we need a way to differentiate clover vs glsl compute!

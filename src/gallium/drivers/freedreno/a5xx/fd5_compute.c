@@ -68,6 +68,124 @@ fd5_delete_compute_state(struct pipe_context *pctx, void *hwcso)
 	free(so);
 }
 
+// TODO move this somewhere to be shared with fd5_program.c..
+static unsigned
+max_threads(struct ir3_info *info)
+{
+	/* blob seems to advertise 1024 as max threads for all a5xx.  Either
+	 * that is wrong, or when they scale up/down the number of shader core
+	 * units it is always a multiples of a thing that can (in best case)
+	 * run 1024 threads.  (Ie. the bigger variants can run 4 or however
+	 * many blocks at a time, while the smaller could only run 1 or 2).
+	 */
+	unsigned threads = 1024;
+
+	if (info) {
+		unsigned hregs;
+
+		/* seems like we have 1024 threads and 4096 full registers (or
+		 * 8192 half-regs), once a shader is using more than 4 full regs
+		 * it starts to cut down on threads in flight:
+		 *
+		 * XXX maybe this is 3k full / 6k half registers..
+		 */
+		hregs = (2 * (info->max_reg + 1)) + (info->max_half_reg + 1);
+		threads /= DIV_ROUND_UP(hregs, 8);
+	}
+
+	return threads;
+}
+
+#define RET(x) do {                  \
+   if (ret)                          \
+      memcpy(ret, x, sizeof(x));     \
+   return sizeof(x);                 \
+} while (0); break;
+
+int
+fd5_get_compute_param(struct fd_screen *screen, enum pipe_compute_cap param,
+		void *hwcso, void *ret)
+{
+	const char * const ir = "ir3";
+	/* blob seems to advertise 1024 as max threads for all a5xx.  Either
+	 * that is wrong, or when they scale up/down the number of shader core
+	 * units it is always a multiples of a thing that can (in best case)
+	 * run 1024 threads.  (Ie. the bigger variants can run 4 or however
+	 * many blocks at a time, while the smaller could only run 1 or 2).
+	 */
+	unsigned threads;
+
+	// XXX blob appears to not care unless there is a barrier instruction
+	if (hwcso) {
+		struct fd5_compute_stateobj *so = hwcso;
+		struct ir3_shader_key key = {0};
+		struct ir3_shader_variant *v;
+
+		v = ir3_shader_variant(so->shader, key, NULL);
+
+		threads = max_threads(&v->info);
+	} else {
+		threads = max_threads(NULL);
+	}
+
+	switch (param) {
+	case PIPE_COMPUTE_CAP_ADDRESS_BITS:
+// don't expose 64b pointer support yet, until ir3 supports 64b
+// math, otherwise spir64 target is used and we get 64b pointer
+// calculations that we can't do yet
+//		if (is_a5xx(screen))
+//			RET((uint32_t []){ 64 });
+		RET((uint32_t []){ 32 });
+
+	case PIPE_COMPUTE_CAP_IR_TARGET:
+		if (ret)
+			sprintf(ret, ir);
+		return strlen(ir) * sizeof(char);
+
+	case PIPE_COMPUTE_CAP_GRID_DIMENSION:
+		RET((uint64_t []) { 3 });
+
+	case PIPE_COMPUTE_CAP_MAX_GRID_SIZE:
+		RET(((uint64_t []) { 65535, 65535, 65535 }));
+
+	case PIPE_COMPUTE_CAP_MAX_BLOCK_SIZE:
+		RET(((uint64_t []) { threads, threads, threads }));
+
+	case PIPE_COMPUTE_CAP_MAX_THREADS_PER_BLOCK:
+		RET((uint64_t []) { threads });
+
+	case PIPE_COMPUTE_CAP_MAX_GLOBAL_SIZE:
+		RET((uint64_t []) { screen->ram_size });
+
+	case PIPE_COMPUTE_CAP_MAX_LOCAL_SIZE:
+		RET((uint64_t []) { 32768 });
+
+	case PIPE_COMPUTE_CAP_MAX_PRIVATE_SIZE:
+	case PIPE_COMPUTE_CAP_MAX_INPUT_SIZE:
+		RET((uint64_t []) { 4096 });
+
+	case PIPE_COMPUTE_CAP_MAX_MEM_ALLOC_SIZE:
+		RET((uint64_t []) { screen->ram_size });
+
+	case PIPE_COMPUTE_CAP_MAX_CLOCK_FREQUENCY:
+		RET((uint32_t []) { screen->max_freq / 1000000 });
+
+	case PIPE_COMPUTE_CAP_MAX_COMPUTE_UNITS:
+		RET((uint32_t []) { 9999 });  // TODO
+
+	case PIPE_COMPUTE_CAP_IMAGES_SUPPORTED:
+		RET((uint32_t []) { 0 });
+
+	case PIPE_COMPUTE_CAP_SUBGROUP_SIZE:
+		RET((uint32_t []) { 32 });  // TODO
+
+	case PIPE_COMPUTE_CAP_MAX_VARIABLE_THREADS_PER_BLOCK:
+		RET((uint64_t []) { 1024 }); // TODO
+	}
+
+	return 0;
+}
+
 /* maybe move to fd5_program? */
 static void
 cs_program_emit(struct fd_ringbuffer *ring, struct ir3_shader_variant *v,
@@ -232,9 +350,9 @@ fd5_launch_grid(struct fd_context *ctx, const struct pipe_grid_info *info)
 	OUT_RING(ring, 0);            /* HLSQ_CS_NDRANGE_6_GLOBALOFF_Z */
 
 	OUT_PKT4(ring, REG_A5XX_HLSQ_CS_KERNEL_GROUP_X, 3);
-	OUT_RING(ring, 1);            /* HLSQ_CS_KERNEL_GROUP_X */
-	OUT_RING(ring, 1);            /* HLSQ_CS_KERNEL_GROUP_Y */
-	OUT_RING(ring, 1);            /* HLSQ_CS_KERNEL_GROUP_Z */
+	OUT_RING(ring, num_groups[0]);     /* HLSQ_CS_KERNEL_GROUP_X */
+	OUT_RING(ring, num_groups[1]);     /* HLSQ_CS_KERNEL_GROUP_Y */
+	OUT_RING(ring, num_groups[2]);     /* HLSQ_CS_KERNEL_GROUP_Z */
 
 	if (info->indirect) {
 		struct fd_resource *rsc = fd_resource(info->indirect);
