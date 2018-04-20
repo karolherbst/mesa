@@ -94,6 +94,11 @@ namespace clover {
       clover::platform &platform;
       pipe_screen *pipe;
 
+      /* dummy context for compiling kernels, if the driver supports
+       * shareable compute-state CSO.
+       */
+      pipe_context *pctx;
+
    private:
       pipe_loader_device *ldev;
    };
