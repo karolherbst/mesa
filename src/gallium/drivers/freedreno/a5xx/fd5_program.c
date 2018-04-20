@@ -330,6 +330,10 @@ fd5_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	setup_stages(emit, s);
 
+	// should also consider half-regs.. but if # of registers used
+	// means that we only have 512 or fewer threads in flight, then
+	// use TWO_QUAD mode to reduce branch divergence penalty.  See
+	// the calculation used for cs_program_emit()
 	fssz = (s[FS].i->max_reg >= 24) ? TWO_QUADS : FOUR_QUADS;
 
 	pos_regid = ir3_find_output_regid(s[VS].v, VARYING_SLOT_POS);

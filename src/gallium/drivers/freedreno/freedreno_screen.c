@@ -559,81 +559,27 @@ fd_screen_get_shader_param(struct pipe_screen *pscreen,
 	return 0;
 }
 
-/* TODO depending on how much the limits differ for a3xx/a4xx, maybe move this
- * into per-generation backend?
- */
 static int
 fd_get_compute_param(struct pipe_screen *pscreen, enum pipe_shader_ir ir_type,
 		enum pipe_compute_cap param, void *ret)
 {
 	struct fd_screen *screen = fd_screen(pscreen);
-	const char * const ir = "ir3";
 
-	if (!has_compute(screen))
+	if (!screen->get_compute_param)
 		return 0;
 
-#define RET(x) do {                  \
-   if (ret)                          \
-      memcpy(ret, x, sizeof(x));     \
-   return sizeof(x);                 \
-} while (0)
+	return screen->get_compute_param(screen, param, NULL, ret);
+}
 
-	switch (param) {
-	case PIPE_COMPUTE_CAP_ADDRESS_BITS:
-// don't expose 64b pointer support yet, until ir3 supports 64b
-// math, otherwise spir64 target is used and we get 64b pointer
-// calculations that we can't do yet
-//		if (is_a5xx(screen))
-//			RET((uint32_t []){ 64 });
-		RET((uint32_t []){ 32 });
+static int fd_get_kernel_param(struct pipe_screen *pscreen, void *hwcso,
+		enum pipe_compute_cap param, void *ret)
+{
+	struct fd_screen *screen = fd_screen(pscreen);
 
-	case PIPE_COMPUTE_CAP_IR_TARGET:
-		if (ret)
-			sprintf(ret, ir);
-		return strlen(ir) * sizeof(char);
+	if (!screen->get_compute_param)
+		return 0;
 
-	case PIPE_COMPUTE_CAP_GRID_DIMENSION:
-		RET((uint64_t []) { 3 });
-
-	case PIPE_COMPUTE_CAP_MAX_GRID_SIZE:
-		RET(((uint64_t []) { 65535, 65535, 65535 }));
-
-	case PIPE_COMPUTE_CAP_MAX_BLOCK_SIZE:
-		RET(((uint64_t []) { 1024, 1024, 64 }));
-
-	case PIPE_COMPUTE_CAP_MAX_THREADS_PER_BLOCK:
-		RET((uint64_t []) { 1024 });
-
-	case PIPE_COMPUTE_CAP_MAX_GLOBAL_SIZE:
-		RET((uint64_t []) { screen->ram_size });
-
-	case PIPE_COMPUTE_CAP_MAX_LOCAL_SIZE:
-		RET((uint64_t []) { 32768 });
-
-	case PIPE_COMPUTE_CAP_MAX_PRIVATE_SIZE:
-	case PIPE_COMPUTE_CAP_MAX_INPUT_SIZE:
-		RET((uint64_t []) { 4096 });
-
-	case PIPE_COMPUTE_CAP_MAX_MEM_ALLOC_SIZE:
-		RET((uint64_t []) { screen->ram_size });
-
-	case PIPE_COMPUTE_CAP_MAX_CLOCK_FREQUENCY:
-		RET((uint32_t []) { screen->max_freq / 1000000 });
-
-	case PIPE_COMPUTE_CAP_MAX_COMPUTE_UNITS:
-		RET((uint32_t []) { 9999 });  // TODO
-
-	case PIPE_COMPUTE_CAP_IMAGES_SUPPORTED:
-		RET((uint32_t []) { 0 });
-
-	case PIPE_COMPUTE_CAP_SUBGROUP_SIZE:
-		RET((uint32_t []) { 32 });  // TODO
-
-	case PIPE_COMPUTE_CAP_MAX_VARIABLE_THREADS_PER_BLOCK:
-		RET((uint64_t []) { 1024 }); // TODO
-	}
-
-	return 0;
+	return screen->get_compute_param(screen, param, hwcso, ret);
 }
 
 static const void *
@@ -852,6 +798,7 @@ fd_screen_create(struct fd_device *dev)
 	pscreen->get_paramf = fd_screen_get_paramf;
 	pscreen->get_shader_param = fd_screen_get_shader_param;
 	pscreen->get_compute_param = fd_get_compute_param;
+	pscreen->get_kernel_param = fd_get_kernel_param;
 	pscreen->get_compiler_options = fd_get_compiler_options;
 
 	fd_resource_screen_init(pscreen);
