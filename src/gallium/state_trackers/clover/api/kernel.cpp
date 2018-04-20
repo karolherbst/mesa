@@ -155,9 +155,12 @@ clGetKernelWorkGroupInfo(cl_kernel d_kern, cl_device_id d_dev,
    if (!count(dev, kern.program().devices()))
       throw error(CL_INVALID_DEVICE);
 
+   /* try to ensure kernel is built for build specific limits: */
+   kern.build(dev);
+
    switch (param) {
    case CL_KERNEL_WORK_GROUP_SIZE:
-      buf.as_scalar<size_t>() = dev.max_threads_per_block();
+      buf.as_scalar<size_t>() = kern.max_threads_per_block(dev);
       break;
 
    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE:
@@ -169,7 +172,7 @@ clGetKernelWorkGroupInfo(cl_kernel d_kern, cl_device_id d_dev,
       break;
 
    case CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE:
-      buf.as_scalar<size_t>() = dev.subgroup_size();
+      buf.as_scalar<size_t>() = kern.subgroup_size(dev);
       break;
 
    case CL_KERNEL_PRIVATE_MEM_SIZE:
@@ -262,7 +265,7 @@ namespace {
             throw error(CL_INVALID_WORK_GROUP_SIZE);
 
          if (fold(multiplies(), 1u, block_size) >
-             q.device().max_threads_per_block())
+             kern.max_threads_per_block(q.device()))
             throw error(CL_INVALID_WORK_GROUP_SIZE);
 
          return block_size;

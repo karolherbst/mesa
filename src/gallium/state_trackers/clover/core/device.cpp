@@ -50,6 +50,16 @@ device::device(clover::platform &platform, pipe_loader_device *ldev) :
          pipe->destroy(pipe);
       throw error(CL_INVALID_DEVICE);
    }
+
+   uint32_t shareable_shaders =
+      pipe->get_param(pipe, PIPE_CAP_SHAREABLE_SHADERS);
+
+   if (shareable_shaders) {
+      /* create dummy context to use for compiling shaders */
+      pctx = pipe->context_create(pipe, NULL, PIPE_CONTEXT_COMPUTE_ONLY);
+   } else {
+      pctx = NULL;
+   }
 }
 
 device::~device() {
