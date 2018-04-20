@@ -1368,7 +1368,7 @@ Converter::parseNIR()
       info->prop.cp.numThreads[0] = nir->info.cs.local_size[0];
       info->prop.cp.numThreads[1] = nir->info.cs.local_size[1];
       info->prop.cp.numThreads[2] = nir->info.cs.local_size[2];
-      info->bin.smemSize = nir->info.cs.shared_size;
+      info->bin.smemSize = 0x8000;//nir->info.cs.shared_size;
       break;
    case Program::TYPE_FRAGMENT:
       info->prop.fp.earlyFragTests = nir->info.fs.early_fragment_tests;
@@ -3170,8 +3170,8 @@ Converter::run()
    };
 
    NIR_PASS_V(nir, nir_assign_shared_storage, &mm);
-   NIR_PASS_V(nir, nir_lower_io2, nir_var_param, &mm, (nir_lower_io_options)0);
-   NIR_PASS_V(nir, nir_lower_io, (nir_variable_mode)(nir_var_all ^ nir_var_param), type_size, (nir_lower_io_options)0);
+   NIR_PASS_V(nir, nir_lower_io2, nir_var_all, &mm, (nir_lower_io_options)0);
+//   NIR_PASS_V(nir, nir_lower_io, (nir_variable_mode)(nir_var_all ^ nir_var_param), type_size, (nir_lower_io_options)0);
    NIR_PASS_V(nir, nir_lower_subgroups, &subgroup_options);
    NIR_PASS_V(nir, nir_lower_regs_to_ssa);
    NIR_PASS_V(nir, nir_lower_load_const_to_scalar);
@@ -3232,6 +3232,9 @@ Program::makeFromNIR(struct nv50_ir_prog_info *info)
    bool result = converter.run();
    if (!result)
       return result;
+   if (this->dbgFlags & NV50_IR_DEBUG_BASIC)
+      this->print();
+
    LoweringHelper lowering;
    lowering.run(this);
    tlsSize = info->bin.tlsSpace;
