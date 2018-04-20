@@ -934,7 +934,7 @@ enum pipe_shader_ir
 
 /**
  * Compute-specific implementation capability.  They can be queried
- * using pipe_screen::get_compute_param.
+ * using pipe_screen::get_compute_param or pipe_screen::get_kernel_param.
  */
 enum pipe_compute_cap
 {

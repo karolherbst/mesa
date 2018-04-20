@@ -117,7 +117,10 @@ struct pipe_screen {
 			   enum pipe_video_cap param );
 
    /**
-    * Query a compute-specific capability/parameter/limit.
+    * Query a compute-specific capability/parameter/limit.  Some parameters
+    * may have kernel specific lower limits based on the resources used by
+    * the kernel.  See pipe_context::get_kernel_param.
+    *
     * \param ir_type shader IR type for which the param applies, or don't care
     *                if the param is not shader related
     * \param param   one of PIPE_COMPUTE_CAP_x
@@ -141,6 +144,23 @@ struct pipe_screen {
     */
    void (*get_sample_pixel_grid)(struct pipe_screen *, unsigned sample_count,
                                  unsigned *out_width, unsigned *out_height);
+
+   /**
+    * Query a compute kernel-specific limit.  Some parameters
+    * may have kernel specific lower limits based on the resources used by
+    * the kernel.  See pipe_screen::get_compute_param.
+    *
+    * \param hwso    shader state obj (as returned by create_compute_state())
+    *                if the param is not shader related
+    * \param param   one of PIPE_COMPUTE_CAP_x
+    * \param ret     pointer to a preallocated buffer that will be
+    *                initialized to the parameter value, or NULL.
+    * \return        size in bytes of the parameter value that would be
+    *                returned.
+    */
+   int (*get_kernel_param)(struct pipe_screen *, void *hwcso,
+                           enum pipe_compute_cap param,
+                           void *ret);
 
    /**
     * Query a timestamp in nanoseconds. The returned value should match

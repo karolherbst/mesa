@@ -48,6 +48,7 @@ namespace clover {
 
          void *bind(intrusive_ptr<command_queue> _q,
                     const std::vector<size_t> &grid_offset);
+         void *bind_st(const device &d, bool force);
          void unbind();
 
          kernel &kern;
@@ -60,9 +61,10 @@ namespace clover {
          std::vector<pipe_resource *> g_buffers;
          std::vector<size_t> g_handles;
          size_t mem_local;
+         void *st;
+         struct pipe_context *pctx;
 
       private:
-         void *st;
          pipe_compute_state cs;
       };
 
@@ -126,6 +128,7 @@ namespace clover {
                   const std::vector<size_t> &grid_offset,
                   const std::vector<size_t> &grid_size,
                   const std::vector<size_t> &block_size);
+      void build(const device &d);
 
       size_t mem_local() const;
       size_t mem_private() const;
@@ -137,6 +140,9 @@ namespace clover {
                          const std::vector<size_t> &grid_size) const;
       std::vector<size_t>
       required_block_size() const;
+
+      size_t max_threads_per_block(const device &d) const;
+      cl_uint subgroup_size(const device &d) const;
 
       argument_range args();
       const_argument_range args() const;

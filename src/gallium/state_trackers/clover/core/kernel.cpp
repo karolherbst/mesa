@@ -110,6 +110,11 @@ kernel::launch(command_queue &q,
    exec.unbind();
 }
 
+void
+kernel::build(const device &d) {
+   exec.bind_st(d, false);
+}
+
 size_t
 kernel::mem_local() const {
    size_t sz = 0;
@@ -140,9 +145,39 @@ kernel::optimal_block_size(const command_queue &q,
       grid_size);
 }
 
+
+namespace {
+   template<typename T>
+   std::vector<T>
+   get_compute_param(pipe_screen *pipe, void *hwcso,
+                     pipe_compute_cap cap) {
+      int sz = pipe->get_kernel_param(pipe, hwcso, cap, NULL);
+      std::vector<T> v(sz / sizeof(T));
+
+      pipe->get_kernel_param(pipe, hwcso, cap, &v.front());
+      return v;
+   }
+}
+
 std::vector<size_t>
 kernel::required_block_size() const {
    return { 0, 0, 0 };
+}
+
+size_t
+kernel::max_threads_per_block(const device &d) const {
+   if (!d.pipe->get_kernel_param || !exec.st)
+      return d.max_threads_per_block();
+   return get_compute_param<uint64_t>(d.pipe, exec.st,
+                                      PIPE_COMPUTE_CAP_MAX_THREADS_PER_BLOCK)[0];
+}
+
+cl_uint
+kernel::subgroup_size(const device &d) const {
+   if (!d.pipe->get_kernel_param || !exec.st)
+      return d.subgroup_size();
+   return get_compute_param<uint32_t>(d.pipe, exec.st,
+                                      PIPE_COMPUTE_CAP_SUBGROUP_SIZE)[0];
 }
 
 kernel::argument_range
@@ -166,7 +201,7 @@ kernel::exec_context::exec_context(kernel &kern) :
 
 kernel::exec_context::~exec_context() {
    if (st)
-      q->pipe->delete_compute_state(q->pipe, st);
+      pctx->delete_compute_state(pctx, st);
 }
 
 void *
@@ -234,23 +269,49 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
       }
    }
 
-   // Create a new compute state if anything changed.
-   if (!st || q != _q ||
-       cs.req_local_mem != mem_local ||
-       cs.req_input_mem != input.size()) {
-      if (st)
-         _q->pipe->delete_compute_state(_q->pipe, st);
+   const device &d = q->device();
+   return bind_st(d, (_q != q) && !d.pctx);
+}
 
-      cs.ir_type = q->device().ir_format();
+/* Try to build compute-state CSO.. if the queue is not known (ie. NULL),
+ * but the device supports sharable compute-state CSO's, then compile using
+ * the device's dummy context.  This case is for clGetKernelWorkGroupInfo()
+ * where we need to compile the kernel in order to get kernel specific
+ * limits.
+ */
+void *
+kernel::exec_context::bind_st(const device &_d, bool force) {
+   pipe_context *_pctx = q ? q->pipe : _d.pctx;
+   bool needs_rebuild = force || !st;
+
+   if (!_pctx)
+      return NULL;
+
+   if (cs.req_input_mem != input.size())
+      needs_rebuild = true;
+
+   if (cs.req_local_mem != mem_local)
+      needs_rebuild = true;
+
+   // Create a new compute state if anything changed.
+   if (needs_rebuild) {
+      pctx = _pctx;
+
+      if (st)
+         pctx->delete_compute_state(pctx, st);
+
+      cs.ir_type = _d.ir_format();
       if (cs.ir_type == PIPE_SHADER_IR_NIR) {
          // driver takes ownership of nir_shader:
-         cs.prog = nir_shader_clone(NULL, (nir_shader *)kern.nir(q->device()));
+         cs.prog = nir_shader_clone(NULL, (nir_shader *)kern.nir(_d));
       } else {
+         auto &m = kern.program().build(_d).binary;
+         auto msec = find(type_equals(module::section::text_executable), m.secs);
          cs.prog = &(msec.data[0]);
       }
       cs.req_local_mem = mem_local;
       cs.req_input_mem = input.size();
-      st = q->pipe->create_compute_state(q->pipe, &cs);
+      st = pctx->create_compute_state(pctx, &cs);
       if (!st) {
 	 unbind(); // Cleanup
 	 throw error(CL_OUT_OF_RESOURCES);
