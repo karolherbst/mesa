@@ -29,6 +29,8 @@
 
 #include "pipe/p_context.h"
 
+int fd5_get_compute_param(struct fd_screen *screen, enum pipe_compute_cap param,
+		void *hwcso, void *ret);
 void fd5_compute_init(struct pipe_context *pctx);
 
 #endif /* FD5_COMPUTE_H_ */
