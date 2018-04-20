@@ -190,6 +190,7 @@ namespace clover {
 
       private:
          size_t _storage = 0;
+         uint32_t _storage_align = 0x80;
       };
 
       class constant_argument : public argument {
