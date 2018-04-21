@@ -46,6 +46,9 @@ public:
    bool handleSLCT(CmpInstruction *);
 
    bool handleLogOp(Instruction *);
+
+   /* returns false for 32 bit+ ops */
+   bool handleCharShort(Instruction *);
 };
 
 } // namespace nv50_ir
