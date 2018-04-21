@@ -29,6 +29,9 @@ namespace nv50_ir {
 bool
 LoweringHelper::visit(Instruction *insn)
 {
+   if (handleCharShort(insn))
+      return true;
+
    switch (insn->op) {
    case OP_ABS:
       return handleABS(insn);
@@ -82,28 +85,49 @@ LoweringHelper::handleABS(Instruction *insn)
 bool
 LoweringHelper::handleCVT(Instruction *insn)
 {
+   if (insn->dType == TYPE_U8)
+      insn->dType = TYPE_U16;
+   else if (insn->dType == TYPE_S8)
+      insn->dType = TYPE_S16;
+
    DataType dTy = insn->dType;
    DataType sTy = insn->sType;
+   unsigned int ssize = typeSizeof(insn->sType);
 
-   if (typeSizeof(dTy) <= 4 && typeSizeof(sTy) <= 4)
+   if (typeSizeof(dTy) <= 4 && ssize <= 4)
       return true;
 
    bld.setPosition(insn, false);
 
-   if ((dTy == TYPE_S32 && sTy == TYPE_S64) ||
+   if ((dTy == TYPE_S16 && sTy == TYPE_S64) ||
+       (dTy == TYPE_U16 && sTy == TYPE_U64) ||
+       (dTy == TYPE_S32 && sTy == TYPE_S64) ||
        (dTy == TYPE_U32 && sTy == TYPE_U64)) {
       Value *src[2];
       bld.mkSplit(src, 4, insn->getSrc(0));
       insn->op = OP_MOV;
       insn->setSrc(0, src[0]);
-   } else if (dTy == TYPE_S64 && sTy == TYPE_S32) {
+   } else if (dTy == TYPE_S64 && !isFloatType(sTy) && isSignedIntType(sTy)) {
+      if (ssize < 4) {
+         insn->setSrc(0, bld.mkOp2v(OP_EXTBF, TYPE_S32, bld.getSSA(), insn->getSrc(0), bld.mkImm(ssize << 11)));
+      }
       Value *tmp = bld.getSSA();
       bld.mkOp2(OP_SHR, TYPE_S32, tmp, insn->getSrc(0), bld.loadImm(bld.getSSA(), 31));
       insn->op = OP_MERGE;
+      insn->sType = TYPE_S32;
       insn->setSrc(1, tmp);
-   } else if (dTy == TYPE_U64 && sTy == TYPE_U32) {
+   } else if (dTy == TYPE_U64 && !isFloatType(sTy) && !isSignedIntType(sTy)) {
       insn->op = OP_MERGE;
+      insn->sType = TYPE_U32;
       insn->setSrc(1, bld.loadImm(bld.getSSA(), 0));
+   } else if (typeSizeof(dTy) < 4 && !isFloatType(dTy) && sTy == TYPE_F64) {
+      DataType ty = typeOfSize(4, false, isSignedIntType(dTy));
+      insn->dType = ty;
+   } else if (dTy == TYPE_F64 && !isFloatType(sTy) && ssize < 4) {
+      Value *t = bld.getSSA();
+      bld.mkCvt(OP_CVT, TYPE_F32, t, sTy, insn->getSrc(0));
+      insn->sType = TYPE_F32;
+      insn->setSrc(0, t);
    }
 
    return true;
@@ -270,6 +294,59 @@ LoweringHelper::handleLogOp(Instruction *insn)
    insn->setSrc(1, def1);
 
    return true;
+}
+
+bool
+LoweringHelper::handleCharShort(Instruction *insn)
+{
+   /* fp16 is disabled */
+   if (isFloatType(insn->sType))
+      return false;
+
+   unsigned int ssize = typeSizeof(insn->sType);
+   if (typeSizeof(insn->dType) > 2 && ssize > 2)
+      return false;
+
+   /* don't touch instructions with predicates as sources */
+   for (int i = 0; insn->srcExists(i); ++i)
+      if (insn->getSrc(i)->inFile(FILE_PREDICATE))
+         return false;
+
+   bld.setPosition(insn, false);
+
+   switch (insn->op) {
+   case OP_ABS:
+   case OP_ADD:
+   case OP_SHR:
+   case OP_DIV:
+   case OP_MAX:
+   case OP_MIN:
+   case OP_MOD:
+   case OP_SET:
+      if (!isSignedType(insn->sType)) {
+         if (insn->getDef(0)->inFile(FILE_PREDICATE))
+            insn->sType = TYPE_U32;
+         else
+            insn->setType(TYPE_U32);
+         if (insn->op == OP_SET) {
+            for (int i = 0; insn->srcExists(i); ++i)
+               insn->setSrc(i, bld.mkOp2v(OP_AND, TYPE_U32, bld.getSSA(), insn->getSrc(i), bld.mkImm((1 << (ssize * 8)) - 1)));
+         }
+         return true;
+      }
+
+      for (int i = 0; insn->srcExists(i); ++i)
+         insn->setSrc(i, bld.mkOp2v(OP_EXTBF, TYPE_S32, bld.getSSA(), insn->getSrc(i), bld.mkImm(ssize << 11)));
+
+      if (insn->getDef(0)->inFile(FILE_PREDICATE))
+         insn->sType = TYPE_S32;
+      else
+         insn->setType(TYPE_S32);
+
+      return true;
+   default:
+      return false;
+   }
 }
 
 } // namespace nv50_ir
