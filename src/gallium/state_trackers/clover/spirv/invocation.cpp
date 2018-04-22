@@ -183,6 +183,7 @@ namespace {
             constants[GET_OPERAND(spv::Id, 2)] = GET_OPERAND(unsigned int, 3u);
             break;
 
+         case spv::Op::OpTypeBool: // FALLTHROUGH
          case spv::Op::OpTypeInt: // FALLTHROUGH
          case spv::Op::OpTypeFloat: {
             const auto size = GET_OPERAND(uint32_t, 2) / 8u;
