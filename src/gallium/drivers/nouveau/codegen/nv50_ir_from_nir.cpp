@@ -2265,10 +2265,20 @@ Converter::visit(nir_load_const_instr *insn)
 
    LValues &newDefs = convert(&insn->def);
    for (int i = 0; i < insn->def.num_components; i++) {
-      if (insn->def.bit_size > 32)
+      switch (insn->def.bit_size) {
+      case 64:
          loadImm(newDefs[i], insn->value.u64[i]);
-      else
+         break;
+      case 32:
          loadImm(newDefs[i], insn->value.u32[i]);
+         break;
+      case 16:
+         loadImm(newDefs[i], insn->value.u16[i]);
+         break;
+      case 8:
+         loadImm(newDefs[i], insn->value.u8[i]);
+         break;
+      }
    }
    return true;
 }
