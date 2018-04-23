@@ -318,8 +318,7 @@ clGetDeviceInfo(cl_device_id d_dev, cl_device_info param,
       break;
 
    case CL_DEVICE_PROFILE:
-      // TODO get this from cap??
-      buf.as_string() = "EMBEDDED_PROFILE";
+      buf.as_string() = "FULL_PROFILE";
       break;
 
    case CL_DEVICE_VERSION:
