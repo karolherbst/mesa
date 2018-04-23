@@ -238,31 +238,36 @@ CLOVER_API cl_int
 clBuildProgram(cl_program d_prog, cl_uint num_devs,
                const cl_device_id *d_devs, const char *p_opts,
                void (*pfn_notify)(cl_program, void *),
-               void *user_data) try {
-   auto &prog = obj(d_prog);
-   auto devs =
-      (d_devs ? objs(d_devs, num_devs) : ref_vector<device>(prog.devices()));
-   const auto opts = std::string(p_opts ? p_opts : "") + " " +
-                     debug_get_option("CLOVER_EXTRA_BUILD_OPTIONS", "");
+               void *user_data) {
+   cl_int result;
+   try {
+      auto &prog = obj(d_prog);
+      auto devs =
+         (d_devs ? objs(d_devs, num_devs) : ref_vector<device>(prog.devices()));
+      const auto opts = std::string(p_opts ? p_opts : "") + " " +
+                        debug_get_option("CLOVER_EXTRA_BUILD_OPTIONS", "");
 
-   validate_build_common(prog, num_devs, d_devs, pfn_notify, user_data);
+      validate_build_common(prog, num_devs, d_devs, pfn_notify, user_data);
 
-   if (prog.has_source || prog.has_il) {
-      prog.compile(devs, opts);
-      prog.link(devs, opts, { prog });
-   } else if (any_of([&](const device &dev){
-         return prog.build(dev).binary_type() != CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
-         }, devs)) {
-      // According to the OpenCL 1.2 specification, “if program is created
-      // with clCreateProgramWithBinary, then the program binary must be an
-      // executable binary (not a compiled binary or library).”
-      throw error(CL_INVALID_BINARY);
+      if (prog.has_source || prog.has_il) {
+         prog.compile(devs, opts);
+         prog.link(devs, opts, { prog });
+      } else if (any_of([&](const device &dev){
+            return prog.build(dev).binary_type() != CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+            }, devs)) {
+         // According to the OpenCL 1.2 specification, “if program is created
+         // with clCreateProgramWithBinary, then the program binary must be an
+         // executable binary (not a compiled binary or library).”
+         throw error(CL_INVALID_BINARY);
+      }
+
+      result = CL_SUCCESS;
+   } catch (error &e) {
+      result = e.get();
    }
-
-   return CL_SUCCESS;
-
-} catch (error &e) {
-   return e.get();
+   if (pfn_notify)
+      pfn_notify(d_prog, user_data);
+   return result;
 }
 
 CLOVER_API cl_int
@@ -271,44 +276,48 @@ clCompileProgram(cl_program d_prog, cl_uint num_devs,
                  cl_uint num_headers, const cl_program *d_header_progs,
                  const char **header_names,
                  void (*pfn_notify)(cl_program, void *),
-                 void *user_data) try {
-   auto &prog = obj(d_prog);
-   auto devs =
-       (d_devs ? objs(d_devs, num_devs) : ref_vector<device>(prog.devices()));
-   const auto opts = std::string(p_opts ? p_opts : "") + " " +
-                     debug_get_option("CLOVER_EXTRA_COMPILE_OPTIONS", "");
-   header_map headers;
+                 void *user_data) {
+   cl_int result;
+   try {
+      auto &prog = obj(d_prog);
+      auto devs =
+          (d_devs ? objs(d_devs, num_devs) : ref_vector<device>(prog.devices()));
+      const auto opts = std::string(p_opts ? p_opts : "") + " " +
+                        debug_get_option("CLOVER_EXTRA_COMPILE_OPTIONS", "");
+      header_map headers;
 
-   validate_build_common(prog, num_devs, d_devs, pfn_notify, user_data);
+      validate_build_common(prog, num_devs, d_devs, pfn_notify, user_data);
 
-   if (bool(num_headers) != bool(header_names))
-      throw error(CL_INVALID_VALUE);
+      if (bool(num_headers) != bool(header_names))
+         throw error(CL_INVALID_VALUE);
 
-   if (!prog.has_source && !prog.has_il)
-      throw error(CL_INVALID_OPERATION);
+      if (!prog.has_source && !prog.has_il)
+         throw error(CL_INVALID_OPERATION);
 
-   for_each([&](const char *name, const program &header) {
-         if (!header.has_source)
-            throw error(CL_INVALID_OPERATION);
+      for_each([&](const char *name, const program &header) {
+            if (!header.has_source)
+               throw error(CL_INVALID_OPERATION);
 
-         if (!any_of(key_equals(name), headers))
-            headers.push_back(std::pair<std::string, std::string>(
-                                 name, header.source()));
-      },
-      range(header_names, num_headers),
-      objs<allow_empty_tag>(d_header_progs, num_headers));
+            if (!any_of(key_equals(name), headers))
+               headers.push_back(std::pair<std::string, std::string>(
+                                    name, header.source()));
+         },
+         range(header_names, num_headers),
+         objs<allow_empty_tag>(d_header_progs, num_headers));
 
-   prog.compile(devs, opts, headers);
-   return CL_SUCCESS;
+      prog.compile(devs, opts, headers);
+      result = CL_SUCCESS;
+   } catch (invalid_build_options_error &e) {
+      result = CL_INVALID_COMPILER_OPTIONS;
+   } catch (build_error &e) {
+      result = CL_COMPILE_PROGRAM_FAILURE;
+   } catch (error &e) {
+      result = e.get();
+   }
 
-} catch (invalid_build_options_error &e) {
-   return CL_INVALID_COMPILER_OPTIONS;
-
-} catch (build_error &e) {
-   return CL_COMPILE_PROGRAM_FAILURE;
-
-} catch (error &e) {
-   return e.get();
+   if (pfn_notify)
+      pfn_notify(d_prog, user_data);
+   return result;
 }
 
 namespace {
@@ -360,35 +369,41 @@ CLOVER_API cl_program
 clLinkProgram(cl_context d_ctx, cl_uint num_devs, const cl_device_id *d_devs,
               const char *p_opts, cl_uint num_progs, const cl_program *d_progs,
               void (*pfn_notify) (cl_program, void *), void *user_data,
-              cl_int *r_errcode) try {
-   auto &ctx = obj(d_ctx);
-   const auto opts = std::string(p_opts ? p_opts : "") + " " +
-                     debug_get_option("CLOVER_EXTRA_LINK_OPTIONS", "");
-   auto progs = objs(d_progs, num_progs);
-   auto all_devs =
-      (d_devs ? objs(d_devs, num_devs) : ref_vector<device>(ctx.devices()));
-   auto prog = create<program>(ctx, all_devs);
-   auto devs = validate_link_devices(progs, all_devs, opts);
-
-   validate_build_common(prog, num_devs, d_devs, pfn_notify, user_data);
+              cl_int *r_errcode) {
+   cl_program result;
 
    try {
-      prog().link(devs, opts, progs);
-      ret_error(r_errcode, CL_SUCCESS);
+      auto &ctx = obj(d_ctx);
+      const auto opts = std::string(p_opts ? p_opts : "") + " " +
+                        debug_get_option("CLOVER_EXTRA_LINK_OPTIONS", "");
+      auto progs = objs(d_progs, num_progs);
+      auto all_devs =
+         (d_devs ? objs(d_devs, num_devs) : ref_vector<device>(ctx.devices()));
+      auto prog = create<program>(ctx, all_devs);
+      auto devs = validate_link_devices(progs, all_devs, opts);
 
-   } catch (build_error &e) {
-      ret_error(r_errcode, CL_LINK_PROGRAM_FAILURE);
+      validate_build_common(prog, num_devs, d_devs, pfn_notify, user_data);
+
+      try {
+         prog().link(devs, opts, progs);
+         ret_error(r_errcode, CL_SUCCESS);
+
+      } catch (build_error &e) {
+         ret_error(r_errcode, CL_LINK_PROGRAM_FAILURE);
+      }
+
+      result = ret_object(prog);
+   } catch (invalid_build_options_error &e) {
+      ret_error(r_errcode, CL_INVALID_LINKER_OPTIONS);
+      result = NULL;
+   } catch (error &e) {
+      ret_error(r_errcode, e);
+      result = NULL;
    }
 
-   return ret_object(prog);
-
-} catch (invalid_build_options_error &e) {
-   ret_error(r_errcode, CL_INVALID_LINKER_OPTIONS);
-   return NULL;
-
-} catch (error &e) {
-   ret_error(r_errcode, e);
-   return NULL;
+   if (pfn_notify)
+      pfn_notify(result, user_data);
+   return result;
 }
 
 CLOVER_API cl_int
