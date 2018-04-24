@@ -51,6 +51,13 @@ device::device(clover::platform &platform, pipe_loader_device *ldev) :
       throw error(CL_INVALID_DEVICE);
    }
 
+   uint32_t shader_deps =
+      get_compute_param<uint32_t>(pipe, ir_format(),
+                                  PIPE_COMPUTE_CAP_SHADER_DEPS)[0];
+   dep_local_mem =   !!(shader_deps & PIPE_SHADER_DEP_LOCAL_MEM);
+   dep_private_mem = !!(shader_deps & PIPE_SHADER_DEP_PRIVATE_MEM);
+   dep_input_mem =   !!(shader_deps & PIPE_SHADER_DEP_INPUT_MEM);
+
    uint32_t shareable_shaders =
       pipe->get_param(pipe, PIPE_CAP_SHAREABLE_SHADERS);
 
