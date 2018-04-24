@@ -928,6 +928,10 @@ enum pipe_shader_ir
    PIPE_SHADER_IR_SPIRV
 };
 
+#define PIPE_SHADER_DEP_LOCAL_MEM   0x1  /* recompile if req_local_mem changes */
+#define PIPE_SHADER_DEP_PRIVATE_MEM 0x2  /* recompile if req_private_mem changes */
+#define PIPE_SHADER_DEP_INPUT_MEM   0x4  /* recompile if req_input_mem changes */
+
 /**
  * Compute-specific implementation capability.  They can be queried
  * using pipe_screen::get_compute_param or pipe_screen::get_kernel_param.
@@ -950,6 +954,7 @@ enum pipe_compute_cap
    PIPE_COMPUTE_CAP_IMAGES_SUPPORTED,
    PIPE_COMPUTE_CAP_SUBGROUP_SIZE,
    PIPE_COMPUTE_CAP_MAX_VARIABLE_THREADS_PER_BLOCK,
+   PIPE_COMPUTE_CAP_SHADER_DEPS,  /* bitmask of PIPE_SHADER_DEP_x */
 };
 
 /**

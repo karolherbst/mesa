@@ -137,6 +137,9 @@ fd5_get_compute_param(struct fd_screen *screen, enum pipe_compute_cap param,
 //			RET((uint32_t []){ 64 });
 		RET((uint32_t []){ 32 });
 
+	case PIPE_COMPUTE_CAP_SHADER_DEPS:
+		RET((uint32_t []){ PIPE_SHADER_DEP_INPUT_MEM });
+
 	case PIPE_COMPUTE_CAP_IR_TARGET:
 		if (ret)
 			sprintf(ret, ir);
