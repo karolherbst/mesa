@@ -287,10 +287,10 @@ kernel::exec_context::bind_st(const device &_d, bool force) {
    if (!_pctx)
       return NULL;
 
-   if (cs.req_input_mem != input.size())
+   if (_d.dep_input_mem && (cs.req_input_mem != input.size()))
       needs_rebuild = true;
 
-   if (cs.req_local_mem != mem_local)
+   if (_d.dep_local_mem && (cs.req_local_mem != mem_local))
       needs_rebuild = true;
 
    // Create a new compute state if anything changed.

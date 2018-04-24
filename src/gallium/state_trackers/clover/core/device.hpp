@@ -99,6 +99,13 @@ namespace clover {
        */
       pipe_context *pctx;
 
+      /* things that the compute-state CSO depends on, which determines
+       * what triggers recreating the CSO.
+       */
+      bool dep_local_mem;
+      bool dep_private_mem;
+      bool dep_input_mem;
+
    private:
       pipe_loader_device *ldev;
    };
