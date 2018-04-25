@@ -816,6 +816,7 @@ nvc0_screen_resize_text_area(struct nvc0_screen *screen, uint64_t size)
 
 static const nir_shader_compiler_options nir_options = {
    .fuse_ffma = false, /* nir doesn't track mad vs fma */
+   .lower_scmp = true,
    .lower_flrp32 = true,
    .lower_flrp64 = true,
    .lower_fpow = true,
