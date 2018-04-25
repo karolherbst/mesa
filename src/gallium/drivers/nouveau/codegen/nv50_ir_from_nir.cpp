@@ -2862,7 +2862,13 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_b2f: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      mkOp2(OP_AND, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), loadImm(NULL, 1.0f));
+      if (dType == TYPE_F32)
+         mkOp2(OP_AND, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), loadImm(NULL, 1.0f));
+      else {
+         Value *tmp = getSSA();
+         mkOp2(OP_AND, TYPE_U32, tmp, getSrc(&insn->src[0]), loadImm(NULL, 1.0f));
+         mkCvt(OP_CVT, TYPE_F64, newDefs[0], TYPE_F32, tmp);
+      }
       break;
    }
    CASE_OPFI(2b): {

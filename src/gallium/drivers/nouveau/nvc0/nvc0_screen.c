@@ -894,6 +894,7 @@ static const nir_shader_compiler_options nir_options = {
    .lower_fdiv = false,
    .lower_ffma = false,
    .fuse_ffma = false, /* nir doesn't track mad vs fma */
+   .lower_scmp = true,
    .lower_flrp32 = true,
    .lower_flrp64 = true,
    .lower_fpow = true,
