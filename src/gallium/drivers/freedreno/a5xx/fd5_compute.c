@@ -128,6 +128,12 @@ fd5_get_compute_param(struct fd_screen *screen, enum pipe_compute_cap param,
 		threads = max_threads(NULL);
 	}
 
+	// hack to work around things I don't understand and/or
+	// other bugs that a lower limit on # of threads papers
+	// over
+	if (threads > 64)
+		threads /= 2;
+
 	switch (param) {
 	case PIPE_COMPUTE_CAP_ADDRESS_BITS:
 // don't expose 64b pointer support yet, until ir3 supports 64b
