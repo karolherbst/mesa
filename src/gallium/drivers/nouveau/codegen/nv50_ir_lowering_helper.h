@@ -42,6 +42,7 @@ public:
    bool handleMAXMIN(Instruction *);
    bool handleMOV(Instruction *);
    bool handleNEG(Instruction *);
+   bool handlePOPCNT(Instruction *);
    bool handleSAT(Instruction *);
    bool handleSLCT(CmpInstruction *);
 
