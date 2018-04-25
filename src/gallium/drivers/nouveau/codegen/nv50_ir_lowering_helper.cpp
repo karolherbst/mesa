@@ -44,6 +44,8 @@ LoweringHelper::visit(Instruction *insn)
       return handleMOV(insn);
    case OP_NEG:
       return handleNEG(insn);
+   case OP_POPCNT:
+      return handlePOPCNT(insn);
    case OP_SAT:
       return handleSAT(insn);
    case OP_SLCT:
@@ -231,6 +233,32 @@ LoweringHelper::handleSAT(Instruction *insn)
    insn->op = OP_MIN;
    insn->setSrc(0, tmp);
    insn->setSrc(1, bld.loadImm(bld.getSSA(8), 1.0));
+   return true;
+}
+
+bool
+LoweringHelper::handlePOPCNT(Instruction *insn)
+{
+   DataType dTy = insn->dType;
+
+   if (typeSizeof(dTy) != 8)
+      return true;
+
+   bld.setPosition(insn, false);
+
+   Value *split[2];
+   Value *res0 = bld.getSSA();
+   Value *res1 = bld.getSSA();
+
+   bld.mkSplit(split, 4, insn->getSrc(0));
+
+   bld.mkOp2(OP_POPCNT, TYPE_U32, res0, split[0], split[0]);
+   bld.mkOp2(OP_POPCNT, TYPE_U32, res1, split[1], split[1]);
+   res0 = bld.mkOp2v(OP_ADD, TYPE_U32, bld.getSSA(), res0, res1);
+
+   insn->op = OP_MERGE;
+   insn->setSrc(0, res0);
+   insn->setSrc(1, bld.loadImm(nullptr, 0));
    return true;
 }
 
