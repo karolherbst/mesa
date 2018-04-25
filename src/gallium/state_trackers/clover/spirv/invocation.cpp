@@ -790,6 +790,9 @@ clover::spirv::spirv_to_nir(const module &m, const std::string &name,
    NIR_PASS_V(nir, nir_lower_returns);
    NIR_PASS_V(nir, nir_inline_functions);
 
+   /* for lowering stuff */
+   NIR_PASS_V(nir, nir_opt_algebraic);
+
    NIR_PASS_V(nir, nir_remove_dead_variables, (nir_variable_mode)(~0));
    NIR_PASS_V(nir, nir_propagate_invariant);
 
