@@ -523,10 +523,10 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
 
    switch (entrypoint) {
    case GLSLstd450Radians:
-      val->ssa->def = nir_fmul(nb, src[0], nir_imm_float(nb, 0.01745329251));
+      val->ssa->def = nir_radians(nb, src[0]);
       return;
    case GLSLstd450Degrees:
-      val->ssa->def = nir_fmul(nb, src[0], nir_imm_float(nb, 57.2957795131));
+      val->ssa->def = nir_degrees(nb, src[0]);
       return;
    case GLSLstd450Tan:
       val->ssa->def = nir_fdiv(nb, nir_fsin(nb, src[0]),
@@ -559,10 +559,10 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       val->ssa->def = nir_fast_length(nb, src[0]);
       return;
    case GLSLstd450Distance:
-      val->ssa->def = nir_fast_length(nb, nir_fsub(nb, src[0], src[1]));
+      val->ssa->def = nir_fast_distance(nb, src[0], src[1]);
       return;
    case GLSLstd450Normalize:
-      val->ssa->def = nir_fdiv(nb, src[0], nir_fast_length(nb, src[0]));
+      val->ssa->def = nir_fast_normalize(nb, src[0]);
       return;
 
    case GLSLstd450Exp:
@@ -578,34 +578,19 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       val->ssa->def = nir_fclamp(nb, src[0], src[1], src[2]);
       return;
    case GLSLstd450UClamp:
-      val->ssa->def = nir_umin(nb, nir_umax(nb, src[0], src[1]), src[2]);
+      val->ssa->def = nir_uclamp(nb, src[0], src[1], src[2]);
       return;
    case GLSLstd450SClamp:
-      val->ssa->def = nir_imin(nb, nir_imax(nb, src[0], src[1]), src[2]);
+      val->ssa->def = nir_iclamp(nb, src[0], src[1], src[2]);
       return;
 
    case GLSLstd450Cross: {
-      unsigned yzx[4] = { 1, 2, 0, 0 };
-      unsigned zxy[4] = { 2, 0, 1, 0 };
-      val->ssa->def =
-         nir_fsub(nb, nir_fmul(nb, nir_swizzle(nb, src[0], yzx, 3, true),
-                                   nir_swizzle(nb, src[1], zxy, 3, true)),
-                      nir_fmul(nb, nir_swizzle(nb, src[0], zxy, 3, true),
-                                   nir_swizzle(nb, src[1], yzx, 3, true)));
+      val->ssa->def = nir_cross(nb, src[0], src[1]);
       return;
    }
 
    case GLSLstd450SmoothStep: {
-      /* t = clamp((x - edge0) / (edge1 - edge0), 0, 1) */
-      nir_ssa_def *t =
-         nir_fclamp(nb, nir_fdiv(nb, nir_fsub(nb, src[2], src[0]),
-                                     nir_fsub(nb, src[1], src[0])),
-                          NIR_IMM_FP(nb, 0.0), NIR_IMM_FP(nb, 1.0));
-      /* result = t * t * (3 - 2 * t) */
-      val->ssa->def =
-         nir_fmul(nb, t, nir_fmul(nb, t,
-            nir_fsub(nb, NIR_IMM_FP(nb, 3.0),
-                         nir_fmul(nb, NIR_IMM_FP(nb, 2.0), t))));
+      val->ssa->def = nir_smoothstep(nb, src[0], src[1], src[2]);
       return;
    }
 

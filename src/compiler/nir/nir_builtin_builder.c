@@ -24,6 +24,20 @@
 #include "nir.h"
 #include "nir_builtin_builder.h"
 
+#define NIR_IMM_FP(n, s, v) (s->bit_size == 64 ? nir_imm_double(n, v) : nir_imm_float(n, v))
+
+nir_ssa_def*
+nir_cross(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   unsigned yzx[4] = { 1, 2, 0, 0 };
+   unsigned zxy[4] = { 2, 0, 1, 0 };
+
+   return nir_fsub(b, nir_fmul(b, nir_swizzle(b, x, yzx, 3, true),
+                                  nir_swizzle(b, y, zxy, 3, true)),
+                      nir_fmul(b, nir_swizzle(b, x, zxy, 3, true),
+                                  nir_swizzle(b, y, yzx, 3, true)));
+}
+
 nir_ssa_def*
 nir_fast_length(nir_builder *b, nir_ssa_def *vec)
 {
@@ -35,4 +49,19 @@ nir_fast_length(nir_builder *b, nir_ssa_def *vec)
    default:
       unreachable("Invalid number of components");
    }
+}
+
+nir_ssa_def*
+nir_smoothstep(nir_builder *b, nir_ssa_def *edge0, nir_ssa_def *edge1, nir_ssa_def *x)
+{
+   nir_ssa_def *f2 = NIR_IMM_FP(b, x, 2.0);
+   nir_ssa_def *f3 = NIR_IMM_FP(b, x, 3.0);
+
+   /* t = clamp((x - edge0) / (edge1 - edge0), 0, 1) */
+   nir_ssa_def *t =
+      nir_fsat(b, nir_fdiv(b, nir_fsub(b, x, edge0),
+                              nir_fsub(b, edge1, edge0)));
+
+   /* result = t * t * (3 - 2 * t) */
+   return nir_fmul(b, t, nir_fmul(b, t, nir_fsub(b, f3, nir_fmul(b, f2, t))));
 }
