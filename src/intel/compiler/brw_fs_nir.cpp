@@ -757,7 +757,7 @@ fs_visitor::nir_emit_alu(const fs_builder &bld, nir_alu_instr *instr)
        * BRW_OPCODE_F32TO16 when/if we work for HF support on gen7.
        */
 
-   case nir_op_f2f16_undef:
+   case nir_op_f2f16:
    case nir_op_i2i16:
    case nir_op_u2u16: {
       /* TODO: Fixing aligment rules for conversions from 32-bits to

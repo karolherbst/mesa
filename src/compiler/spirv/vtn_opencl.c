@@ -297,7 +297,7 @@ vtn_handle_opencl_vstore(struct vtn_builder *b, enum OpenCLstd opcode,
    case Vstore_halfn:
    case Vstorea_halfn:
       half = true;
-      data = nir_f2f16_undef(&b->nb, data);
+      data = nir_f2f16(&b->nb, data);
       break;
    default:
       half = false;
