@@ -49,6 +49,23 @@
 #define CASE_OPIU(ni) \
    case nir_op_i ## ni : \
    case nir_op_u ## ni
+#define CASE_OP_2F_CVT(s, bs) \
+   case nir_op_## s ##2f## bs : \
+   case nir_op_## s ##2f## bs ##_rtne: \
+   case nir_op_## s ##2f## bs ##_ru: \
+   case nir_op_## s ##2f## bs ##_rd: \
+   case nir_op_## s ##2f## bs ##_rtz
+#define CASE_OP_F2UI_CVT(ni) \
+   case nir_op_f2 ## ni : \
+   case nir_op_f2 ## ni ##_sat : \
+   case nir_op_f2 ## ni ##_rtne: \
+   case nir_op_f2 ## ni ##_rtne_sat: \
+   case nir_op_f2 ## ni ##_ru: \
+   case nir_op_f2 ## ni ##_ru_sat: \
+   case nir_op_f2 ## ni ##_rd: \
+   case nir_op_f2 ## ni ##_rd_sat: \
+   case nir_op_f2 ## ni ##_rtz: \
+   case nir_op_f2 ## ni ##_rtz_sat
 
 #define CASE_OPFI_RET(ni, val) \
    case nir_op_f ## ni : \
@@ -388,28 +405,44 @@ Converter::getOperation(nir_op op)
       return OP_CEIL;
    case nir_op_fcos:
       return OP_COS;
-   case nir_op_f2f32:
-   case nir_op_f2f64:
-   case nir_op_f2i8:
-   case nir_op_f2i16:
-   case nir_op_f2i32:
-   case nir_op_f2i64:
-   case nir_op_f2u8:
-   case nir_op_f2u16:
-   case nir_op_f2u32:
-   case nir_op_f2u64:
-   case nir_op_i2f32:
-   case nir_op_i2f64:
+   CASE_OP_2F_CVT(f, 32):
+   CASE_OP_2F_CVT(f, 64):
+   CASE_OP_F2UI_CVT(i8):
+   CASE_OP_F2UI_CVT(i16):
+   CASE_OP_F2UI_CVT(i32):
+   CASE_OP_F2UI_CVT(i64):
+   CASE_OP_F2UI_CVT(u8):
+   CASE_OP_F2UI_CVT(u16):
+   CASE_OP_F2UI_CVT(u32):
+   CASE_OP_F2UI_CVT(u64):
+   CASE_OP_2F_CVT(i, 32):
+   CASE_OP_2F_CVT(i, 64):
    case nir_op_i2i8:
+   case nir_op_i2i8_sat:
    case nir_op_i2i16:
+   case nir_op_i2i16_sat:
    case nir_op_i2i32:
+   case nir_op_i2i32_sat:
    case nir_op_i2i64:
-   case nir_op_u2f32:
-   case nir_op_u2f64:
+   case nir_op_i2i64_sat:
+   case nir_op_i2u8_sat:
+   case nir_op_i2u16_sat:
+   case nir_op_i2u32_sat:
+   case nir_op_i2u64_sat:
+   CASE_OP_2F_CVT(u, 32):
+   CASE_OP_2F_CVT(u, 64):
+   case nir_op_u2i8_sat:
+   case nir_op_u2i16_sat:
+   case nir_op_u2i32_sat:
+   case nir_op_u2i64_sat:
    case nir_op_u2u8:
+   case nir_op_u2u8_sat:
    case nir_op_u2u16:
+   case nir_op_u2u16_sat:
    case nir_op_u2u32:
+   case nir_op_u2u32_sat:
    case nir_op_u2u64:
+   case nir_op_u2u64_sat:
       return OP_CVT;
    case nir_op_fddx:
    case nir_op_fddx_coarse:
@@ -2637,29 +2670,57 @@ Converter::visit(nir_alu_instr *insn)
       break;
    }
    // convert instructions
-   CASE_OPFIU(2f32):
-   CASE_OPFIU(2f64):
-   case nir_op_f2i8:
-   case nir_op_f2i16:
-   case nir_op_f2i32:
-   case nir_op_f2i64:
-   case nir_op_f2u8:
-   case nir_op_f2u16:
-   case nir_op_f2u32:
-   case nir_op_f2u64:
+   CASE_OP_2F_CVT(f, 32):
+   CASE_OP_2F_CVT(f, 64):
+   CASE_OP_F2UI_CVT(i8):
+   CASE_OP_F2UI_CVT(i16):
+   CASE_OP_F2UI_CVT(i32):
+   CASE_OP_F2UI_CVT(i64):
+   CASE_OP_F2UI_CVT(u8):
+   CASE_OP_F2UI_CVT(u16):
+   CASE_OP_F2UI_CVT(u32):
+   CASE_OP_F2UI_CVT(u64):
+   CASE_OP_2F_CVT(i, 32):
+   CASE_OP_2F_CVT(u, 32):
+   CASE_OP_2F_CVT(i, 64):
+   CASE_OP_2F_CVT(u, 64):
    case nir_op_i2i8:
+   case nir_op_i2i8_sat:
    case nir_op_i2i16:
+   case nir_op_i2i16_sat:
    case nir_op_i2i32:
+   case nir_op_i2i32_sat:
    case nir_op_i2i64:
+   case nir_op_i2i64_sat:
+   case nir_op_i2u8_sat:
+   case nir_op_i2u16_sat:
+   case nir_op_i2u32_sat:
+   case nir_op_i2u64_sat:
+   case nir_op_u2i8_sat:
+   case nir_op_u2i16_sat:
+   case nir_op_u2i32_sat:
+   case nir_op_u2i64_sat:
    case nir_op_u2u8:
+   case nir_op_u2u8_sat:
    case nir_op_u2u16:
+   case nir_op_u2u16_sat:
    case nir_op_u2u32:
-   case nir_op_u2u64: {
+   case nir_op_u2u32_sat:
+   case nir_op_u2u64:
+   case nir_op_u2u64_sat: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
       Instruction *i = mkOp1(getOperation(op), dType, newDefs[0], getSrc(&insn->src[0]));
-      if (::isFloatType(sTypes[0]) && !::isFloatType(dType))
+      if (nir_cvt_is_rtne(op))
+         i->rnd = ROUND_N;
+      else if (nir_cvt_is_ru(op))
+         i->rnd = ROUND_P;
+      else if (nir_cvt_is_rd(op))
+         i->rnd = ROUND_M;
+      else if ((::isFloatType(sTypes[0]) && !::isFloatType(dType)) || nir_cvt_is_rtz(op))
          i->rnd = ROUND_Z;
+      if (nir_cvt_is_sat(op))
+         i->saturate = true;
       i->sType = sTypes[0];
       break;
    }
@@ -2919,7 +2980,8 @@ Converter::visit(nir_alu_instr *insn)
       oldPos = oldPos->next;
       oldPos->precise = insn->exact;
    }
-   oldPos->saturate = insn->dest.saturate;
+   if (insn->dest.saturate)
+      oldPos->saturate = true;
 
    return true;
 }
