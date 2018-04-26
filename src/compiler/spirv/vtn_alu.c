@@ -743,6 +743,16 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
          src[1] = tmp;
       }
 
+      switch (op) {
+      case nir_op_ishl:
+      case nir_op_ishr:
+      case nir_op_ushr:
+         src[1] = nir_u2u32(&b->nb, src[1]);
+         break;
+      default:
+         break;
+      }
+
       val->ssa->def = nir_build_alu(&b->nb, op, src[0], src[1], src[2], src[3]);
       break;
    } /* default */
