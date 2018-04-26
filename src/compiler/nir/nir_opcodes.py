@@ -168,26 +168,28 @@ unop("flog2", tfloat, "log2f(src0)")
 
 # Generate all of the numeric conversion opcodes
 for src_t in [tint, tuint, tfloat]:
-   if src_t in (tint, tuint):
-      dst_types = [tfloat, src_t]
-   elif src_t == tfloat:
-      dst_types = [tint, tuint, tfloat]
-
-   for dst_t in dst_types:
+   for dst_t in [tint, tuint, tfloat]:
       if dst_t == tfloat:
          bit_sizes = [16, 32, 64]
+         sat_modes = ['']
       else:
          bit_sizes = [8, 16, 32, 64]
+         if src_t != tfloat and dst_t != src_t:
+            sat_modes = ['_sat']
+         else:
+            sat_modes = ['_sat', '']
       for bit_size in bit_sizes:
-          if dst_t == tfloat and src_t == tfloat:
-              rnd_modes = ['_rtne', '_rtz', '']
-              for rnd_mode in rnd_modes:
+          for sat_mode in sat_modes:
+              if src_t == tfloat or dst_t == tfloat:
+                  for rnd_mode in ['_rtne', '_rtz', '_ru', '_rd', '']:
+                      unop_convert("{0}2{1}{2}{3}{4}".format(src_t[0], dst_t[0],
+                                                             bit_size, rnd_mode,
+                                                             sat_mode),
+                                   dst_t + str(bit_size), src_t, "src0")
+              else:
                   unop_convert("{0}2{1}{2}{3}".format(src_t[0], dst_t[0],
-                                                       bit_size, rnd_mode),
+                                                      bit_size, sat_mode),
                                dst_t + str(bit_size), src_t, "src0")
-          else:
-              unop_convert("{0}2{1}{2}".format(src_t[0], dst_t[0], bit_size),
-                           dst_t + str(bit_size), src_t, "src0")
 
 # We'll hand-code the to/from bool conversion opcodes.  Because bool doesn't
 # have multiple bit-sizes, we can always infer the size from the other type.
