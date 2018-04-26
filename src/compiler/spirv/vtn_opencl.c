@@ -103,6 +103,12 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
       return nir_iabs_diff(nb, srcs[0], srcs[1]);
    case UAbs_diff:
       return nir_uabs_diff(nb, srcs[0], srcs[1]);
+   case SAdd_sat:
+      return nir_iadd_sat(nb, srcs[0], srcs[1]);
+   case UAdd_sat:
+      return nir_uadd_sat(nb, srcs[0], srcs[1]);
+   case Bitselect:
+      return nir_bitselect(nb, srcs[0], srcs[1], srcs[2]);
    case FClamp:
       return nir_fclamp(nb, srcs[0], srcs[1], srcs[2]);
    case SClamp:
@@ -143,8 +149,18 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
       return nir_urhadd(nb, srcs[0], srcs[1]);
    case Smoothstep:
       return nir_smoothstep(nb, srcs[0], srcs[1], srcs[2]);
+   case Select:
+      return nir_select(nb, srcs[0], srcs[1], srcs[2]);
    case Step:
       return nir_sge(nb, srcs[1], srcs[0]);
+   case SSub_sat:
+      return nir_isub_sat(nb, srcs[0], srcs[1]);
+   case USub_sat:
+      return nir_usub_sat(nb, srcs[0], srcs[1]);
+   case S_Upsample:
+      return nir_iupsample(nb, srcs[0], srcs[1]);
+   case U_Upsample:
+      return nir_uupsample(nb, srcs[0], srcs[1]);
    default:
       vtn_fail("No NIR equivalent");
       return NULL;
@@ -316,6 +332,9 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
       return true;
    case SAbs_diff:
    case UAbs_diff:
+   case SAdd_sat:
+   case UAdd_sat:
+   case Bitselect:
    case FClamp:
    case SClamp:
    case UClamp:
@@ -332,8 +351,13 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
    case Radians:
    case SRhadd:
    case URhadd:
+   case Select:
    case Step:
    case Smoothstep:
+   case SSub_sat:
+   case USub_sat:
+   case S_Upsample:
+   case U_Upsample:
       handle_instr(b, ext_opcode, w, count, handle_special);
       return true;
    case Vloadn:

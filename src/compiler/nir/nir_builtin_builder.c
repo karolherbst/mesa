@@ -29,6 +29,36 @@
 #define NIR_IMM_FP(n, s, v) (s->bit_size == 64 ? nir_imm_double(n, v) : nir_imm_float(n, v))
 
 nir_ssa_def*
+nir_iadd_sat(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   int64_t max;
+   switch (x->bit_size) {
+   case 64:
+      max = INT64_MAX;
+      break;
+   case 32:
+      max = INT32_MAX;
+      break;
+   case 16:
+      max = INT16_MAX;
+      break;
+   case  8:
+      max = INT8_MAX;
+      break;
+   }
+
+   nir_ssa_def *sum = nir_iadd(b, x, y);
+
+   nir_ssa_def *hi = nir_bcsel(b, nir_ilt(b, sum, x),
+                               nir_imm_intN_t(b, max, x->bit_size), sum);
+
+   nir_ssa_def *lo = nir_bcsel(b, nir_ilt(b, x, sum),
+                               nir_imm_intN_t(b, max + 1, x->bit_size), sum);
+
+   return nir_bcsel(b, nir_ige(b, y, nir_imm_intN_t(b, 1, y->bit_size)), hi, lo);
+}
+
+nir_ssa_def*
 nir_cross3(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
 {
    unsigned yzx[4] = { 1, 2, 0, 0 };
@@ -100,7 +130,7 @@ nir_length(nir_builder *b, nir_ssa_def *vec)
 static nir_ssa_def*
 nir_hadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, bool sign)
 {
-   nir_ssa_def *imm1 = nir_imm_intN_t(b, 1, x->bit_size);
+   nir_ssa_def *imm1 = nir_imm_int(b, 1);
 
    nir_ssa_def *t0 = nir_ixor(b, x, y);
    nir_ssa_def *t1 = nir_iand(b, x, y);
@@ -128,7 +158,7 @@ nir_uhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
 static nir_ssa_def*
 nir_rhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, bool sign)
 {
-   nir_ssa_def *imm1 = nir_imm_intN_t(b, 1, x->bit_size);
+   nir_ssa_def *imm1 = nir_imm_int(b, 1);
 
    nir_ssa_def *t0 = nir_ixor(b, x, y);
    nir_ssa_def *t1 = nir_ior(b, x, y);
@@ -178,4 +208,78 @@ nir_normalize(nir_builder *b, nir_ssa_def *vec)
       res = nir_fmul(b, temp, nir_frsq(b, nir_fdot(b, temp, temp)));
    }
    return nir_bcsel(b, nir_feq(b, maxc, f0), vec, res);
+}
+
+nir_ssa_def*
+nir_isub_sat(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   int64_t max;
+   switch (x->bit_size) {
+   case 64:
+      max = INT64_MAX;
+      break;
+   case 32:
+      max = INT32_MAX;
+      break;
+   case 16:
+      max = INT16_MAX;
+      break;
+   case  8:
+      max = INT8_MAX;
+      break;
+   }
+
+   nir_ssa_def *diff = nir_isub(b, x, y);
+
+   nir_ssa_def *hi = nir_bcsel(b, nir_ilt(b, diff, x),
+                               nir_imm_intN_t(b, max, x->bit_size), diff);
+
+   nir_ssa_def *lo = nir_bcsel(b, nir_ilt(b, x, diff),
+                               nir_imm_intN_t(b, max + 1, x->bit_size), diff);
+
+   return nir_bcsel(b, nir_ilt(b, y, nir_imm_intN_t(b, 0, y->bit_size)), hi, lo);
+}
+
+nir_ssa_def*
+nir_iupsample(nir_builder *b, nir_ssa_def *hi, nir_ssa_def *lo)
+{
+   nir_ssa_def *hiup;
+   nir_ssa_def *loup;
+   switch (hi->bit_size) {
+   case 32:
+      hiup = nir_i2i64(b, hi);
+      loup = nir_i2i64(b, lo);
+      break;
+   case 16:
+      hiup = nir_i2i32(b, hi);
+      loup = nir_i2i32(b, lo);
+      break;
+   case  8:
+      hiup = nir_i2i16(b, hi);
+      loup = nir_i2i16(b, lo);
+      break;
+   }
+   return nir_ior(b, nir_ishl(b, hiup, nir_imm_int(b, hi->bit_size)), loup);
+}
+
+nir_ssa_def*
+nir_uupsample(nir_builder *b, nir_ssa_def *hi, nir_ssa_def *lo)
+{
+   nir_ssa_def *hiup;
+   nir_ssa_def *loup;
+   switch (hi->bit_size) {
+   case 32:
+      hiup = nir_u2u64(b, hi);
+      loup = nir_u2u64(b, lo);
+      break;
+   case 16:
+      hiup = nir_u2u32(b, hi);
+      loup = nir_u2u32(b, lo);
+      break;
+   case  8:
+      hiup = nir_u2u16(b, hi);
+      loup = nir_u2u16(b, lo);
+      break;
+   }
+   return nir_ior(b, nir_ishl(b, hiup, nir_imm_int(b, hi->bit_size)), loup);
 }
