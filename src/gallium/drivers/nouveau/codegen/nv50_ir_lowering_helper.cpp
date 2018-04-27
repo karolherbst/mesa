@@ -87,11 +87,6 @@ LoweringHelper::handleABS(Instruction *insn)
 bool
 LoweringHelper::handleCVT(Instruction *insn)
 {
-   if (insn->dType == TYPE_U8)
-      insn->dType = TYPE_U16;
-   else if (insn->dType == TYPE_S8)
-      insn->dType = TYPE_S16;
-
    DataType dTy = insn->dType;
    DataType sTy = insn->sType;
    unsigned int ssize = typeSizeof(insn->sType);
@@ -102,19 +97,83 @@ LoweringHelper::handleCVT(Instruction *insn)
       return true;
    }
 
-   if (typeSizeof(dTy) <= 4 && ssize <= 4)
+   DataType dTy32 = typeOfSize(4, false, isSignedIntType(dTy));
+
+   /* all combinations of 16 and 32 bit types are supported */
+   if (dsize > 1 && dsize <= 4 && ssize > 1 && ssize <= 4)
       return true;
 
    bld.setPosition(insn, false);
 
-   if ((dTy == TYPE_S16 && sTy == TYPE_S64) ||
-       (dTy == TYPE_U16 && sTy == TYPE_U64) ||
-       (dTy == TYPE_S32 && sTy == TYPE_S64) ||
-       (dTy == TYPE_U32 && sTy == TYPE_U64)) {
+   if (!isFloatType(sTy) && ssize == 8 && !isFloatType(dTy) && dsize < 8) {
       Value *src[2];
       bld.mkSplit(src, 4, insn->getSrc(0));
+      Value *out = src[0];
+      if (insn->saturate) {
+         if (isSignedIntType(dTy) && isSignedIntType(sTy)) {
+            Value *losign = bld.mkOp2v(OP_SHR, TYPE_S32, bld.getSSA(), src[0], bld.mkImm(0x1f));
+            Value *temp = bld.mkOp2v(OP_XOR, TYPE_U32, bld.getSSA(), losign, src[1]);
+            Value *cond = bld.getSSA();
+            bld.mkCmp(OP_SET, CC_EQ, TYPE_U32, cond, TYPE_U32, temp, bld.loadImm(nullptr, 0));
+            temp = bld.getSSA();
+            out = bld.getSSA();
+            bld.mkCmp(OP_SLCT, CC_GE, TYPE_U32, temp, TYPE_S32, bld.loadImm(nullptr, 0x7fffffff), bld.loadImm(nullptr, 0x80000000), src[1]);
+            bld.mkCmp(OP_SLCT, CC_EQ, TYPE_U32, out, TYPE_U32, temp, src[0], cond);
+         } else {
+            Value *hiSet = bld.getSSA();
+            bld.mkCmp(OP_SET, CC_NE, TYPE_U32, hiSet, TYPE_U32, src[1], bld.loadImm(nullptr, 0));
+            out = bld.mkOp2v(OP_OR, TYPE_U32, bld.getSSA(), hiSet, src[0]);
+
+            if (isSignedIntType(sTy)) {
+               Value *sign = bld.getSSA();
+               bld.mkCmp(OP_SET, CC_GE, TYPE_S32, sign, TYPE_S32, src[1], bld.loadImm(nullptr, 0));
+               out = bld.mkOp2v(OP_AND, TYPE_U32, bld.getSSA(), sign, out);
+            }
+
+            if (isSignedIntType(dTy)) {
+               insn->sType = TYPE_U32;
+               insn->setSrc(0, out);
+               return true;
+            }
+         }
+
+         if (dsize < 4) {
+            insn->sType = dTy32;
+            insn->setSrc(0, out);
+            return true;
+         }
+      }
+      insn->setSrc(0, out);
+      insn->setType(TYPE_U32);
       insn->op = OP_MOV;
-      insn->setSrc(0, src[0]);
+   } else if (insn->saturate && sTy == TYPE_U64 && dTy == TYPE_S64) {
+      Value *src[2];
+      bld.mkSplit(src, 4, insn->getSrc(0));
+      Value *cond = bld.getSSA();
+      Value *hi = bld.getSSA();
+      Value *lo = bld.getSSA();
+
+      bld.mkCmp(OP_SET, CC_GT, TYPE_U32, cond, TYPE_S32, bld.loadImm(nullptr, 0), src[1]);
+      bld.mkCvt(OP_CVT, TYPE_S32, hi, TYPE_U32, src[1])->saturate = true;
+      bld.mkOp2(OP_OR, TYPE_U32, lo, cond, src[0]);
+
+      insn->op = OP_MERGE;
+      insn->setSrc(0, lo);
+      insn->setSrc(1, hi);
+   } else if (insn->saturate && sTy == TYPE_S64 && dTy == TYPE_U64) {
+      Value *src[2];
+      bld.mkSplit(src, 4, insn->getSrc(0));
+      Value *cond = bld.getSSA();
+      Value *hi = bld.getSSA();
+      Value *lo = bld.getSSA();
+
+      bld.mkCmp(OP_SET, CC_LE, TYPE_U32, cond, TYPE_S32, bld.loadImm(nullptr, 0), src[1]);
+      bld.mkCvt(OP_CVT, TYPE_U32, hi, TYPE_S32, src[1])->saturate = true;
+      bld.mkOp2(OP_AND, TYPE_U32, lo, cond, src[0]);
+
+      insn->op = OP_MERGE;
+      insn->setSrc(0, lo);
+      insn->setSrc(1, hi);
    } else if (dTy == TYPE_S64 && !isFloatType(sTy) && isSignedIntType(sTy)) {
       if (ssize < 4) {
          insn->setSrc(0, bld.mkOp2v(OP_EXTBF, TYPE_S32, bld.getSSA(), insn->getSrc(0), bld.mkImm(ssize << 11)));
@@ -124,13 +183,30 @@ LoweringHelper::handleCVT(Instruction *insn)
       insn->op = OP_MERGE;
       insn->sType = TYPE_S32;
       insn->setSrc(1, tmp);
-   } else if (dTy == TYPE_U64 && !isFloatType(sTy) && !isSignedIntType(sTy)) {
+   } else if (!isFloatType(sTy) && (dTy == TYPE_U64 || dTy == TYPE_S64) && !isSignedIntType(sTy)) {
       insn->op = OP_MERGE;
       insn->sType = TYPE_U32;
       insn->setSrc(1, bld.loadImm(bld.getSSA(), 0));
-   } else if (typeSizeof(dTy) < 4 && !isFloatType(dTy) && sTy == TYPE_F64) {
-      DataType ty = typeOfSize(4, false, isSignedIntType(dTy));
-      insn->dType = ty;
+   } else if (!isFloatType(sTy) && dTy == TYPE_U64 && isSignedIntType(sTy) && insn->saturate) {
+      Value *tmp = bld.getSSA();
+      bld.mkCvt(OP_CVT, TYPE_U32, tmp, sTy, insn->getSrc(0))->saturate = true;
+      insn->op = OP_MERGE;
+      insn->dType = TYPE_U32;
+      insn->setSrc(0, tmp);
+      insn->setSrc(1, bld.loadImm(nullptr, 0));
+   } else if ((dsize < 4 && !isFloatType(dTy) && sTy == TYPE_F64) ||
+              (dsize == 1 && sTy == TYPE_F32)) {
+      Value *t = bld.getSSA();
+
+      if (insn->saturate) {
+         Instruction *cvt = bld.mkCvt(OP_CVT, dTy32, t, sTy, insn->getSrc(0));
+         cvt->saturate = insn->saturate;
+         cvt->rnd = insn->rnd;
+         insn->setSrc(0, t);
+         insn->sType = dTy32;
+      } else {
+         insn->dType = dTy32;
+      }
    } else if (dTy == TYPE_F64 && !isFloatType(sTy) && ssize < 4) {
       Value *t = bld.getSSA();
       bld.mkCvt(OP_CVT, TYPE_F32, t, sTy, insn->getSrc(0));
