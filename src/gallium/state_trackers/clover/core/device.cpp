@@ -215,6 +215,11 @@ device::has_halves() const {
 }
 
 bool
+device::has_int64() const {
+   return pipe->get_param(pipe, PIPE_CAP_INT64);
+}
+
+bool
 device::has_int64_atomics() const {
    return pipe->get_shader_param(pipe, PIPE_SHADER_COMPUTE,
                                  PIPE_SHADER_CAP_INT64_ATOMICS);
@@ -319,6 +324,7 @@ device::supported_extensions() const {
       " cl_khr_global_int32_extended_atomics"
       " cl_khr_local_int32_base_atomics"
       " cl_khr_local_int32_extended_atomics"
+      + std::string(has_int64() ? " cl_khr_int64" : "")
       + std::string(has_int64_atomics() ? " cl_khr_int64_base_atomics" : "")
       + std::string(has_int64_atomics() ? " cl_khr_int64_extended_atomics" : "")
       + std::string(has_doubles() ? " cl_khr_fp64" : "")
