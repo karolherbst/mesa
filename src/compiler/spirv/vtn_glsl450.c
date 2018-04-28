@@ -627,7 +627,7 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
          nir_op conversion_op =
             nir_type_conversion_op(nir_type_float | eta->bit_size,
                                    nir_type_float | I->bit_size,
-                                   nir_rounding_mode_undef);
+                                   nir_rounding_mode_undef, false);
          eta = nir_build_alu(nb, conversion_op, eta, NULL, NULL, NULL);
       }
       /* k = 1.0 - eta * eta * (1.0 - dot(N, I) * dot(N, I)) */

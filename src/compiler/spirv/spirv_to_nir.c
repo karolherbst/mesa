@@ -1767,7 +1767,7 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
             bit_size = glsl_get_bit_size(val->type->type);
          };
 
-         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap,
+         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, val, opcode, &swap,
                                                      nir_alu_type_get_type_size(src_alu_type),
                                                      nir_alu_type_get_type_size(dst_alu_type));
          nir_const_value src[4];
@@ -4045,6 +4045,8 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpUConvert:
    case SpvOpSConvert:
    case SpvOpFConvert:
+   case SpvOpSatConvertUToS:
+   case SpvOpSatConvertSToU:
    case SpvOpQuantizeToF16:
    case SpvOpConvertPtrToU:
    case SpvOpConvertUToPtr:
