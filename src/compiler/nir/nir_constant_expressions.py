@@ -76,7 +76,7 @@ template = """\
  *    Jason Ekstrand (jason@jlekstrand.net)
  */
 
-#include <math.h>
+#include <tgmath.h>
 #include "util/rounding.h" /* for _mesa_roundeven */
 #include "util/half_float.h"
 #include "nir_constant_expressions.h"

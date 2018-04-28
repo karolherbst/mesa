@@ -721,7 +721,7 @@ typedef void (*vtn_execution_mode_foreach_cb)(struct vtn_builder *,
 void vtn_foreach_execution_mode(struct vtn_builder *b, struct vtn_value *value,
                                 vtn_execution_mode_foreach_cb cb, void *data);
 
-nir_op vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
+nir_op vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b, struct vtn_value *val,
                                        SpvOp opcode, bool *swap,
                                        unsigned src_bit_size, unsigned dst_bit_size);
 

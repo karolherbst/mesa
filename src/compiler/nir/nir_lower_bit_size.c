@@ -39,7 +39,7 @@ convert_to_bit_size(nir_builder *bld,
    nir_alu_type lowered_type = bit_size | base_type;
 
    nir_op opcode =
-      nir_type_conversion_op(type, lowered_type, nir_rounding_mode_undef);
+      nir_type_conversion_op(type, lowered_type, nir_rounding_mode_undef, false);
 
    return nir_build_alu(bld, opcode, src, NULL, NULL, NULL);
 }
