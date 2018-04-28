@@ -292,14 +292,14 @@ device::endianness() const {
 std::string
 device::device_version() const {
    static const std::string device_version =
-         debug_get_option("CLOVER_DEVICE_VERSION_OVERRIDE", "1.1");
+         debug_get_option("CLOVER_DEVICE_VERSION_OVERRIDE", "1.2");
    return device_version;
 }
 
 std::string
 device::device_clc_version() const {
    static const std::string device_clc_version =
-         debug_get_option("CLOVER_DEVICE_CLC_VERSION_OVERRIDE", "1.1");
+         debug_get_option("CLOVER_DEVICE_CLC_VERSION_OVERRIDE", "1.2");
    return device_clc_version;
 }
 
