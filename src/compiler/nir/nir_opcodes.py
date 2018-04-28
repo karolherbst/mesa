@@ -167,28 +167,110 @@ unop("fsqrt", tfloat, "bit_size == 64 ? sqrt(src0) : sqrtf(src0)")
 unop("fexp2", tfloat, "exp2f(src0)")
 unop("flog2", tfloat, "log2f(src0)")
 
+# constant expressions for conversions const folding
+expressions_table = [
+   # default:
+   {
+      '': "src0",
+      '_rtne': "src0",
+      '_rtz': "src0",
+      '_ru': "src0",
+      '_rd': "src0",
+   },
+   # float -> int
+   {
+      '': "src0",
+      '_rtne': "round(src0)",
+      '_rtz': "trunc(src0)",
+      '_ru': "ceil(src0)",
+      '_rd': "floor(src0)",
+   },
+   # float -> float (less precision)
+   {
+      '': "src0",
+      '_rtne': "src0",
+      '_rtz':
+         "dst = src0;\n" +
+         "__typeof__(src0) y = dst;\n" +
+         "__typeof__(src0) abs_src0 = fabs(src0);\n" +
+         "__typeof__(src0) abs_y = fabs(y);\n" +
+         "dst = abs_y > abs_src0 ? nextafter(dst, dst > 0.0 ? -INFINITY : dst < -0.0 ? INFINITY : 0) : dst;\n",
+      '_ru':
+         "dst = src0;\n" +
+         "__typeof__(src0) t = dst;\n" +
+         "dst = t < src0 ? nextafter(dst, INFINITY) : dst;\n",
+      '_rd':
+         "dst = src0;\n" +
+         "__typeof__(src0) t = dst;\n" +
+         "dst = t > src0 ? nextafter(dst, -INFINITY) : dst;\n",
+   },
+   # int -> float (less precision)
+   {
+      '': "src0",
+      '_rtne': "src0",
+      '_rtz':
+         "__typeof__(src0+0) max = ~(__typeof__(src0))0;\n" +
+         "if ((__typeof__(src0))-1 < 0) max ^= (__typeof__(src0))1 << ((sizeof(src0) * 8) - 1);\n" +
+         "dst = src0;\n" +
+         "__typeof__(src0+0) y;\n" +
+         "if (dst >= 2.0*(max/2 + 1)) y = max; else y = dst;\n" +
+         "__typeof__(src0) abs_src0 = ((__typeof__(src0))-1 < 0) ? imaxabs(src0) : src0;\n" +
+         "__typeof__(src0) abs_y = ((__typeof__(src0))-1 < 0) ? imaxabs(y) : y;\n" +
+         "if (abs_y > abs_src0)\n" +
+         "   dst = nextafter(dst, (__typeof__(dst))(dst > 0.0 ? -INFINITY : (__typeof__(dst))(dst < -0.0 ? INFINITY : 0)));\n" +
+         "else\n" +
+         "   dst = nextafter(dst, (__typeof__(dst))0);\n",
+      '_ru':
+         "__typeof__(src0+0) max = ~(__typeof__(src0))0;\n" +
+         "if ((__typeof__(src0))-1 < 0) max ^= (__typeof__(src0))1 << ((sizeof(src0) * 8) - 1);\n" +
+         "dst = src0;\n" +
+         "__typeof__(src0+0) t;\n" +
+         "if (dst >= 2.0*(max/2 + 1)) t = max; else t = dst;\n" +
+         "dst = t < src0 ? nextafter(dst, INFINITY) : dst;\n",
+      '_rd':
+         "__typeof__(src0+0) max = ~(__typeof__(src0))0;\n" +
+         "if ((__typeof__(src0))-1 < 0) max ^= (__typeof__(src0))1 << ((sizeof(src0) * 8) - 1);\n" +
+         "dst = src0;\n" +
+         "__typeof__(src0+0) t;\n"+
+         "if (dst >= 2.0*(max/2 + 1)) t = max; else t = dst;\n" +
+         "dst = t > src0 || t == max ? nextafter(dst, -INFINITY) : dst;\n",
+   },
+]
+
 # Generate all of the numeric conversion opcodes
 for src_t in [tint, tuint, tfloat]:
-   if src_t in (tint, tuint):
-      dst_types = [tfloat, src_t]
-   elif src_t == tfloat:
-      dst_types = [tint, tuint, tfloat]
+   for dst_t in [tint, tuint, tfloat]:
+      # first check which conversion to use
+      if src_t == tfloat and dst_t != tfloat:
+         expressions = expressions_table[1]
+      elif src_t == tfloat and dst_t == tfloat:
+         expressions = expressions_table[2]
+      elif src_t != tfloat and dst_t == tfloat:
+         expressions = expressions_table[3]
+      else:
+         expressions = expressions_table[0]
 
-   for dst_t in dst_types:
       if dst_t == tfloat:
          bit_sizes = [16, 32, 64]
+         sat_modes = ['']
       else:
          bit_sizes = [8, 16, 32, 64]
+         if src_t != tfloat and dst_t != src_t:
+            sat_modes = ['_sat']
+         else:
+            sat_modes = ['_sat', '']
       for bit_size in bit_sizes:
-          if dst_t == tfloat and src_t == tfloat:
-              rnd_modes = ['_rtne', '_rtz', '']
-              for rnd_mode in rnd_modes:
+          for sat_mode in sat_modes:
+              if src_t == tfloat or dst_t == tfloat:
+                  for rnd_mode in ['_rtne', '_rtz', '_ru', '_rd', '']:
+                      unop_convert("{0}2{1}{2}{3}{4}".format(src_t[0], dst_t[0],
+                                                             bit_size, rnd_mode,
+                                                             sat_mode),
+                                   dst_t + str(bit_size), src_t, expressions[rnd_mode])
+              else:
                   unop_convert("{0}2{1}{2}{3}".format(src_t[0], dst_t[0],
-                                                       bit_size, rnd_mode),
+                                                      bit_size, sat_mode),
                                dst_t + str(bit_size), src_t, "src0")
-          else:
-              unop_convert("{0}2{1}{2}".format(src_t[0], dst_t[0], bit_size),
-                           dst_t + str(bit_size), src_t, "src0")
 
 # We'll hand-code the to/from bool conversion opcodes.  Because bool doesn't
 # have multiple bit-sizes, we can always infer the size from the other type.

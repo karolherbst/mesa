@@ -32,7 +32,8 @@ template = Template("""
 #include "nir.h"
 
 nir_op
-nir_type_conversion_op(nir_alu_type src, nir_alu_type dst, nir_rounding_mode rnd)
+nir_type_conversion_op(nir_alu_type src, nir_alu_type dst, nir_rounding_mode rnd,
+                       bool saturate)
 {
    nir_alu_type src_base = (nir_alu_type) nir_alu_type_get_base_type(src);
    nir_alu_type dst_base = (nir_alu_type) nir_alu_type_get_base_type(dst);
@@ -43,7 +44,8 @@ nir_type_conversion_op(nir_alu_type src, nir_alu_type dst, nir_rounding_mode rnd
       return nir_op_fmov;
    } else if ((src_base == nir_type_int || src_base == nir_type_uint) &&
               (dst_base == nir_type_int || dst_base == nir_type_uint) &&
-              src_bit_size == dst_bit_size) {
+              src_bit_size == dst_bit_size &&
+              (src_base == dst_base || !saturate)) {
       /* Integer <-> integer conversions with the same bit-size on both
        * ends are just no-op moves.
        */
@@ -56,12 +58,9 @@ nir_type_conversion_op(nir_alu_type src, nir_alu_type dst, nir_rounding_mode rnd
          switch (dst_base) {
 %           for dst_t in ['int', 'uint', 'float']:
             case nir_type_${dst_t}:
+<%             orig_dst_t = dst_t %>
 %              if src_t in ['int', 'uint'] and dst_t in ['int', 'uint']:
-%                 if dst_t == 'int':
-<%                   continue %>
-%                 else:
-<%                   dst_t = src_t %>
-%                 endif
+<%                dst_t = src_t %>
 %              endif
                switch (dst_bit_size) {
 %                 if dst_t == 'float':
@@ -71,18 +70,25 @@ nir_type_conversion_op(nir_alu_type src, nir_alu_type dst, nir_rounding_mode rnd
 %                 endif
 %                 for dst_bits in bit_sizes:
                   case ${dst_bits}:
-%                    if src_t == 'float' and dst_t == 'float':
+%                    if src_t == 'float' or dst_t == 'float':
                      switch(rnd) {
-%                       for rnd_t in [('rtne', '_rtne'), ('rtz', '_rtz'), ('undef', '')]:
+%                       for rnd_t in [('rtne', '_rtne'), ('rtz', '_rtz'), ('ru', '_ru'), ('rd', '_rd'), ('undef', '')]:
                         case nir_rounding_mode_${rnd_t[0]}:
+%                          if dst_t != 'float':
+                           if (saturate)
+                              return ${'nir_op_{0}2{1}{2}{3}_sat'.format(src_t[0], dst_t[0],
+                                                                         dst_bits, rnd_t[1])};
+%                          endif
                            return ${'nir_op_{0}2{1}{2}{3}'.format(src_t[0], dst_t[0],
                                                                    dst_bits, rnd_t[1])};
 %                       endfor
                         default:
-                           unreachable("Invalid 16-bit nir rounding mode");
+                           unreachable("Invalid float nir rounding mode");
                      }
 %                    else:
                      assert(rnd == nir_rounding_mode_undef);
+                     if (saturate)
+                        return ${'nir_op_{0}2{1}{2}_sat'.format(src_t[0], orig_dst_t[0], dst_bits)};
                      return ${'nir_op_{0}2{1}{2}'.format(src_t[0], dst_t[0], dst_bits)};
 %                    endif
 %                 endfor
