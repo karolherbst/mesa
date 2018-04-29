@@ -3239,6 +3239,7 @@ Converter::run()
    NIR_PASS_V(nir, nir_lower_regs_to_ssa);
    NIR_PASS_V(nir, nir_lower_load_const_to_scalar);
    NIR_PASS_V(nir, nir_lower_vars_to_ssa);
+   NIR_PASS_V(nir, nir_lower_int64, nir_lower_divmod64);
    NIR_PASS_V(nir, nir_lower_alu_to_scalar);
    NIR_PASS_V(nir, nir_lower_phis_to_scalar);
 
