@@ -2238,12 +2238,6 @@ private:
 void
 LateAlgebraicOpt::handleADD(Instruction *add)
 {
-   Value *src0 = add->getSrc(0);
-   Value *src1 = add->getSrc(1);
-
-   if (src0->reg.file != FILE_GPR || src1->reg.file != FILE_GPR)
-      return;
-
    if (prog->getTarget()->isOpSupported(OP_SHLADD, add->dType))
       tryADDToSHLADD(add);
 }
@@ -2257,6 +2251,7 @@ LateAlgebraicOpt::tryADDToSHLADD(Instruction *add)
    ImmediateValue imm;
    Instruction *shl;
    Value *src;
+   Value *src2;
    int s;
 
    if (add->saturate || add->usesFlags() || typeSizeof(add->dType) == 8
@@ -2272,7 +2267,15 @@ LateAlgebraicOpt::tryADDToSHLADD(Instruction *add)
       return false;
 
    src = add->getSrc(s);
+   src2 = add->getSrc(!s);
    shl = src->getUniqueInsn();
+
+   if (!src2->inFile(FILE_GPR) &&
+       !src2->inFile(FILE_MEMORY_CONST))
+      return false;
+
+   if (!shl->getSrc(0)->inFile(FILE_GPR))
+      return false;
 
    if (shl->bb != add->bb || shl->usesFlags() || shl->subOp || shl->src(0).mod)
       return false;
