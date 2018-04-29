@@ -2271,7 +2271,12 @@ LateAlgebraicOpt::tryADDToSHLADD(Instruction *add)
    shl = src->getUniqueInsn();
 
    if (!src2->inFile(FILE_GPR) &&
-       !src2->inFile(FILE_MEMORY_CONST))
+       !src2->inFile(FILE_MEMORY_CONST) &&
+       !src2->inFile(FILE_IMMEDIATE))
+      return false;
+
+   if (src2->inFile(FILE_IMMEDIATE) &&
+      (src2->reg.data.s32 > 0x7ffff || src2->reg.data.s32 < -0x80000))
       return false;
 
    if (!shl->getSrc(0)->inFile(FILE_GPR))
