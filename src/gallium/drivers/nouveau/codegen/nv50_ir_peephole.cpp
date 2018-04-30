@@ -2226,6 +2226,9 @@ AlgebraicOpt::visit(BasicBlock *bb)
 // =============================================================================
 
 // ADD(SHL(a, b), c) -> SHLADD(a, b, c)
+// ADD(ADD(a, b), c) -> ADD3(a, b, c)
+// ADD(NEG(a), b) -> ADD3(0, b, -a)
+// ADD(ADD3(0, a, b), c) -> ADD3(a, b, c)
 class LateAlgebraicOpt : public Pass
 {
 private:
@@ -2233,13 +2236,25 @@ private:
 
    void handleADD(Instruction *);
    bool tryADDToSHLADD(Instruction *);
+   bool tryADDToADD3(Instruction *);
+   bool tryADD3ADDToADD3(Instruction *);
+   bool tryADDNEGToADD3(Instruction *);
 };
 
 void
 LateAlgebraicOpt::handleADD(Instruction *add)
 {
+   bool changed;
+
    if (prog->getTarget()->isOpSupported(OP_SHLADD, add->dType))
-      tryADDToSHLADD(add);
+      changed = tryADDToSHLADD(add);
+   if (!changed && prog->getTarget()->isOpSupported(OP_ADD3, add->dType)) {
+      changed = tryADDToADD3(add);
+      if (!changed)
+         changed = tryADDNEGToADD3(add);
+      if (!changed)
+         tryADD3ADDToADD3(add);
+   }
 }
 
 // ADD(SHL(a, b), c) -> SHLADD(a, b, c)
@@ -2297,6 +2312,196 @@ LateAlgebraicOpt::tryADDToSHLADD(Instruction *add)
       add->src(0).mod = add->src(1).mod;
    add->setSrc(1, new_ImmediateValue(shl->bb->getProgram(), imm.reg.data.u32));
    add->src(1).mod = Modifier(0);
+
+   return true;
+}
+
+// ADD(ADD(a, b), c) -> ADD3(a, b, c)
+bool
+LateAlgebraicOpt::tryADDToADD3(Instruction *add)
+{
+   Value *src0 = add->getSrc(0);
+   Value *src1 = add->getSrc(1);
+   Instruction *add2;
+   Value *src;
+   bool swap = false;
+   int s;
+
+   if (add->saturate || add->usesFlags() || typeSizeof(add->dType) == 8
+       || isFloatType(add->dType))
+      return false;
+
+   // prefer checking src1 because higher chance of merging add with imm or c[]
+   if (src1->getUniqueInsn() && src1->getUniqueInsn()->op == OP_ADD && !isFloatType(src1->getUniqueInsn()->dType))
+      s = 1;
+   else
+   if (src0->getUniqueInsn() && src0->getUniqueInsn()->op == OP_ADD && !isFloatType(src0->getUniqueInsn()->dType))
+      s = 0;
+   else
+      return false;
+
+   src = add->getSrc(s);
+   add2 = src->getUniqueInsn();
+
+   if (add2->bb != add->bb || add2->usesFlags() || add2->saturate)
+      return false;
+
+   if (s == 1) {
+      if (add2->getSrc(1)->inFile(FILE_IMMEDIATE) &&
+         (add2->getSrc(1)->reg.data.s32 > 0x7ffff || add2->getSrc(1)->reg.data.s32 < -0x80000))
+         return false;
+   } else {
+      if (add->getSrc(1)->inFile(FILE_IMMEDIATE) &&
+         (add->getSrc(1)->reg.data.s32 > 0x7ffff || add->getSrc(1)->reg.data.s32 < -0x80000))
+         return false;
+
+      // if we merge src0 in, we can only do that if we have one immediate and c[] in total
+      if (!add2->getSrc(1)->inFile(FILE_GPR)) {
+         swap = true;
+         if (!add->getSrc(1)->inFile(FILE_GPR))
+            return false;
+      }
+   }
+
+   add->op = OP_ADD3;
+   add->setSrc(2, add2->src(0));
+   if (swap) {
+      add->swapSources(0, 1);
+      add->setSrc(1, add2->src(1));
+   } else {
+      add->setSrc(s, add2->src(1));
+   }
+
+   // only one neg allowed on src0 and src1
+   if (add->src(0).mod && add->src(1).mod)
+      add->swapSources(0, 2);
+
+   Instruction *neg = add->getSrc(2)->getUniqueInsn();
+   if (!add->src(2).mod && neg && neg->op == OP_NEG && !neg->src(0).mod && neg->getSrc(0)->inFile(FILE_GPR)) {
+      add->setSrc(2, neg->src(0));
+      add->src(2).mod = NV50_IR_MOD_NEG;
+   }
+
+   return true;
+}
+
+// ADD(NEG(a), b) -> ADD3(0, b, -a)
+bool
+LateAlgebraicOpt::tryADDNEGToADD3(Instruction *add)
+{
+   Value *src0 = add->getSrc(0);
+   Value *src1 = add->getSrc(1);
+   Instruction *neg;
+   Value *src;
+   bool swap = false;
+   int s;
+
+   if (add->usesFlags() || typeSizeof(add->dType) == 8 || isFloatType(add->dType))
+      return false;
+
+   // prefer checking src1 because higher chance of merging add with imm or c[]
+   if (src1->getUniqueInsn() && src1->getUniqueInsn()->op == OP_NEG && !isFloatType(src1->getUniqueInsn()->dType))
+      s = 1;
+   else
+   if (src0->getUniqueInsn() && src0->getUniqueInsn()->op == OP_NEG && !isFloatType(src0->getUniqueInsn()->dType))
+      s = 0;
+   else
+      return false;
+
+   src = add->getSrc(s);
+   neg = src->getUniqueInsn();
+
+   if (neg->bb != add->bb || neg->src(0).mod)
+      return false;
+
+   if (s == 0) {
+      if (add->getSrc(1)->inFile(FILE_IMMEDIATE) &&
+         (add->getSrc(1)->reg.data.s32 > 0x7ffff || add->getSrc(1)->reg.data.s32 < -0x80000))
+         return false;
+
+      // if we merge the neg in, we can only do that if we have one immdiate or c[] in total
+      if (!neg->getSrc(0)->inFile(FILE_GPR)) {
+         swap = true;
+         if (!add->getSrc(1)->inFile(FILE_GPR))
+            return false;
+      }
+   }
+
+   add->op = OP_ADD3;
+   if (s == 1) {
+      add->setSrc(2, add->src(0));
+      add->setSrc(1, neg->src(0));
+      add->src(1).mod = NV50_IR_MOD_NEG;
+   } else if (swap) {
+      add->setSrc(2, add->src(1));
+      add->setSrc(1, neg->src(0));
+      add->src(1).mod = NV50_IR_MOD_NEG;
+   } else {
+      add->setSrc(2, neg->src(0));
+      add->src(2).mod = NV50_IR_MOD_NEG;
+   }
+   add->setSrc(0, new_ImmediateValue(add->bb->getProgram(), 0u));
+   add->src(0).mod = 0;
+
+   return true;
+}
+
+// ADD(ADD3(0, a, b), c) -> ADD3(a, b, c)
+bool
+LateAlgebraicOpt::tryADD3ADDToADD3(Instruction *add)
+{
+   Value *src0 = add->getSrc(0);
+   Value *src1 = add->getSrc(1);
+   Value *src;
+   Instruction *add3;
+   ImmediateValue *imm;
+   int s;
+
+   // prefer checking src1 because higher chance of merging add with imm or c[]
+   if (src1->getUniqueInsn() && src1->getUniqueInsn()->op == OP_ADD3 && !isFloatType(src1->getUniqueInsn()->dType))
+      s = 1;
+   else
+   if (src0->getUniqueInsn() && src0->getUniqueInsn()->op == OP_ADD3 && !isFloatType(src0->getUniqueInsn()->dType))
+      s = 0;
+   else
+      return false;
+
+   src = add->getSrc(s);
+   add3 = src->getUniqueInsn();
+
+   // we just clean up something we might have created above
+   if (!add3->getSrc(0)->inFile(FILE_IMMEDIATE))
+      return false;
+
+   imm = add3->getSrc(0)->asImm();
+
+   if (!imm->isInteger(0))
+      return false;
+
+   if (!add3->getSrc(1)->inFile(FILE_GPR) && !add->getSrc(1)->inFile(FILE_GPR))
+      return false;
+
+   // we can't have three mods in total (+ take reversing into account)
+   if ((!add->src(s).mod && add->src(!s).mod && add3->src(1).mod && add3->src(2).mod) ||
+       (add->src(s).mod && add->src(!s).mod && !add3->src(1).mod && !add3->src(2).mod))
+      return false;
+
+   bool reverse = add->src(s).mod;
+   add->op = OP_ADD3;
+   if (!add->getSrc(1)->inFile(FILE_GPR))
+      add->setSrc(0, add3->src(1));
+   else
+      add->setSrc(s, add3->src(1));
+   add->setSrc(2, add3->src(2));
+
+   if (reverse) {
+      add->src(s).mod = add->src(s).mod ^ Modifier(NV50_IR_MOD_NEG);
+      add->src(2).mod = add->src(s).mod ^ Modifier(NV50_IR_MOD_NEG);
+   }
+
+   // if this is true, src2 is mod free
+   if (add->src(0).mod && add->src(1).mod)
+      add->swapSources(0, 2);
 
    return true;
 }
