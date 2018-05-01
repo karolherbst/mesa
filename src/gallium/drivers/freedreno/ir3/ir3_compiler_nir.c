@@ -200,6 +200,11 @@ compile_init(struct ir3_compiler *compiler,
 
 	ir3_nir_scan_driver_consts(ctx->s, &so->const_layout);
 
+	// XXX hack for clover.. we need to figure out how to set info.num_ubos
+	// sanely for __constant pointers:
+	if (so->type == SHADER_COMPUTE)
+		ctx->s->info.num_ubos = MAX2(ctx->s->info.num_ubos, 5);
+
 	so->num_uniforms = ctx->s->num_uniforms;
 	so->num_ubos = ctx->s->info.num_ubos;
 
