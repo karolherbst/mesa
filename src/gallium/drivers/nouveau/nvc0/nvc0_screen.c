@@ -543,6 +543,8 @@ nvc0_screen_get_compute_param(struct pipe_screen *pscreen,
       RET((uint32_t []) { 512 }); /* FIXME: arbitrary limit */
    case PIPE_COMPUTE_CAP_ADDRESS_BITS:
       RET((uint32_t []) { 64 });
+   case PIPE_COMPUTE_CAP_SHADER_DEPS:
+      RET((uint32_t []) { ~0 });
    default:
       return 0;
    }
