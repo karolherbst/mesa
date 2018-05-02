@@ -492,13 +492,13 @@ lower_pointer_deref(nir_intrinsic_instr *intrin, struct lower_io_state *state)
                 * upper 8 bits and the offset in the lower 24 bits.  (Also, it
                 * should only be a 32b value.)
                 */
-               nir_ssa_def *off, *index;
+//               nir_ssa_def *off, *index;
 
-               off   = nir_u2u32(b, addr);
-               index = nir_ishr(b, off, nir_imm_int(b, 24));
-               off   = nir_iand(b, off, nir_imm_int(b, 0x00ffffff));
+//               off   = nir_u2u32(b, addr);
+//               index = nir_ishr(b, off, nir_imm_int(b, 24));
+//               off   = nir_iand(b, off, nir_imm_int(b, 0x00ffffff));
 
-               load = insert_load(intrin, nir_intrinsic_load_ubo, state, index, off);
+               load = insert_load(intrin, nir_intrinsic_load_global, state, addr, NULL);
                c = &load->dest.ssa;
             }
             nir_push_else(b, NULL);
