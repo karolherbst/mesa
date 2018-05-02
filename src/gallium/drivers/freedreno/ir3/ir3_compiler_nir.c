@@ -235,7 +235,7 @@ compile_init(struct ir3_compiler *compiler,
 
 	if (so->num_ubos > 0) {
 		so->constbase.ubo = constoff;
-		constoff += align(ctx->s->info.num_ubos * ptrsz, 4) / 4;
+		constoff += align(so->num_ubos * ptrsz, 4) / 4;
 	}
 
 	if (so->const_layout.ssbo_size.count > 0) {
@@ -1423,11 +1423,11 @@ emit_intrinsic_load_ubo(struct ir3_context *ctx, nir_intrinsic_instr *intr,
 	src0 = get_src(ctx, &intr->src[0])[0];
 	if (is_same_type_mov(src0) &&
 			(src0->regs[1]->flags & IR3_REG_IMMED)) {
-		base_lo = create_uniform(ctx, ubo + (src0->regs[1]->iim_val * ptrsz));
-		base_hi = create_uniform(ctx, ubo + (src0->regs[1]->iim_val * ptrsz) + 1);
+		base_lo = create_uniform(ctx, ubo + (src0->regs[1]->iim_val));
+		base_hi = create_uniform(ctx, ubo + (src0->regs[1]->iim_val) + 1);
 	} else {
-		base_lo = create_uniform_indirect(ctx, ubo, get_addr(ctx, src0, 4));
-		base_hi = create_uniform_indirect(ctx, ubo + 1, get_addr(ctx, src0, 4));
+		base_lo = create_uniform_indirect(ctx, ubo, get_addr(ctx, src0, 1));
+		base_hi = create_uniform_indirect(ctx, ubo + 1, get_addr(ctx, src0, 1));
 	}
 
 	/* note: on 32bit gpu's base_hi is ignored and DCE'd */
@@ -1472,7 +1472,9 @@ emit_intrinsic_load_ubo(struct ir3_context *ctx, nir_intrinsic_instr *intr,
 		struct ir3_instruction *load =
 				ir3_LDG(b, addr, 0, create_immed(b, 1), 0);
 		load->cat6.type = utype_dst(intr->dest);
-		load->cat6.src_offset = off + i * 4;     /* byte offset */
+		load->cat6.src_offset = off +
+				i * nir_dest_bit_size(intr->dest) / 8; /* byte offset */
+
 		dst[i] = load;
 	}
 }
@@ -1814,7 +1816,8 @@ emit_intrinsic_store_shared(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 		stl = ir3_STL(b, offset, 0,
 			create_collect(ctx, &value[first_component], length), 0,
 			create_immed(b, length), 0);
-		stl->cat6.dst_offset = first_component + base;
+		stl->cat6.dst_offset = (first_component + base) *
+			nir_src_bit_size(intr->src[0]) / 8;
 		stl->cat6.type = utype_src(intr->src[0]);
 		stl->barrier_class = IR3_BARRIER_SHARED_W;
 		stl->barrier_conflict = IR3_BARRIER_SHARED_R | IR3_BARRIER_SHARED_W;
