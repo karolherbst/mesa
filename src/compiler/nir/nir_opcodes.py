@@ -309,7 +309,7 @@ for (unsigned bit = 0; bit < 32; bit++)
    dst |= ((src0 >> bit) & 1) << (31 - bit);
 """)
 
-unop_convert("bit_count", tuint32, tuint, """
+unop("bit_count", tuint, """
 dst = 0;
 for (unsigned bit = 0; bit < bit_size; bit++) {
    if ((src0 >> bit) & 1)
