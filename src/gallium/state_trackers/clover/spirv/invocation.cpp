@@ -64,7 +64,7 @@ namespace {
       case spv::StorageClass::Function:
          return module::argument::scalar;
       case spv::StorageClass::UniformConstant:
-         return module::argument::constant;
+         return module::argument::global;
       case spv::StorageClass::Workgroup:
          return module::argument::local;
       case spv::StorageClass::CrossWorkgroup:
