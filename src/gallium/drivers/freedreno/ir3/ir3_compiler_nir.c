@@ -1433,11 +1433,6 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
 		dst[0] = ir3_BFREV_B(b, src[0], 0);
 		break;
 
-	case nir_op_ihadd:
-		dst[0] = ir3_ADD_S(b, src[0], 0, src[1], 0);
-		dst[0]->regs[0]->flags |= IR3_REG_EI;
-		break;
-
 	default:
 		compile_error(ctx, "Unhandled ALU op: %s\n",
 				nir_op_infos[alu->op].name);
