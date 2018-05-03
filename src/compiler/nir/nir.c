@@ -421,7 +421,7 @@ alu_dest_init(nir_alu_dest *dest)
 {
    dest_init(&dest->dest);
    dest->saturate = false;
-   dest->write_mask = 0xffff;
+   dest->write_mask = 0xf;
 }
 
 static void
