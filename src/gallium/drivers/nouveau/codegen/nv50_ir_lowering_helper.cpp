@@ -100,6 +100,12 @@ LoweringHelper::handleCVT(Instruction *insn)
 
    bld.setPosition(insn, false);
 
+   /* make movs when nothing changes */
+   if (ssize == dsize && dTy == sTy) {
+      insn->op = OP_MOV;
+      return true;
+   }
+
    if (!isFloatType(sTy) && ssize == 8 && !isFloatType(dTy) && dsize < 8) {
       Value *src[2];
       bld.mkSplit(src, 4, insn->getSrc(0));
