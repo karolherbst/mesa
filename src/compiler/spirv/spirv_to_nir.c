@@ -1493,14 +1493,22 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
                   spirv_op_to_string(opcode), elem_count, val->type->length);
 
       nir_constant **elems = ralloc_array(b, nir_constant *, elem_count);
-      for (unsigned i = 0; i < elem_count; i++)
-         elems[i] = vtn_value(b, w[i + 3], vtn_value_type_constant)->constant;
+      bool *is_undef = ralloc_array(b, bool, elem_count);
+
+      for (unsigned i = 0; i < elem_count; i++) {
+         struct vtn_value *val = vtn_value_maybe_undef(b, w[i + 3], vtn_value_type_constant);
+         is_undef[i] = val->value_type == vtn_value_type_undef;
+         elems[i] = val->constant;
+      }
 
       switch (val->type->base_type) {
       case vtn_base_type_vector: {
          assert(glsl_type_is_vector(val->type->type));
          int bit_size = glsl_get_bit_size(val->type->type);
          for (unsigned i = 0; i < elem_count; i++) {
+            // if undef value doesn't matter anyway
+            if (is_undef[i])
+               continue;
             switch (bit_size) {
             case 64:
                val->constant->values[0].u64[i] = elems[i]->values[0].u64[0];
@@ -1524,7 +1532,8 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
       case vtn_base_type_matrix:
          assert(glsl_type_is_matrix(val->type->type));
          for (unsigned i = 0; i < elem_count; i++)
-            val->constant->values[i] = elems[i]->values[0];
+            if (!is_undef[i])
+               val->constant->values[i] = elems[i]->values[0];
          break;
 
       case vtn_base_type_struct:

@@ -648,6 +648,16 @@ vtn_value(struct vtn_builder *b, uint32_t value_id,
    return val;
 }
 
+static inline struct vtn_value *
+vtn_value_maybe_undef(struct vtn_builder *b, uint32_t value_id,
+                      enum vtn_value_type value_type)
+{
+   struct vtn_value *val = vtn_untyped_value(b, value_id);
+   vtn_fail_if(val->value_type != value_type && val->value_type != vtn_value_type_undef,
+               "SPIR-V id %u is the wrong kind of value", value_id);
+   return val;
+}
+
 bool
 vtn_set_instruction_result_type(struct vtn_builder *b, SpvOp opcode,
                                 const uint32_t *w, unsigned count);
