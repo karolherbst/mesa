@@ -228,6 +228,32 @@ nir_normalize(nir_builder *b, nir_ssa_def *vec)
 }
 
 nir_ssa_def*
+nir_nextafter(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *zero = nir_imm_intN_t(b, 0, x->bit_size);
+   nir_ssa_def *one = nir_imm_intN_t(b, 1, x->bit_size);
+   nir_ssa_def *nzero = nir_imm_intN_t(b, 1 << (x->bit_size - 1), x->bit_size);
+
+   nir_ssa_def *condeq = nir_feq(b, x, y);
+   nir_ssa_def *conddir = nir_flt(b, x, y);
+   nir_ssa_def *condnzero = nir_feq(b, x, nzero);
+
+   // beware of -0.0 - 1 == NaN
+   nir_ssa_def *xn = nir_bcsel(b, condnzero, nir_imm_intN_t(b, (1 << (x->bit_size - 1)) + 1, x->bit_size), nir_isub(b, x, one));
+
+   // beware of -0.0 + 1 == -0x1p-149
+   nir_ssa_def *xp = nir_bcsel(b, condnzero, one, nir_iadd(b, x, one));
+
+   // nextafter can be implemented by just +/- 1 on the int value
+   nir_ssa_def *resp = nir_bcsel(b, conddir, xp, xn);
+   nir_ssa_def *resn = nir_bcsel(b, conddir, xn, xp);
+
+   nir_ssa_def *res = nir_bcsel(b, nir_flt(b, x, zero), resn, resp);
+
+   return nir_nan_check2(b, x, y, nir_bcsel(b, condeq, x, res));
+}
+
+nir_ssa_def*
 nir_isub_sat(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
 {
    int64_t max;

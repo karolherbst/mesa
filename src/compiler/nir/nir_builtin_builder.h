@@ -31,6 +31,7 @@ nir_ssa_def* nir_cross3(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_cross4(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_fast_length(nir_builder *b, nir_ssa_def *vec);
 nir_ssa_def* nir_length(nir_builder *b, nir_ssa_def *vec);
+nir_ssa_def* nir_nextafter(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_normalize(nir_builder *b, nir_ssa_def *vec);
 nir_ssa_def* nir_ihadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_uhadd(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
@@ -42,6 +43,12 @@ nir_ssa_def* nir_smoothstep(nir_builder *b, nir_ssa_def *edge0,
 nir_ssa_def* nir_isub_sat(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y);
 nir_ssa_def* nir_iupsample(nir_builder *b, nir_ssa_def *hi, nir_ssa_def *lo);
 nir_ssa_def* nir_uupsample(nir_builder *b, nir_ssa_def *hi, nir_ssa_def *lo);
+
+static inline nir_ssa_def *
+nir_nan_check2(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, nir_ssa_def *res)
+{
+   return nir_bcsel(b, nir_fne(b, x, x), x, nir_bcsel(b, nir_fne(b, y, y), y, res));
+}
 
 static inline nir_ssa_def *
 nir_iabs_diff(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
@@ -97,6 +104,26 @@ nir_uclamp(nir_builder *b,
 }
 
 static inline nir_ssa_def *
+nir_copysign(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *masks;
+   nir_ssa_def *maskv;
+
+   switch (x->bit_size) {
+   case 64:
+      masks = nir_imm_int64(b, 0x8000000000000000);
+      maskv = nir_imm_int64(b, 0x7fffffffffffffff);
+      break;
+   case 32:
+      masks = nir_imm_int(b, 0x80000000);
+      maskv = nir_imm_int(b, 0x7fffffff);
+      break;
+   }
+
+   return nir_ior(b, nir_iand(b, x, maskv), nir_iand(b, y, masks));
+}
+
+static inline nir_ssa_def *
 nir_degrees(nir_builder *b, nir_ssa_def *val)
 {
    return nir_fmul(b, val, nir_imm_float(b, 57.2957795131));
@@ -106,6 +133,17 @@ static inline nir_ssa_def *
 nir_degrees64(nir_builder *b, nir_ssa_def *val)
 {
    return nir_fmul(b, val, nir_imm_double(b, 57.29577951308232));
+}
+
+static inline nir_ssa_def *
+nir_fdim(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *cond = nir_flt(b, y, x);
+   nir_ssa_def *res = nir_fsub(b, x, y);
+   nir_ssa_def *zero = nir_imm_floatN_t(b, 0.0, x->bit_size);
+
+   // return NaN if either x or y are NaN, else x-y if x>y, else +0.0
+   return nir_nan_check2(b, x, y, nir_bcsel(b, cond, res, zero));
 }
 
 static inline nir_ssa_def *
@@ -127,9 +165,49 @@ nir_fast_normalize(nir_builder *b, nir_ssa_def *vec)
 }
 
 static inline nir_ssa_def*
-nir_mad(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, nir_ssa_def *z)
+nir_fmad(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, nir_ssa_def *z)
 {
-   return nir_iadd(b, nir_imul(b, x, y), z);
+   return nir_fadd(b, nir_fmul(b, x, y), z);
+}
+
+static inline nir_ssa_def*
+nir_maxmag(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *xabs = nir_fabs(b, x);
+   nir_ssa_def *yabs = nir_fabs(b, y);
+
+   nir_ssa_def *condy = nir_flt(b, xabs, yabs);
+   nir_ssa_def *condx = nir_flt(b, yabs, xabs);
+
+   return nir_bcsel(b, condy, y, nir_bcsel(b, condx, x, nir_fmax(b, x, y)));
+}
+
+static inline nir_ssa_def*
+nir_minmag(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
+{
+   nir_ssa_def *xabs = nir_fabs(b, x);
+   nir_ssa_def *yabs = nir_fabs(b, y);
+
+   nir_ssa_def *condx = nir_flt(b, xabs, yabs);
+   nir_ssa_def *condy = nir_flt(b, yabs, xabs);
+
+   return nir_bcsel(b, condy, y, nir_bcsel(b, condx, x, nir_fmin(b, x, y)));
+}
+
+static inline nir_ssa_def*
+nir_nan(nir_builder *b, nir_ssa_def *x)
+{
+   nir_ssa_def *nan = nir_imm_floatN_t(b, NAN, x->bit_size);
+   if (x->num_components == 1)
+      return nan;
+
+   nir_ssa_def *nans[16] = {
+      nan, nan, nan, nan,
+      nan, nan, nan, nan,
+      nan, nan, nan, nan,
+      nan, nan, nan, nan
+    };
+   return nir_vec(b, nans, x->num_components);
 }
 
 static inline nir_ssa_def *

@@ -63,7 +63,13 @@ static nir_op
 nir_alu_op_for_opencl_opcode(struct vtn_builder *b, enum OpenCLstd opcode)
 {
    switch (opcode) {
+   case Fabs: return nir_op_fabs;
    case SAbs: return nir_op_iabs;
+   case Ceil: return nir_op_fceil;
+   case Cos: return nir_op_fcos;
+   case Exp2: return nir_op_fexp2;
+   case Log2: return nir_op_flog2;
+   case Floor: return nir_op_ffloor;
    case Fma: return nir_op_ffma;
    case Fmax: return nir_op_fmax;
    case SMax: return nir_op_imax;
@@ -71,11 +77,18 @@ nir_alu_op_for_opencl_opcode(struct vtn_builder *b, enum OpenCLstd opcode)
    case Fmin: return nir_op_fmin;
    case SMin: return nir_op_imin;
    case UMin: return nir_op_umin;
+   case Fmod: return nir_op_fmod;
    case Mix: return nir_op_flrp;
    case SMul_hi: return nir_op_imul_high;
    case UMul_hi: return nir_op_umul_high;
    case Popcount: return nir_op_bit_count;
+   case Pow: return nir_op_fpow;
+   case Remainder: return nir_op_frem;
+   case Rsqrt: return nir_op_frsq;
    case Sign: return nir_op_fsign;
+   case Sin: return nir_op_fsin;
+   case Sqrt: return nir_op_fsqrt;
+   case Trunc: return nir_op_ftrunc;
    /* uhm... */
    case UAbs: return nir_op_imov;
    default:
@@ -115,6 +128,8 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
       return nir_iclamp(nb, srcs[0], srcs[1], srcs[2]);
    case UClamp:
       return nir_uclamp(nb, srcs[0], srcs[1], srcs[2]);
+   case Copysign:
+      return nir_copysign(nb, srcs[0], srcs[1]);
    case Cross:
       if (glsl_get_components(dest_type) == 4)
          return nir_cross4(nb, srcs[0], srcs[1]);
@@ -123,6 +138,8 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
       if (is64bit)
          return nir_degrees64(nb, srcs[0]);
       return nir_degrees(nb, srcs[0]);
+   case Fdim:
+      return nir_fdim(nb, srcs[0], srcs[1]);
    case Distance:
       return nir_distance(nb, srcs[0], srcs[1]);
    case Fast_distance:
@@ -138,7 +155,15 @@ handle_special(struct vtn_builder *b, enum OpenCLstd opcode, unsigned num_srcs,
    case Length:
       return nir_length(nb, srcs[0]);
    case Mad:
-      return nir_mad(nb, srcs[0], srcs[1], srcs[2]);
+      return nir_fmad(nb, srcs[0], srcs[1], srcs[2]);
+   case Maxmag:
+      return nir_maxmag(nb, srcs[0], srcs[1]);
+   case Minmag:
+      return nir_minmag(nb, srcs[0], srcs[1]);
+   case Nan:
+      return nir_nan(nb, srcs[0]);
+   case Nextafter:
+      return nir_nextafter(nb, srcs[0], srcs[1]);
    case Normalize:
       return nir_normalize(nb, srcs[0]);
    case Radians:
@@ -318,8 +343,14 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
                               const uint32_t *w, unsigned count)
 {
    switch (ext_opcode) {
+   case Fabs:
    case SAbs:
    case UAbs:
+   case Ceil:
+   case Cos:
+   case Exp2:
+   case Log2:
+   case Floor:
    case Fma:
    case Fmax:
    case SMax:
@@ -328,10 +359,17 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
    case SMin:
    case UMin:
    case Mix:
+   case Fmod:
    case SMul_hi:
    case UMul_hi:
    case Popcount:
+   case Pow:
+   case Remainder:
+   case Rsqrt:
    case Sign:
+   case Sin:
+   case Sqrt:
+   case Trunc:
       handle_instr(b, ext_opcode, w, count, handle_alu);
       return true;
    case SAbs_diff:
@@ -342,8 +380,10 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
    case FClamp:
    case SClamp:
    case UClamp:
+   case Copysign:
    case Cross:
    case Degrees:
+   case Fdim:
    case Distance:
    case Fast_distance:
    case Fast_length:
@@ -352,6 +392,10 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, uint32_t ext_opcode,
    case UHadd:
    case Length:
    case Mad:
+   case Maxmag:
+   case Minmag:
+   case Nan:
+   case Nextafter:
    case Normalize:
    case Radians:
    case SRhadd:
