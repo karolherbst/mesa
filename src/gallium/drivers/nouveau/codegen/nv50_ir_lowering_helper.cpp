@@ -84,6 +84,13 @@ LoweringHelper::handleCVT(Instruction *insn)
 {
    DataType dTy = insn->dType;
    DataType sTy = insn->sType;
+   unsigned int ssize = typeSizeof(insn->sType);
+   unsigned int dsize = typeSizeof(insn->dType);
+
+   if (ssize == dsize && dTy == sTy) {
+      insn->op = OP_MOV;
+      return true;
+   }
 
    if (typeSizeof(dTy) <= 4 && typeSizeof(sTy) <= 4)
       return true;
