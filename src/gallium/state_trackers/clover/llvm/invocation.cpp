@@ -28,9 +28,12 @@
 
 #include <llvm/IR/DiagnosticPrinter.h>
 #include <llvm/IR/DiagnosticInfo.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/Scalar.h>
 #include <llvm-c/Target.h>
 #ifdef CLOVER_ALLOW_SPIRV
 #include <LLVMSPIRVLib/LLVMSPIRVLib.h>
@@ -263,8 +266,14 @@ namespace {
                                          clang::frontend::Angled,
                                          false, false);
 
+         // Add libcl search path
+         c.getHeaderSearchOpts().AddPath(LIBCL_RESOURCE_DIR"/include",
+                                         clang::frontend::Angled,
+                                         false, false);
+
          // Add opencl include
          c.getPreprocessorOpts().Includes.push_back("opencl-c.h");
+         c.getPreprocessorOpts().Includes.push_back("libcl.h");
       }
 
       // Add definition for the OpenCL version
@@ -300,13 +309,27 @@ namespace {
       if (use_libclc)
          compat::add_link_bitcode_file(c.getCodeGenOpts(),
                                        LIBCLC_LIBEXECDIR + dev.ir_target() + ".bc");
+      else if (dev.address_bits() == 32u)
+         compat::add_link_bitcode_file(c.getCodeGenOpts(),
+                                       LIBCL_RESOURCE_DIR"/spv.bc");
+      else
+         compat::add_link_bitcode_file(c.getCodeGenOpts(),
+                                       LIBCL_RESOURCE_DIR"/spv64.bc");
 
       // Compile the code
       clang::EmitLLVMOnlyAction act(&ctx);
       if (!c.ExecuteAction(act))
          throw build_error();
 
-      return act.takeModule();
+      std::unique_ptr<Module> M = act.takeModule();
+
+      ::llvm::legacy::PassManager PassMgr;
+      PassMgr.add(::llvm::createFunctionInliningPass(INT_MAX));
+//      PassMgr.add(::llvm::createDeadInstEliminationPass());
+//      PassMgr.add(::llvm::createAggressiveDCEPass());
+//      PassMgr.add(::llvm::createGlobalDCEPass());
+      PassMgr.run(*M);
+      return M;
    }
 }
 

@@ -25,6 +25,51 @@ if with_opencl_icd
   clover_cpp_args += '-DHAVE_CLOVER_ICD'
 endif
 
+libcl_headers = files(
+  'libcl/libcl.h',
+  'libcl/macros.h',
+  'libcl/tables.h',
+  'libcl/vectorize.h',
+  'libcl/vectorize2.h',
+
+  'libcl/exp10.h',
+  'libcl/hypot.h',
+)
+
+libcl_files = files(
+  'libcl/exp10.cl',
+  'libcl/hypot.cl',
+  'libcl/libcl_lib.cl',
+  'libcl/tables.cl',
+)
+
+libcl_spv = custom_target(
+  'spv.bc',
+  input : 'libcl/libcl_lib.cl',
+  output : 'spv.bc',
+  command : ['clang', '-emit-llvm', '-target', 'spir-unknown-unknown', '-cl-std=CL1.2', '-include', 'opencl-c.h', '-o', '@OUTPUT@', '-c', '@INPUT@'],
+  build_by_default : true,
+  depend_files : [libcl_files, libcl_headers],
+  install : true,
+  install_dir : join_paths(get_option('libexecdir'), 'mesa/libcl'),
+)
+
+libcl_spv64 = custom_target(
+  'spv64.bc',
+  input : 'libcl/libcl_lib.cl',
+  output : 'spv64.bc',
+  command : ['clang', '-emit-llvm', '-target', 'spir64-unknown-unknown', '-cl-std=CL1.2', '-include', 'opencl-c.h', '-o', '@OUTPUT@', '-c', '@INPUT@'],
+  build_by_default : true,
+  depend_files : [libcl_files, libcl_headers],
+  install : true,
+  install_dir : join_paths(get_option('libexecdir'), 'mesa/libcl'),
+)
+
+install_headers(
+  libcl_headers,
+  install_dir : join_paths(get_option('libexecdir'), 'mesa/libcl/include'),
+)
+
 libclllvm = static_library(
   'clllvm',
   [files(
@@ -43,6 +88,7 @@ libclllvm = static_library(
     cpp_vis_args,
     '-DLIBCLC_INCLUDEDIR="@0@/"'.format(dep_clc.get_pkgconfig_variable('includedir')),
     '-DLIBCLC_LIBEXECDIR="@0@/"'.format(dep_clc.get_pkgconfig_variable('libexecdir')),
+    '-DLIBCL_RESOURCE_DIR="@0@/"'.format(join_paths(get_option('prefix'), get_option('libexecdir'), 'mesa/libcl')),
     '-DCLANG_RESOURCE_DIR="@0@"'.format(join_paths(
       dep_llvm.get_configtool_variable('libdir'), 'clang',
       dep_llvm.get_configtool_variable('version'), 'include',
