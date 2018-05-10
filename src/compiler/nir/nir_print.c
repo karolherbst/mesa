@@ -307,6 +307,28 @@ print_constant(nir_constant *c, const struct glsl_type *type, print_state *state
    unsigned i, j;
 
    switch (glsl_get_base_type(type)) {
+   case GLSL_TYPE_UINT8:
+   case GLSL_TYPE_INT8:
+      /* Only float base types can be matrices. */
+      assert(cols == 1);
+
+      for (i = 0; i < rows; i++) {
+         if (i > 0) fprintf(fp, ", ");
+         fprintf(fp, "0x%02x", c->values[0].u8[i]);
+      }
+      break;
+
+   case GLSL_TYPE_UINT16:
+   case GLSL_TYPE_INT16:
+      /* Only float base types can be matrices. */
+      assert(cols == 1);
+
+      for (i = 0; i < rows; i++) {
+         if (i > 0) fprintf(fp, ", ");
+         fprintf(fp, "0x%04x", c->values[0].u16[i]);
+      }
+      break;
+
    case GLSL_TYPE_UINT:
    case GLSL_TYPE_INT:
    case GLSL_TYPE_BOOL:
