@@ -168,7 +168,7 @@ get_io_offset(nir_deref_instr *deref, nir_ssa_def **vertex_index,
    if (fptr) {
       offset = nir_channel(b, fptr, 0);
    } else {
-      offset = nir_imm_int(b, 0);
+      offset = nir_imm_intN_t(b, 0, state->builder.shader->ptr_size);
    }
 
    for (; *p; p++) {
