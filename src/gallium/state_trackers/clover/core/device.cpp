@@ -220,6 +220,11 @@ device::mem_base_addr_align() const {
    return sysconf(_SC_PAGESIZE);
 }
 
+cl_device_svm_capabilities
+device::svm_support() const {
+   return pipe->get_param(pipe, PIPE_CAP_SVM_SUPPORT);
+}
+
 std::vector<size_t>
 device::max_block_size() const {
    auto v = get_compute_param<uint64_t>(pipe, ir_format(),
