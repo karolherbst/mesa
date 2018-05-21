@@ -477,6 +477,8 @@ subpixel precision bias in bits during conservative rasterization.
   0 means no limit.
 * ``PIPE_CAP_MAX_VERTEX_ELEMENT_SRC_OFFSET``: The maximum supported value for
   of pipe_vertex_element::src_offset.
+* ``PIPE_CAP_SVM_SUPPORT``: Bitfield specifiying the drivers SVM capabilities.
+  See CL_DEVICE_SVM_CAPABILITIES for more information.
 
 .. _pipe_capf:
 

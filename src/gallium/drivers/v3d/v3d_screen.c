@@ -149,6 +149,8 @@ v3d_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 
         case PIPE_CAP_MAX_STREAM_OUTPUT_BUFFERS:
                 return 4;
+        case PIPE_CAP_SVM_SUPPORT:
+                return 0;
 
                 /* Texturing. */
         case PIPE_CAP_MAX_TEXTURE_2D_LEVELS:
