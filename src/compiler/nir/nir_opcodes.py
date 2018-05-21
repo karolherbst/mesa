@@ -166,9 +166,77 @@ unop("fsqrt", tfloat, "bit_size == 64 ? sqrt(src0) : sqrtf(src0)")
 unop("fexp2", tfloat, "exp2f(src0)")
 unop("flog2", tfloat, "log2f(src0)")
 
+# constant expressions for conversions const folding
+expressions_table = [
+   # default:
+   {
+      '': "src0",
+      '_rtne': "src0",
+      '_rtz': "src0",
+      '_ru': "src0",
+      '_rd': "src0",
+   },
+   # float -> int
+   {
+      '': "src0",
+      '_rtne': "round(src0)",
+      '_rtz': "trunc(src0)",
+      '_ru': "ceil(src0)",
+      '_rd': "floor(src0)",
+   },
+   # float -> float (less precision)
+   {
+      '': "src0",
+      '_rtne': "src0",
+      '_rtz':
+         "dst = src0;" +
+         "__typeof__(src0) y = dst;" +
+         "__typeof__(src0) abs_src0 = fabs(src0);" +
+         "__typeof__(src0) abs_y = fabs(y);" +
+         "dst = abs_y > abs_src0 ? nextafter(dst, dst > 0.0 ? -INFINITY : dst < -0.0 ? INFINITY : 0) : dst;",
+      '_ru':
+         "dst = src0;" +
+         "__typeof__(src0) t = dst;" +
+         "dst = t < src0 ? nextafter(dst, INFINITY) : dst;",
+      '_rd':
+         "dst = src0;" +
+         "__typeof__(src0) t = dst;" +
+         "dst = t > src0 ? nextafter(dst, -INFINITY) : dst;",
+   },
+   # int -> float (less precision)
+   {
+      '': "src0",
+      '_rtne': "src0",
+      '_rtz':
+         "dst = src0;" +
+         "__typeof__(src0) y = dst;" +
+         "__typeof__(src0) abs_src0 = fabs(src0);" +
+         "__typeof__(src0) abs_y = fabs(y);" +
+         "dst = abs_y > abs_src0 ? nextafter(dst, dst > 0.0 ? -INFINITY : dst < -0.0 ? INFINITY : 0) : dst;",
+      '_ru':
+         "dst = src0;" +
+         "__typeof__(src0) t = dst;" +
+         "dst = t < src0 ? nextafter(dst, INFINITY) : dst;",
+      '_rd':
+         "dst = src0;" +
+         "__typeof__(src0) t = dst;" +
+         "dst = t > src0 ? nextafter(dst, -INFINITY) : dst;",
+   },
+]
+
 # Generate all of the numeric conversion opcodes
 for src_t in [tint, tuint, tfloat]:
    for dst_t in [tint, tuint, tfloat]:
+      # first check which conversion to use
+      if src_t == tfloat and dst_t != tfloat:
+         expressions = expressions_table[1]
+      elif src_t == tfloat and dst_t == tfloat:
+         expressions = expressions_table[2]
+      elif src_t != tfloat and dst_t == tfloat:
+         expressions = expressions_table[3]
+      else:
+         expressions = expressions_table[0]
+
       if dst_t == tfloat:
          bit_sizes = [16, 32, 64]
          sat_modes = ['']
@@ -185,7 +253,7 @@ for src_t in [tint, tuint, tfloat]:
                       unop_convert("{0}2{1}{2}{3}{4}".format(src_t[0], dst_t[0],
                                                              bit_size, rnd_mode,
                                                              sat_mode),
-                                   dst_t + str(bit_size), src_t, "src0")
+                                   dst_t + str(bit_size), src_t, expressions[rnd_mode])
               else:
                   unop_convert("{0}2{1}{2}{3}".format(src_t[0], dst_t[0],
                                                       bit_size, sat_mode),
