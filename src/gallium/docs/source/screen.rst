@@ -467,6 +467,8 @@ subpixel precision bias in bits during conservative rasterization.
   atomic counter buffers. A value of 0 means the sum of all per-shader stage
   maximums (see ``PIPE_SHADER_CAP_MAX_HW_ATOMIC_COUNTER_BUFFERS``).
 * ``PIPE_CAP_MAX_VARYINGS``: The maximum number of varyings.
+* ``PIPE_CAP_SVM_SUPPORT``: Bitfield specifiying the drivers SVM capabilities.
+  See CL_DEVICE_SVM_CAPABILITIES for more information.
 
 .. _pipe_capf:
 

@@ -297,6 +297,7 @@ fd_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
 		return 0;
 
 	case PIPE_CAP_ALLOW_MAPPED_BUFFERS_DURING_EXECUTION:
+	case PIPE_CAP_SVM_SUPPORT:
 		return 0;
 
 	case PIPE_CAP_CONTEXT_PRIORITY_MASK:

@@ -337,6 +337,7 @@ i915_get_param(struct pipe_screen *screen, enum pipe_cap cap)
    case PIPE_CAP_CONSTBUF0_FLAGS:
    case PIPE_CAP_PACKED_UNIFORMS:
    case PIPE_CAP_PROGRAMMABLE_SAMPLE_LOCATIONS:
+   case PIPE_CAP_SVM_SUPPORT:
       return 0;
 
    case PIPE_CAP_MAX_GS_INVOCATIONS:

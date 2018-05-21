@@ -327,6 +327,7 @@ virgl_get_param(struct pipe_screen *screen, enum pipe_cap param)
    case PIPE_CAP_CONSERVATIVE_RASTER_POST_DEPTH_COVERAGE:
    case PIPE_CAP_MAX_CONSERVATIVE_RASTER_SUBPIXEL_PRECISION_BIAS:
    case PIPE_CAP_PROGRAMMABLE_SAMPLE_LOCATIONS:
+   case PIPE_CAP_SVM_SUPPORT:
       return 0;
    case PIPE_CAP_MAX_GS_INVOCATIONS:
       return 32;
