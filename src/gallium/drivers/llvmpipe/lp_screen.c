@@ -368,6 +368,7 @@ llvmpipe_get_param(struct pipe_screen *screen, enum pipe_cap param)
    case PIPE_CAP_CONSERVATIVE_RASTER_PRE_SNAP_POINTS_LINES:
    case PIPE_CAP_CONSERVATIVE_RASTER_POST_DEPTH_COVERAGE:
    case PIPE_CAP_MAX_CONSERVATIVE_RASTER_SUBPIXEL_PRECISION_BIAS:
+   case PIPE_CAP_SVM_SUPPORT:
       return 0;
    }
    /* should only get here on unhandled cases */

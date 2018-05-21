@@ -432,6 +432,8 @@ PIPE_CONSERVATIVE_RASTER_PRE_SNAP mode is supported for points and lines.
 works with conservative rasterization.
 * ``PIPE_CAP_MAX_CONSERVATIVE_RASTER_SUBPIXEL_PRECISION_BIAS``: The maximum
 subpixel precision bias in bits during conservative rasterization.
+* ``PIPE_CAP_SVM_SUPPORT``: Bitfield specifiying the drivers SVM capabilities.
+  See CL_DEVICE_SVM_CAPABILITIES for more information.
 
 
 .. _pipe_capf:
