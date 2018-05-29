@@ -267,13 +267,13 @@ namespace {
                                          false, false);
 
          // Add libcl search path
-         c.getHeaderSearchOpts().AddPath(LIBCL_RESOURCE_DIR"/include",
-                                         clang::frontend::Angled,
-                                         false, false);
+//         c.getHeaderSearchOpts().AddPath(LIBCL_RESOURCE_DIR"/include",
+//                                         clang::frontend::Angled,
+//                                         false, false);
 
          // Add opencl include
          c.getPreprocessorOpts().Includes.push_back("opencl-c.h");
-         c.getPreprocessorOpts().Includes.push_back("libcl.h");
+//         c.getPreprocessorOpts().Includes.push_back("libcl.h");
       }
 
       // Add definition for the OpenCL version
@@ -309,12 +309,12 @@ namespace {
       if (use_libclc)
          compat::add_link_bitcode_file(c.getCodeGenOpts(),
                                        LIBCLC_LIBEXECDIR + dev.ir_target() + ".bc");
-      else if (dev.address_bits() == 32u)
-         compat::add_link_bitcode_file(c.getCodeGenOpts(),
-                                       LIBCL_RESOURCE_DIR"/spv.bc");
-      else
-         compat::add_link_bitcode_file(c.getCodeGenOpts(),
-                                       LIBCL_RESOURCE_DIR"/spv64.bc");
+//      else if (dev.address_bits() == 32u)
+//         compat::add_link_bitcode_file(c.getCodeGenOpts(),
+//                                       LIBCL_RESOURCE_DIR"/spv.bc");
+//      else
+//         compat::add_link_bitcode_file(c.getCodeGenOpts(),
+//                                       LIBCL_RESOURCE_DIR"/spv64.bc");
 
       // Compile the code
       clang::EmitLLVMOnlyAction act(&ctx);
