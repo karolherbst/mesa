@@ -1018,10 +1018,19 @@ static void
 vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
                 const uint32_t *w, unsigned count)
 {
-   struct vtn_value *val = vtn_push_value(b, w[1], vtn_value_type_type);
+   struct vtn_value *val;
+   /* pointers need special handling */
+   if (opcode != SpvOpTypeForwardPointer && opcode != SpvOpTypePointer)
+      val = vtn_push_value(b, w[1], vtn_value_type_type);
+   else
+      val = vtn_untyped_value(b, w[1]);
 
-   val->type = rzalloc(b, struct vtn_type);
-   val->type->id = w[1];
+   if (!val->type) {
+      val->type = rzalloc(b, struct vtn_type);
+      val->type->id = w[1];
+   } else {
+      assert(val->type->id == w[1]);
+   }
 
    switch (opcode) {
    case SpvOpTypeVoid:
@@ -1187,12 +1196,27 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
       break;
    }
 
+   case SpvOpTypeForwardPointer:
+      /* forward pointers are only valid for physcal addressing */
+      assert(b->shader->ptr_size);
    case SpvOpTypePointer: {
       SpvStorageClass storage_class = w[2];
-      struct vtn_type *deref_type =
-         vtn_value(b, w[3], vtn_value_type_type)->type;
+      /* a forward pointer simply states the pointer type exists, not what it
+       * points to.
+       */
+      struct vtn_type *deref_type = opcode == SpvOpTypePointer
+         ? deref_type = vtn_value(b, w[3], vtn_value_type_type)->type
+         : NULL;
+
+      val->value_type = vtn_value_type_type;
 
       if (b->shader->ptr_size) {
+         /* only update the deref type here */
+         if (val->type->type) {
+            val->type->deref = deref_type;
+            break;
+         }
+
          /* physical memory model, things are real pointers: */
          val->type->base_type = vtn_base_type_phys_pointer;
          val->type->storage_class = storage_class;
@@ -3878,6 +3902,7 @@ D("opcode: %s", &spirv_op_to_string(opcode)[3]);
    case SpvOpTypeRuntimeArray:
    case SpvOpTypeStruct:
    case SpvOpTypeOpaque:
+   case SpvOpTypeForwardPointer:
    case SpvOpTypePointer:
    case SpvOpTypeFunction:
    case SpvOpTypeEvent:
