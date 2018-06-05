@@ -373,7 +373,7 @@ print_constant(nir_constant *c, const struct glsl_type *type, print_state *state
 
       for (i = 0; i < cols; i++) {
          if (i > 0) fprintf(fp, ", ");
-         fprintf(fp, "0x%08" PRIx64, c->values[0].u64[i]);
+         fprintf(fp, "0x%16" PRIx64, c->values[0].u64[i]);
       }
       break;
 
@@ -590,7 +590,10 @@ print_deref_link(nir_deref_instr *instr, bool whole_chain, print_state *state)
    case nir_deref_type_array: {
       nir_const_value *const_index = nir_src_as_const_value(instr->arr.index);
       if (const_index) {
-         fprintf(fp, "[%u]", const_index->u32[0]);
+         if (nir_src_bit_size(instr->arr.index) == 64)
+            fprintf(fp, "[%" PRId64 "]", const_index->i64[0]);
+         else
+            fprintf(fp, "[%" PRId32 "]", const_index->i32[0]);
       } else {
          fprintf(fp, "[");
          print_src(&instr->arr.index, state);
