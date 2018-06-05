@@ -294,12 +294,29 @@ struct vtn_ssa_value *
 vtn_ssa_value(struct vtn_builder *b, uint32_t value_id)
 {
    struct vtn_value *val = vtn_untyped_value(b, value_id);
+   const struct glsl_type *type = val->type->type;
+   if (val->type->base_type == vtn_base_type_phys_pointer)
+      type = glsl_vector_type(glsl_get_base_type(type), 2);
+
    switch (val->value_type) {
    case vtn_value_type_undef:
-      return vtn_undef_ssa_value(b, val->type->type);
+      if (val->type->base_type == vtn_base_type_phys_pointer &&
+          glsl_get_vector_elements(val->type->type) == 1) {
+         nir_variable_mode nir_mode;
+         unsigned bit_size = glsl_get_bit_size(type);
+
+         nir_ssa_def *def = nir_ssa_undef(&b->nb, 1, bit_size);
+         vtn_storage_class_to_mode(b, val->type->storage_class, val->type, &nir_mode);
+
+         struct vtn_ssa_value *val = rzalloc(b, struct vtn_ssa_value);
+         val->type = type;
+         val->def = nir_vec2(&b->nb, def, nir_imm_intN_t(&b->nb, nir_mode, bit_size));
+         return val;
+      }
+      return vtn_undef_ssa_value(b, type);
 
    case vtn_value_type_constant:
-      return vtn_const_ssa_value(b, val->constant, val->type->type);
+      return vtn_const_ssa_value(b, val->constant, type);
 
    case vtn_value_type_ssa:
       return val->ssa;
@@ -1176,8 +1193,10 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
       for (unsigned i = 0; i < num_fields; i++) {
          val->type->members[i] =
             vtn_value(b, w[i + 2], vtn_value_type_type)->type;
+
+         const struct glsl_type *type = val->type->members[i]->type;
          fields[i] = (struct glsl_struct_field) {
-            .type = val->type->members[i]->type,
+            .type = type,
             .name = ralloc_asprintf(b, "field%d", i),
             .location = -1,
          };
@@ -1243,11 +1262,16 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
          /* "fat" pointer consists of address and pointer type (ie.
           * local/global/const) in the .y component
           */
-         if (b->shader->ptr_size == 64) {
-            val->type->type = glsl_vector_type(GLSL_TYPE_UINT64, 2);
-         } else if (b->shader->ptr_size == 32) {
-            val->type->type = glsl_vector_type(GLSL_TYPE_UINT, 2);
-         }
+         enum glsl_base_type base_type;
+         if (b->shader->ptr_size == 64)
+            base_type = GLSL_TYPE_UINT64;
+         else if (b->shader->ptr_size == 32)
+            base_type = GLSL_TYPE_UINT;
+
+         if (storage_class == SpvStorageClassGeneric)
+            val->type->type = glsl_vector_type(base_type, 2);
+         else
+            val->type->type = glsl_scalar_type(base_type);
 
          break;
       }
@@ -1885,6 +1909,22 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
 
    case SpvOpConstantNull:
       val->constant = vtn_null_constant(b, val->type->type);
+
+      if (val->type->base_type == vtn_base_type_phys_pointer) {
+         nir_variable_mode nir_mode;
+         vtn_storage_class_to_mode(b, val->type->storage_class, val->type, &nir_mode);
+
+         switch (glsl_get_base_type(val->type->type)) {
+         case GLSL_TYPE_UINT:
+            val->constant->values->u32[1] = nir_mode;
+            break;
+         case GLSL_TYPE_UINT64:
+            val->constant->values->u64[1] = nir_mode;
+            break;
+         default:
+            vtn_fail("Invalid base type for phys pointer");
+         }
+      }
       break;
 
    case SpvOpConstantSampler:

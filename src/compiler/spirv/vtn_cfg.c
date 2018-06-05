@@ -739,8 +739,13 @@ vtn_handle_phis_first_pass(struct vtn_builder *b, SpvOp opcode,
     * lower_vars_to_ssa do that for us instead of repeating it here.
     */
    struct vtn_type *type = vtn_value(b, w[1], vtn_value_type_type)->type;
+   const struct glsl_type *glsl_type;
+   if (type->base_type == vtn_base_type_phys_pointer)
+      glsl_type = glsl_vector_type(glsl_get_base_type(type->type), 2);
+   else
+      glsl_type = type->type;
    nir_variable *phi_var =
-      nir_local_variable_create(b->nb.impl, type->type, "phi");
+      nir_local_variable_create(b->nb.impl, glsl_type, "phi");
    _mesa_hash_table_insert(b->phi_table, w, phi_var);
 
    vtn_push_ssa(b, w[2], type,

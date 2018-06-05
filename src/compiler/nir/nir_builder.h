@@ -698,8 +698,6 @@ nir_build_deref_cast(nir_builder *build, nir_ssa_def *parent,
    nir_deref_instr *deref =
       nir_deref_instr_create(build->shader, nir_deref_type_cast);
 
-   assert(parent->num_components == 2);     /* src should be fat pointer */
-
    deref->mode = mode;
    deref->type = type;
    deref->parent = nir_src_for_ssa(parent);
