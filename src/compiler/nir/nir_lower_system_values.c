@@ -67,6 +67,14 @@ convert_block(nir_block *block, nir_builder *b)
           *    gl_WorkGroupID * gl_WorkGroupSize + gl_LocalInvocationID"
           */
 
+         /*
+          * If the local work group size is variable we can't lower the global
+          * invocation id here.
+          */
+         if (b->shader->info.cs.local_size_variable) {
+            break;
+         }
+
          nir_const_value local_size;
          memset(&local_size, 0, sizeof(local_size));
          local_size.u32[0] = b->shader->info.cs.local_size[0];
@@ -112,6 +120,11 @@ convert_block(nir_block *block, nir_builder *b)
       }
 
       case SYSTEM_VALUE_LOCAL_GROUP_SIZE: {
+         /* If the local work group size is variable we can't lower it here */
+         if (b->shader->info.cs.local_size_variable) {
+            break;
+         }
+
          nir_const_value local_size;
          memset(&local_size, 0, sizeof(local_size));
          local_size.u32[0] = b->shader->info.cs.local_size[0];
