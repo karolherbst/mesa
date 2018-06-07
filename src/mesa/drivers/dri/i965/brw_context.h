@@ -948,6 +948,7 @@ struct brw_context
       struct brw_bo *num_work_groups_bo;
       GLintptr num_work_groups_offset;
       const GLuint *num_work_groups;
+      const GLuint *group_size;
    } compute;
 
    struct {

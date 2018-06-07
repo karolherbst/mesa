@@ -7408,18 +7408,32 @@ brw_compile_cs(const struct brw_compiler *compiler, void *log_data,
                int shader_time_index,
                char **error_str)
 {
-   prog_data->local_size[0] = src_shader->info.cs.local_size[0];
-   prog_data->local_size[1] = src_shader->info.cs.local_size[1];
-   prog_data->local_size[2] = src_shader->info.cs.local_size[2];
-   unsigned local_workgroup_size =
-      src_shader->info.cs.local_size[0] * src_shader->info.cs.local_size[1] *
-      src_shader->info.cs.local_size[2];
+   unsigned min_dispatch_width;
 
-   unsigned min_dispatch_width =
-      DIV_ROUND_UP(local_workgroup_size, compiler->devinfo->max_cs_threads);
-   min_dispatch_width = MAX2(8, min_dispatch_width);
-   min_dispatch_width = util_next_power_of_two(min_dispatch_width);
-   assert(min_dispatch_width <= 32);
+   if (!src_shader->info.cs.local_size_variable) {
+      unsigned local_workgroup_size =
+         src_shader->info.cs.local_size[0] * src_shader->info.cs.local_size[1] *
+         src_shader->info.cs.local_size[2];
+
+      min_dispatch_width =
+         DIV_ROUND_UP(local_workgroup_size, compiler->devinfo->max_cs_threads);
+      min_dispatch_width = MAX2(8, min_dispatch_width);
+      min_dispatch_width = util_next_power_of_two(min_dispatch_width);
+      assert(min_dispatch_width <= 32);
+
+      prog_data->local_size[0] = src_shader->info.cs.local_size[0];
+      prog_data->local_size[1] = src_shader->info.cs.local_size[1];
+      prog_data->local_size[2] = src_shader->info.cs.local_size[2];
+      prog_data->uses_variable_group_size = false;
+   } else {
+      /*
+       * If the local work group size is variable we have to use a dispatch
+       * width of 32 here, since at this point we don't know the actual size of
+       * the workload.
+       */
+      min_dispatch_width = 32;
+      prog_data->uses_variable_group_size = true;
+   }
 
    fs_visitor *v8 = NULL, *v16 = NULL, *v32 = NULL;
    cfg_t *cfg = NULL;
@@ -7504,7 +7518,12 @@ brw_compile_cs(const struct brw_compiler *compiler, void *log_data,
          }
       } else {
          cfg = v32->cfg;
-         cs_set_simd_size(prog_data, 32);
+         if (!src_shader->info.cs.local_size_variable) {
+            cs_set_simd_size(prog_data, 32);
+         } else {
+            prog_data->simd_size = 32;
+            prog_data->threads = compiler->devinfo->max_cs_threads;
+         }
          cs_fill_push_const_info(compiler->devinfo, prog_data);
          promoted_constants = v32->promoted_constants;
       }
