@@ -3712,6 +3712,26 @@ fs_visitor::nir_emit_cs_intrinsic(const fs_builder &bld,
       break;
    }
 
+   case nir_intrinsic_load_local_group_size: {
+      const unsigned surface =
+         cs_prog_data->binding_table.work_group_size_start;
+
+      fs_reg surf_index = brw_imm_ud(surface);
+      brw_mark_surface_used(prog_data, surface);
+
+      /* Read the 3 GLuint components of gl_NumWorkGroups */
+      for (unsigned i = 0; i < 3; i++) {
+         fs_reg read_result =
+            emit_untyped_read(bld, surf_index,
+                              brw_imm_ud(i << 2),
+                              1 /* dims */, 1 /* size */,
+                              BRW_PREDICATE_NONE);
+         read_result.type = dest.type;
+         bld.MOV(dest, read_result);
+         dest = offset(dest, bld, 1);
+      }
+      break;
+   }
    default:
       nir_emit_intrinsic(bld, instr);
       break;

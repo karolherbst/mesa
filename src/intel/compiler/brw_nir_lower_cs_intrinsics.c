@@ -58,10 +58,12 @@ lower_cs_intrinsics_convert_block(struct lower_intrinsics_state *state,
           *       cs_thread_local_id + subgroup_invocation;
           */
          nir_ssa_def *subgroup_id;
-         if (state->local_workgroup_size <= state->dispatch_width)
+         if ((state->local_workgroup_size <= state->dispatch_width) &&
+             !state->nir->info.cs.local_size_variable) {
             subgroup_id = nir_imm_int(b, 0);
-         else
+         } else {
             subgroup_id = nir_load_subgroup_id(b);
+         }
 
          nir_ssa_def *thread_local_id =
             nir_imul(b, subgroup_id, nir_imm_int(b, state->dispatch_width));
@@ -84,43 +86,81 @@ lower_cs_intrinsics_convert_block(struct lower_intrinsics_state *state,
           *        (gl_WorkGroupSize.x * gl_WorkGroupSize.y)) %
           *       gl_WorkGroupSize.z;
           */
-         unsigned *size = nir->info.cs.local_size;
-
          nir_ssa_def *local_index = nir_load_local_invocation_index(b);
+         if (!state->nir->info.cs.local_size_variable) {
+            unsigned *size = nir->info.cs.local_size;
 
-         nir_const_value uvec3;
-         memset(&uvec3, 0, sizeof(uvec3));
-         uvec3.u32[0] = 1;
-         uvec3.u32[1] = size[0];
-         uvec3.u32[2] = size[0] * size[1];
-         nir_ssa_def *div_val = nir_build_imm(b, 3, 32, uvec3);
-         uvec3.u32[0] = size[0];
-         uvec3.u32[1] = size[1];
-         uvec3.u32[2] = size[2];
-         nir_ssa_def *mod_val = nir_build_imm(b, 3, 32, uvec3);
+            nir_const_value uvec3;
+            memset(&uvec3, 0, sizeof(uvec3));
+            uvec3.u32[0] = 1;
+            uvec3.u32[1] = size[0];
+            uvec3.u32[2] = size[0] * size[1];
+            nir_ssa_def *div_val = nir_build_imm(b, 3, 32, uvec3);
+            uvec3.u32[0] = size[0];
+            uvec3.u32[1] = size[1];
+            uvec3.u32[2] = size[2];
+            nir_ssa_def *mod_val = nir_build_imm(b, 3, 32, uvec3);
 
-         sysval = nir_umod(b, nir_udiv(b, local_index, div_val), mod_val);
+            sysval = nir_umod(b, nir_udiv(b, local_index, div_val), mod_val);
+         } else {
+            nir_ssa_def *group_size_xyz = nir_load_local_group_size(b, 32);
+            nir_ssa_def *group_size_x = nir_channel(b, group_size_xyz, 0);
+            nir_ssa_def *group_size_y = nir_channel(b, group_size_xyz, 1);
+            nir_ssa_def *group_size_z = nir_channel(b, group_size_xyz, 2);
+            nir_ssa_def *result[3];
+            result[0] = nir_umod(b, local_index, group_size_x);
+            result[1] = nir_umod(b, nir_udiv(b, local_index, group_size_x),
+               group_size_y);
+            result[2] = nir_umod(b, nir_udiv(b, local_index,
+               nir_umul_high(b, group_size_x, group_size_y)), group_size_z);
+
+            sysval = nir_vec(b, result, 3);
+         }
          break;
       }
 
       case nir_intrinsic_load_subgroup_id:
-         if (state->local_workgroup_size > 8)
+         if (state->local_workgroup_size > 8 ||
+             state->nir->info.cs.local_size_variable) {
             continue;
+        }
 
          /* For small workgroup sizes, we know subgroup_id will be zero */
          sysval = nir_imm_int(b, 0);
          break;
 
       case nir_intrinsic_load_num_subgroups: {
-         unsigned local_workgroup_size =
-            nir->info.cs.local_size[0] * nir->info.cs.local_size[1] *
-            nir->info.cs.local_size[2];
-         unsigned num_subgroups =
-            DIV_ROUND_UP(local_workgroup_size, state->dispatch_width);
-         sysval = nir_imm_int(b, num_subgroups);
+         if (!state->nir->info.cs.local_size_variable) {
+            unsigned num_subgroups;
+            unsigned local_workgroup_size =
+               nir->info.cs.local_size[0] * nir->info.cs.local_size[1] *
+               nir->info.cs.local_size[2];
+            num_subgroups =
+               DIV_ROUND_UP(local_workgroup_size, state->dispatch_width);
+            sysval = nir_imm_int(b, num_subgroups);
+         } else {
+            nir_ssa_def *group_size_xyz = nir_load_local_group_size(b, 32);
+            nir_ssa_def *group_size_x = nir_channel(b, group_size_xyz, 0);
+            nir_ssa_def *group_size_y = nir_channel(b, group_size_xyz, 1);
+            nir_ssa_def *group_size_z = nir_channel(b, group_size_xyz, 2);
+            nir_ssa_def *group_size = nir_imul(b, group_size_x, nir_imul(b,
+               group_size_y, group_size_z));
+            nir_ssa_def *dispatch_width = nir_imm_int(b,
+               state->dispatch_width - 1);
+
+            sysval = nir_udiv(b, group_size, dispatch_width);
+         }
          break;
       }
 
+      case nir_intrinsic_load_global_invocation_id: {
+         nir_ssa_def *group_id = nir_load_work_group_id(b, 32);
+         nir_ssa_def *local_id = nir_load_local_invocation_id(b, 32);
+         nir_ssa_def *group_size = nir_load_local_group_size(b, 32);
+
+         sysval = nir_iadd(b, nir_imul(b, group_id, group_size), local_id);
+         break;
+      }
       default:
          continue;
       }

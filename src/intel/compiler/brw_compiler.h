@@ -851,6 +851,7 @@ struct brw_cs_prog_data {
    unsigned threads;
    bool uses_barrier;
    bool uses_num_work_groups;
+   bool uses_variable_group_size;
 
    struct {
       struct brw_push_const_block cross_thread;
@@ -863,6 +864,7 @@ struct brw_cs_prog_data {
        * surface indices the CS-specific surfaces
        */
       uint32_t work_groups_start;
+      uint32_t work_group_size_start;
       /** @} */
    } binding_table;
 };

@@ -802,6 +802,12 @@ brw_initialize_cs_context_constants(struct brw_context *brw)
    ctx->Const.MaxComputeWorkGroupSize[2] = max_invocations;
    ctx->Const.MaxComputeWorkGroupInvocations = max_invocations;
    ctx->Const.MaxComputeSharedMemorySize = 64 * 1024;
+
+   /* ARB_compute_variable_group_size constants */
+   ctx->Const.MaxComputeVariableGroupSize[0] = max_invocations;
+   ctx->Const.MaxComputeVariableGroupSize[1] = max_invocations;
+   ctx->Const.MaxComputeVariableGroupSize[2] = max_invocations;
+   ctx->Const.MaxComputeVariableGroupInvocations = max_invocations;
 }
 
 /**

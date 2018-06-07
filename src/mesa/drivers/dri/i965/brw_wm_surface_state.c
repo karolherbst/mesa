@@ -1633,7 +1633,7 @@ const struct brw_tracked_state brw_wm_image_surfaces = {
 };
 
 static void
-brw_upload_cs_work_groups_surface(struct brw_context *brw)
+brw_upload_cs_variable_surfaces(struct brw_context *brw)
 {
    struct gl_context *ctx = &brw->ctx;
    /* _NEW_PROGRAM */
@@ -1670,6 +1670,29 @@ brw_upload_cs_work_groups_surface(struct brw_context *brw)
                                     RELOC_WRITE);
       brw->ctx.NewDriverState |= BRW_NEW_SURFACES;
    }
+
+   if (prog && cs_prog_data->uses_variable_group_size) {
+      const unsigned surf_idx =
+         cs_prog_data->binding_table.work_group_size_start;
+      uint32_t *surf_offset = &brw->cs.base.surf_offset[surf_idx];
+      struct brw_bo *bo;
+      uint32_t bo_offset;
+
+      bo = NULL;
+      brw_upload_data(&brw->upload,
+                     (void *)brw->compute.group_size,
+                      3 * sizeof(GLuint),
+                      sizeof(GLuint),
+                      &bo,
+                      &bo_offset);
+
+      brw_emit_buffer_surface_state(brw, surf_offset,
+                                    bo, bo_offset,
+                                    ISL_FORMAT_RAW,
+                                    3 * sizeof(GLuint), 1,
+                                    RELOC_WRITE);
+      brw->ctx.NewDriverState |= BRW_NEW_SURFACES;
+   }
 }
 
 const struct brw_tracked_state brw_cs_work_groups_surface = {
@@ -1677,5 +1700,5 @@ const struct brw_tracked_state brw_cs_work_groups_surface = {
       .brw = BRW_NEW_CS_PROG_DATA |
              BRW_NEW_CS_WORK_GROUPS
    },
-   .emit = brw_upload_cs_work_groups_surface,
+   .emit = brw_upload_cs_variable_surfaces,
 };

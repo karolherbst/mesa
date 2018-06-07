@@ -43,6 +43,10 @@ assign_cs_binding_table_offsets(const struct gen_device_info *devinfo,
    prog_data->binding_table.work_groups_start = next_binding_table_offset;
    next_binding_table_offset++;
 
+   /* May not be used if the work group size is not variable. */
+   prog_data->binding_table.work_group_size_start = next_binding_table_offset;
+   next_binding_table_offset++;
+
    brw_assign_common_binding_table_offsets(devinfo, prog, &prog_data->base,
                                            next_binding_table_offset);
 }
