@@ -288,6 +288,19 @@ vtn_ssa_value(struct vtn_builder *b, uint32_t value_id)
 
    switch (val->value_type) {
    case vtn_value_type_undef:
+      if (val->type->base_type == vtn_base_type_phys_pointer &&
+          glsl_get_vector_elements(val->type->type) == 1) {
+         nir_variable_mode nir_mode;
+         unsigned bit_size = glsl_get_bit_size(type);
+
+         nir_ssa_def *def = nir_ssa_undef(&b->nb, 1, bit_size);
+         vtn_storage_class_to_mode(b, val->type->storage_class, val->type, &nir_mode);
+
+         struct vtn_ssa_value *val = rzalloc(b, struct vtn_ssa_value);
+         val->type = type;
+         val->def = nir_vec2(&b->nb, def, nir_imm_intN_t(&b->nb, nir_mode, bit_size));
+         return val;
+      }
       return vtn_undef_ssa_value(b, type);
 
    case vtn_value_type_constant:

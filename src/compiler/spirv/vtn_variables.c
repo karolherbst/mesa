@@ -473,7 +473,7 @@ _vtn_local_load_store(struct vtn_builder *b, bool load, nir_deref_instr *deref,
       if (load) {
          inout->def = nir_load_deref(&b->nb, deref);
       } else {
-         nir_store_deref(&b->nb, deref, inout->def, ~0);
+         nir_store_deref(&b->nb, deref, nir_address_from_ssa(&b->nb, inout->def), ~0);
       }
    } else if (glsl_type_is_array(deref->type) ||
               glsl_type_is_matrix(deref->type)) {
@@ -957,7 +957,7 @@ vtn_variable_store(struct vtn_builder *b, struct vtn_ssa_value *src,
        * and handle the store_deref directly:
        */
       nir_deref_instr *deref = vtn_pointer_to_deref(b, dest);
-      nir_ssa_def *def = src->def;
+      nir_ssa_def *def = nir_address_from_ssa(&b->nb, src->def);
       if (deref->dest.ssa.num_components == 1 && def->num_components == 2) {
          def = nir_channel(&b->nb, def, 0);
       }
