@@ -730,6 +730,7 @@ ConstantFolding::expr(Instruction *i,
       i->op = i->saturate ? OP_SAT : OP_MOV;
       if (i->saturate)
          unary(i, *i->getSrc(0)->asImm());
+      i->setSrc(2, NULL);
       break;
    }
    i->subOp = 0;
