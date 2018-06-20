@@ -2391,6 +2391,7 @@ Converter::visit(nir_intrinsic_instr *insn)
 
       break;
    }
+   case nir_intrinsic_load_private:
    case nir_intrinsic_load_global: {
       const DataType dType = getDType(insn);
       LValues &newDefs = convert(&insn->dest);
@@ -2403,6 +2404,7 @@ Converter::visit(nir_intrinsic_instr *insn)
       info->io.globalAccess |= 0x2;
       break;
    }
+   case nir_intrinsic_store_private:
    case nir_intrinsic_store_global: {
       DataType sType = getSType(insn->src[0], false, false);
 
