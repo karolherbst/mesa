@@ -372,6 +372,8 @@ private:
    void expr(Instruction *, ImmediateValue&, ImmediateValue&, ImmediateValue&);
    /* true if i was deleted */
    bool opnd(Instruction *i, ImmediateValue&, int s);
+   /* 3 srcs where 1st and 2nd are immediates */
+   void opnd(Instruction *, ImmediateValue&, ImmediateValue&);
    void opnd3(Instruction *, ImmediateValue&);
 
    void unary(Instruction *, const ImmediateValue&);
@@ -432,6 +434,10 @@ ConstantFolding::visit(BasicBlock *bb)
       }
       if (i->srcExists(2) && i->src(2).getImmediate(src2))
          opnd3(i, src2);
+      else
+      if (i->srcExists(2) &&
+          i->src(0).getImmediate(src0) && i->src(1).getImmediate(src1))
+         opnd(i, src0, src1);
    }
    return true;
 }
@@ -934,6 +940,50 @@ ConstantFolding::tryCollapseChainedMULs(Instruction *mul2,
          if (f < 0)
             mul2->src(s2).mod *= Modifier(NV50_IR_MOD_NEG);
       }
+   }
+}
+
+void
+ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, ImmediateValue &imm1)
+{
+   const Storage &a = imm0.reg;
+   const Storage &b = imm1.reg;
+
+   switch (i->op) {
+   case OP_SLCT: {
+      CmpInstruction *slct = i->asCmp();
+      if (a.data.u32 == 0xffffffff && b.data.u32 == 0x0) {
+         slct->setSrc(0, slct->getSrc(2));
+         slct->setSrc(2, NULL);
+         slct->dType = TYPE_U32;
+         slct->op = OP_SET;
+      }
+      else if (a.data.u32 == 0x3f800000 && b.data.u32 == 0x0) {
+         slct->setSrc(0, slct->getSrc(2));
+         slct->setSrc(2, NULL);
+         slct->dType = TYPE_F32;
+         slct->op = OP_SET;
+      }
+      else if (a.data.u32 == 0x0 && b.data.u32 == 0xffffffff) {
+         slct->swapSources(0, 1);
+         slct->setSrc(0, slct->getSrc(2));
+         slct->setSrc(2, NULL);
+         slct->dType = TYPE_U32;
+         slct->setCondition(inverseCondCode(slct->getCondition(), slct->sType));
+         slct->op = OP_SET;
+      }
+      else if (a.data.u32 == 0x0 && b.data.u32 == 0x3f800000) {
+         slct->swapSources(0, 1);
+         slct->setSrc(0, slct->getSrc(2));
+         slct->setSrc(2, NULL);
+         slct->dType = TYPE_F32;
+         slct->setCondition(inverseCondCode(slct->getCondition(), slct->sType));
+         slct->op = OP_SET;
+      }
+      break;
+   }
+   default:
+      break;
    }
 }
 
