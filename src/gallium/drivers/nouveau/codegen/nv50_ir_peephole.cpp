@@ -1664,7 +1664,8 @@ private:
    bool tryADDToMADOrSAD(Instruction *, operation toOp);
    void handleMINMAX(Instruction *);
    void handleRCP(Instruction *);
-   void handleSLCT(Instruction *);
+   void handleSLCT(CmpInstruction *);
+   bool tryMergeSLCTSET(CmpInstruction *slct, CmpInstruction *set);
    void handleLOGOP(Instruction *);
    void handleCVT_NEG(Instruction *);
    void handleCVT_CVT(Instruction *);
@@ -1847,8 +1848,12 @@ AlgebraicOpt::handleRCP(Instruction *rcp)
 }
 
 void
-AlgebraicOpt::handleSLCT(Instruction *slct)
+AlgebraicOpt::handleSLCT(CmpInstruction *slct)
 {
+   Instruction *insn = slct->getSrc(2)->getInsn();
+   while(insn && insn->op == OP_SET && tryMergeSLCTSET(slct, insn->asCmp())) {
+      insn = slct->getSrc(2)->getInsn();
+   }
    if (slct->getSrc(2)->reg.file == FILE_IMMEDIATE) {
       if (slct->getSrc(2)->asImm()->compare(slct->asCmp()->setCond, 0.0f))
          slct->setSrc(0, slct->getSrc(1));
@@ -1861,9 +1866,64 @@ AlgebraicOpt::handleSLCT(Instruction *slct)
    slct->setSrc(2, NULL);
 }
 
-void
-AlgebraicOpt::handleLOGOP(Instruction *logop)
+bool
+AlgebraicOpt::tryMergeSLCTSET(CmpInstruction *slct, CmpInstruction *set)
 {
+   assert(slct->op == OP_SLCT && set->op == OP_SET);
+
+   if (typeSizeof(set->sType) != 4)
+      return false;
+
+   ImmediateValue imm0;
+   int s;
+
+   if (set->src(0).getImmediate(imm0) && imm0.isInteger(0))
+      s = 1;
+   else if (set->src(1).getImmediate(imm0) && imm0.isInteger(0))
+      s = 0;
+   else
+      return false;
+
+   CondCode setCC = set->getCondition();
+   CondCode slctCC = slct->getCondition();
+   /* slcts and sets can be trivially merged if both compare by EQ or NE */
+
+   /* ((a != 0) == 0 ? b : c) == (a == 0 ? b : c) */
+   if (setCC == CC_NE && slctCC == CC_EQ) {
+      slct->setSrc(2, set->getSrc(s));
+   }
+   /* ((a != 0) != 0 ? b : c) == (a != 0 ? b : c) */
+   else if (setCC == CC_NE && slctCC == CC_NE) {
+      slct->setSrc(2, set->getSrc(s));
+   }
+   /* ((a == 0) == 0 ? b : c) == (a == 0 ? c : b) */
+   else if (setCC == CC_EQ && slctCC == CC_EQ) {
+      slct->setSrc(2, set->getSrc(s));
+      slct->swapSources(0, 1);
+   }
+   /* ((a == 0) != 0 ? b : c) == (a != 0 ? c : b) */
+   else if (setCC == CC_EQ && slctCC == CC_NE) {
+      slct->setSrc(2, set->getSrc(s));
+      slct->swapSources(0, 1);
+   }
+   /* ((a cc 0) != 0 ? b : c) == (a cc 0 ? b : c) */
+   /* ((0 cc a) != 0 ? b : c) == (a reverse(cc) 0 ? b : c) */
+   else if ((slctCC == CC_NE || slctCC == CC_EQ) &&
+            (setCC == CC_LT || setCC == CC_LE || setCC == CC_GT || setCC == CC_GE)) {
+      slct->setSrc(2, set->getSrc(s));
+      if ((s && slctCC == CC_NE) || ((s ^ 1) && slctCC == CC_EQ))
+         slct->setCondition(reverseCondCode(set->getCondition()));
+      else
+         slct->setCondition(set->getCondition());
+   }
+   else
+      return false;
+
+   slct->sType = set->sType;
+   return true;
+}
+
+void AlgebraicOpt::handleLOGOP(Instruction *logop) {
    Value *src0 = logop->getSrc(0);
    Value *src1 = logop->getSrc(1);
 
@@ -2196,7 +2256,7 @@ AlgebraicOpt::visit(BasicBlock *bb)
          handleMINMAX(i);
          break;
       case OP_SLCT:
-         handleSLCT(i);
+         handleSLCT(i->asCmp());
          break;
       case OP_AND:
       case OP_OR:
