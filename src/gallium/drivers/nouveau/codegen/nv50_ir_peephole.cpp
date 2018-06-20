@@ -759,6 +759,9 @@ ConstantFolding::expr(Instruction *i,
    case OP_PFETCH:
       // Leave PFETCH alone... we just folded its 2 args into 1.
       break;
+   case OP_SLCT:
+      i->setSrc(2, NULL);
+      // fallthrough
    default:
       i->op = i->saturate ? OP_SAT : OP_MOV;
       if (i->saturate)
