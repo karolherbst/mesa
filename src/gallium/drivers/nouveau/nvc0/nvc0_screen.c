@@ -130,7 +130,7 @@ nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_GLSL_FEATURE_LEVEL:
       return 460;
    case PIPE_CAP_GLSL_FEATURE_LEVEL_COMPATIBILITY:
-      return 430;
+      return 460;
    case PIPE_CAP_MAX_RENDER_TARGETS:
       return 8;
    case PIPE_CAP_MAX_DUAL_SOURCE_RENDER_TARGETS:
