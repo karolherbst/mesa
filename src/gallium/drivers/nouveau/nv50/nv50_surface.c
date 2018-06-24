@@ -893,6 +893,7 @@ nv50_blitter_make_fp(struct pipe_context *pipe,
    bool cvt_un8 = false;
 
    if (mode != NV50_BLIT_MODE_PASS &&
+       mode != NV50_BLIT_MODE_INT_CLAMP &&
        mode != NV50_BLIT_MODE_Z24X8 &&
        mode != NV50_BLIT_MODE_X8Z24)
       tex_s = true;
@@ -903,6 +904,7 @@ nv50_blitter_make_fp(struct pipe_context *pipe,
       tex_rgbaz = true;
 
    if (mode != NV50_BLIT_MODE_PASS &&
+       mode != NV50_BLIT_MODE_INT_CLAMP &&
        mode != NV50_BLIT_MODE_ZS &&
        mode != NV50_BLIT_MODE_XS)
       cvt_un8 = true;
@@ -930,11 +932,16 @@ nv50_blitter_make_fp(struct pipe_context *pipe,
                ureg_scalar(ureg_src(data), TGSI_SWIZZLE_X));
    }
    if (tex_rgbaz) {
-      const unsigned mask = (mode == NV50_BLIT_MODE_PASS) ?
+      const unsigned mask = (mode == NV50_BLIT_MODE_PASS ||
+                             mode == NV50_BLIT_MODE_INT_CLAMP) ?
          TGSI_WRITEMASK_XYZW : TGSI_WRITEMASK_X;
       ureg_TEX(ureg, ureg_writemask(data, mask),
                target, tc, ureg_DECL_sampler(ureg, 0));
    }
+
+   /* handle signed to unsigned integer conversions */
+   if (mode == NV50_BLIT_MODE_INT_CLAMP)
+      ureg_UMIN(ureg, data, ureg_src(data), ureg_imm1u(ureg, 0x7fffffff));
 
    if (cvt_un8) {
       struct ureg_src mask;
@@ -983,7 +990,7 @@ nv50_blitter_make_fp(struct pipe_context *pipe,
    } else {
       unsigned mask = TGSI_WRITEMASK_XYZW;
 
-      if (mode != NV50_BLIT_MODE_PASS) {
+      if (mode != NV50_BLIT_MODE_PASS && mode != NV50_BLIT_MODE_INT_CLAMP) {
          mask &= ~TGSI_WRITEMASK_ZW;
          if (!tex_s)
             mask = TGSI_WRITEMASK_X;
@@ -1058,6 +1065,9 @@ nv50_blit_select_mode(const struct pipe_blit_info *info)
          return NV50_BLIT_MODE_XS;
       }
    default:
+      if (util_format_is_pure_uint(info->src.format) &&
+          util_format_is_pure_sint(info->dst.format))
+         return NV50_BLIT_MODE_INT_CLAMP;
       return NV50_BLIT_MODE_PASS;
    }
 }
