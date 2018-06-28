@@ -3432,6 +3432,11 @@ Instruction::isActionEqual(const Instruction *that) const
    } else
    if (this->asFlow()) {
       return false;
+   } else
+   if (this->op == OP_PHI && that->op == OP_PHI && this->bb != that->bb) {
+      /* TODO: we could probably be a bit smarter here by following the
+       * control flow, but honestly, it is quite painful to check */
+      return false;
    } else {
       if (this->ipa != that->ipa ||
           this->lanes != that->lanes ||
