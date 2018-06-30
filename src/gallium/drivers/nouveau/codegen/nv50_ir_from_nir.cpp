@@ -1510,7 +1510,7 @@ Converter::visit(nir_function *function)
    bb->cfg.attach(&exit->cfg, Graph::Edge::TREE);
    setPosition(exit, true);
 
-   if (info->io.genUserClip > 0)
+   if (prog->getType() == Program::TYPE_VERTEX && info->io.genUserClip > 0)
       handleUserClipPlanes();
 
    // TODO: for non main function this needs to be a OP_RETURN
@@ -1838,6 +1838,7 @@ Converter::visit(nir_intrinsic_instr *insn)
             }
             break;
          }
+         case Program::TYPE_GEOMETRY:
          case Program::TYPE_VERTEX: {
             if (info->io.genUserClip > 0) {
                mkMov(clipVtx[i], src);
@@ -2136,6 +2137,9 @@ Converter::visit(nir_intrinsic_instr *insn)
       break;
    }
    case nir_intrinsic_emit_vertex:
+      if (info->io.genUserClip > 0)
+         handleUserClipPlanes();
+      // fallthrough
    case nir_intrinsic_end_primitive: {
       uint32_t idx = nir_intrinsic_stream_id(insn);
       mkOp1(getOperation(op), TYPE_U32, NULL, mkImm(idx))->fixed = 1;
