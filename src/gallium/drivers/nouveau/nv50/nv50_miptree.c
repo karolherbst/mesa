@@ -48,13 +48,6 @@ nv50_tex_choose_tile_dims_helper(unsigned nx, unsigned ny, unsigned nz,
       if (tile_mode > 0x020)
          tile_mode = 0x020;
 
-   if (nz > 16 && tile_mode < 0x020)
-      return tile_mode | 0x500; /* depth 32 tiles */
-   if (nz > 8) return tile_mode | 0x400; /* depth 16 tiles */
-   if (nz > 4) return tile_mode | 0x300; /* depth 8 tiles */
-   if (nz > 2) return tile_mode | 0x200; /* depth 4 tiles */
-   if (nz > 1) return tile_mode | 0x100; /* depth 2 tiles */
-
    return tile_mode;
 }
 
