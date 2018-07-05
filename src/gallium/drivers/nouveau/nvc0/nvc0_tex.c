@@ -169,6 +169,9 @@ gm107_create_texture_view(struct pipe_context *pipe,
       address += view->pipe.u.tex.first_layer * mt->layer_stride;
       depth = view->pipe.u.tex.last_layer - view->pipe.u.tex.first_layer + 1;
    }
+   else if (templ->u.tex.first_layer > 0) {
+      address += nvc0_mt_zslice_offset(mt, 0, templ->u.tex.first_layer);
+   }
    tic[1]  = address;
    tic[2] |= address >> 32;
 
@@ -1029,17 +1032,10 @@ nve4_set_surface_info(struct nouveau_pushbuf *push,
       const unsigned z = view->u.tex.first_layer;
 
       if (z) {
-         if (mt->layout_3d) {
+         if (mt->layout_3d)
             address += nvc0_mt_zslice_offset(mt, view->u.tex.level, z);
-            /* doesn't work if z passes z-tile boundary */
-            if (depth > 1) {
-               pipe_debug_message(&nvc0->base.debug, CONFORMANCE,
-                                  "3D images are not really supported!");
-               debug_printf("3D images are not really supported!\n");
-            }
-         } else {
+         else
             address += mt->layer_stride * z;
-         }
       }
       address += lvl->offset;
 
