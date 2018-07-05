@@ -199,6 +199,8 @@ nvc0_hw_begin_query(struct nvc0_context *nvc0, struct nvc0_query *q)
       nvc0_hw_query_get(push, q, 0xc0 + 0x70, 0x0980a002); /* ROP, PIXELS */
       nvc0_hw_query_get(push, q, 0xc0 + 0x80, 0x0d808002); /* TCP, LAUNCHES */
       nvc0_hw_query_get(push, q, 0xc0 + 0x90, 0x0e809002); /* TEP, LAUNCHES */
+      nvc0->base.push_data(&nvc0->base, hq->bo, hq->offset + 0xc0 + 0xa0,
+                           NOUVEAU_BO_GART, 8, &nvc0->compute_invocations);
       break;
    default:
       break;
@@ -271,6 +273,8 @@ nvc0_hw_end_query(struct nvc0_context *nvc0, struct nvc0_query *q)
       nvc0_hw_query_get(push, q, 0x70, 0x0980a002); /* ROP, PIXELS */
       nvc0_hw_query_get(push, q, 0x80, 0x0d808002); /* TCP, LAUNCHES */
       nvc0_hw_query_get(push, q, 0x90, 0x0e809002); /* TEP, LAUNCHES */
+      nvc0->base.push_data(&nvc0->base, hq->bo, hq->offset + 0xa0,
+                           NOUVEAU_BO_GART, 8, &nvc0->compute_invocations);
       break;
    case PIPE_QUERY_TIMESTAMP_DISJOINT:
       /* This query is not issued on GPU because disjoint is forced to false */
@@ -353,9 +357,8 @@ nvc0_hw_get_query_result(struct nvc0_context *nvc0, struct nvc0_query *q,
       res64[0] = data64[1] - data64[3];
       break;
    case PIPE_QUERY_PIPELINE_STATISTICS:
-      for (i = 0; i < 10; ++i)
+      for (i = 0; i < 11; ++i)
          res64[i] = data64[i * 2] - data64[24 + i * 2];
-      result->pipeline_statistics.cs_invocations = 0;
       break;
    case NVC0_HW_QUERY_TFB_BUFFER_OFFSET:
       res32[0] = hq->data[1];
