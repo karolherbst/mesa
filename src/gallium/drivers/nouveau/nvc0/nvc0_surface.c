@@ -1360,14 +1360,14 @@ nvc0_blit_3d(struct nvc0_context *nvc0, const struct pipe_blit_info *info)
       *(vbuf++) = fui(y0);
       *(vbuf++) = fui(z);
 
-      *(vbuf++) = fui(32768 << nv50_miptree(dst)->ms_x);
+      *(vbuf++) = fui(32768);
       *(vbuf++) = fui(0.0f);
       *(vbuf++) = fui(x1);
       *(vbuf++) = fui(y0);
       *(vbuf++) = fui(z);
 
       *(vbuf++) = fui(0.0f);
-      *(vbuf++) = fui(32768 << nv50_miptree(dst)->ms_y);
+      *(vbuf++) = fui(32768);
       *(vbuf++) = fui(x0);
       *(vbuf++) = fui(y1);
       *(vbuf++) = fui(z);
