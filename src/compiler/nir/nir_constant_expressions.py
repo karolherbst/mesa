@@ -258,6 +258,7 @@ typedef float float16_t;
 typedef float float32_t;
 typedef double float64_t;
 typedef bool bool32_t;
+
 % for type in ["float", "int", "uint"]:
 % for width in type_sizes(type):
 struct ${type}${width}_vec {
@@ -265,6 +266,18 @@ struct ${type}${width}_vec {
    ${type}${width}_t y;
    ${type}${width}_t z;
    ${type}${width}_t w;
+   ${type}${width}_t e;
+   ${type}${width}_t f;
+   ${type}${width}_t g;
+   ${type}${width}_t h;
+   ${type}${width}_t i;
+   ${type}${width}_t j;
+   ${type}${width}_t k;
+   ${type}${width}_t l;
+   ${type}${width}_t m;
+   ${type}${width}_t n;
+   ${type}${width}_t o;
+   ${type}${width}_t p;
 };
 % endfor
 % endfor
@@ -274,6 +287,18 @@ struct bool32_vec {
     bool y;
     bool z;
     bool w;
+    bool e;
+    bool f;
+    bool g;
+    bool h;
+    bool i;
+    bool j;
+    bool k;
+    bool l;
+    bool m;
+    bool n;
+    bool o;
+    bool p;
 };
 
 <%def name="evaluate_op(op, bit_size)">
@@ -303,7 +328,7 @@ struct bool32_vec {
             _src[${j}].${get_const_field(input_types[j])}[${k}],
          % endif
       % endfor
-      % for k in range(op.input_sizes[j], 4):
+      % for k in range(op.input_sizes[j], 16):
          0,
       % endfor
       };
@@ -377,11 +402,11 @@ struct bool32_vec {
       % for k in range(op.output_size):
          % if output_type == "bool32":
             ## Sanitize the C value to a proper NIR bool
-            _dst_val.u32[${k}] = dst.${"xyzw"[k]} ? NIR_TRUE : NIR_FALSE;
+            _dst_val.u32[${k}] = dst.${"xyzwefghijklmnop"[k]} ? NIR_TRUE : NIR_FALSE;
          % elif output_type == "float16":
-            _dst_val.u16[${k}] = _mesa_float_to_half(dst.${"xyzw"[k]});
+            _dst_val.u16[${k}] = _mesa_float_to_half(dst.${"xyzwefghijklmnop"[k]});
          % else:
-            _dst_val.${get_const_field(output_type)}[${k}] = dst.${"xyzw"[k]};
+            _dst_val.${get_const_field(output_type)}[${k}] = dst.${"xyzwefghijklmnop"[k]};
          % endif
       % endfor
    % endif

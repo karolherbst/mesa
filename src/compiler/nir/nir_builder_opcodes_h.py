@@ -31,14 +31,15 @@ def src_decl_list(num_srcs):
    return ', '.join('nir_ssa_def *src' + str(i) for i in range(num_srcs))
 
 def src_list(num_srcs):
-   return ', '.join('src' + str(i) if i < num_srcs else 'NULL' for i in range(4))
+   return ', '.join('src' + str(i) if i < num_srcs else 'NULL' for i in range(16))
 %>
 
 % for name, opcode in sorted(opcodes.items()):
 static inline nir_ssa_def *
 nir_${name}(nir_builder *build, ${src_decl_list(opcode.num_inputs)})
 {
-   return nir_build_alu(build, nir_op_${name}, ${src_list(opcode.num_inputs)});
+   nir_ssa_def *srcs[] = {${src_list(opcode.num_inputs)}};
+   return nir_build_alu2(build, nir_op_${name}, srcs);
 }
 % endfor
 
