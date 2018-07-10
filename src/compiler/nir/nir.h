@@ -57,8 +57,8 @@ extern "C" {
 
 #define NIR_FALSE 0u
 #define NIR_TRUE (~0u)
-#define NIR_MAX_VEC_COMPONENTS 4
-typedef uint8_t nir_component_mask_t;
+#define NIR_MAX_VEC_COMPONENTS 16
+typedef uint16_t nir_component_mask_t;
 
 /** Defines a cast function
  *
