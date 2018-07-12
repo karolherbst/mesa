@@ -204,6 +204,7 @@ files_libnir = files(
   '../spirv/vtn_amd.c',
   '../spirv/vtn_cfg.c',
   '../spirv/vtn_glsl450.c',
+  '../spirv/vtn_opencl.c',
   '../spirv/vtn_private.h',
   '../spirv/vtn_subgroup.c',
   '../spirv/vtn_variables.c',
