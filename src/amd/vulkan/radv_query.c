@@ -152,8 +152,8 @@ build_occlusion_query_shader(struct radv_device *device) {
 	nir_ssa_dest_init(&src_buf->instr, &src_buf->dest, 1, 32, NULL);
 	nir_builder_instr_insert(&b, &src_buf->instr);
 
-	nir_ssa_def *invoc_id = nir_load_local_invocation_id(&b);
-	nir_ssa_def *wg_id = nir_load_work_group_id(&b);
+	nir_ssa_def *invoc_id = nir_load_local_invocation_id(&b, 32);
+	nir_ssa_def *wg_id = nir_load_work_group_id(&b, 32);
 	nir_ssa_def *block_size = nir_imm_ivec4(&b,
 	                                        b.shader->info.cs.local_size[0],
 	                                        b.shader->info.cs.local_size[1],
@@ -342,8 +342,8 @@ build_pipeline_statistics_query_shader(struct radv_device *device) {
 	nir_ssa_dest_init(&src_buf->instr, &src_buf->dest, 1, 32, NULL);
 	nir_builder_instr_insert(&b, &src_buf->instr);
 
-	nir_ssa_def *invoc_id = nir_load_local_invocation_id(&b);
-	nir_ssa_def *wg_id = nir_load_work_group_id(&b);
+	nir_ssa_def *invoc_id = nir_load_local_invocation_id(&b, 32);
+	nir_ssa_def *wg_id = nir_load_work_group_id(&b, 32);
 	nir_ssa_def *block_size = nir_imm_ivec4(&b,
 	                                        b.shader->info.cs.local_size[0],
 	                                        b.shader->info.cs.local_size[1],
