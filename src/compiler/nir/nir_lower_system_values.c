@@ -94,11 +94,12 @@ convert_block(nir_block *block, nir_builder *b)
           * If the local work group size is variable we can't lower the global
           * invocation id here.
           */
-         if (b->shader->info.cs.local_size_variable) {
-            break;
-         }
+         nir_ssa_def *group_size;
+         if (b->shader->info.cs.local_size_variable)
+            group_size = nir_load_local_group_size(b, bit_size);
+         else
+            group_size = build_local_group_size(b, bit_size);
 
-         nir_ssa_def *group_size = build_local_group_size(b, bit_size);
          nir_ssa_def *group_id = nir_load_work_group_id(b, bit_size);
          nir_ssa_def *local_id = nir_load_local_invocation_id(b, bit_size);
 
