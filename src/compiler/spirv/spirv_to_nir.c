@@ -3600,9 +3600,20 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
       break;
 
    case SpvOpMemoryModel:
+      if (w[2] == SpvMemoryModelOpenCL) {
+         if (w[1] == SpvAddressingModelPhysical32)
+            b->shader->ptr_size = 32;
+         else if (w[1] == SpvAddressingModelPhysical64)
+            b->shader->ptr_size = 64;
+         else
+            vtn_fail("Couldn't parse OpenCL Memory Model");
+         break;
+      }
+
       vtn_assert(w[1] == SpvAddressingModelLogical);
       vtn_assert(w[2] == SpvMemoryModelSimple ||
                  w[2] == SpvMemoryModelGLSL450);
+      b->shader->ptr_size = 0;
       break;
 
    case SpvOpEntryPoint:

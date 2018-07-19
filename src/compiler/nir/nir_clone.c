@@ -733,6 +733,7 @@ nir_shader_clone(void *mem_ctx, const nir_shader *s)
    ns->num_uniforms = s->num_uniforms;
    ns->num_outputs = s->num_outputs;
    ns->num_shared = s->num_shared;
+   ns->ptr_size = s->ptr_size;
 
    ns->constant_data_size = s->constant_data_size;
    if (s->constant_data_size > 0) {

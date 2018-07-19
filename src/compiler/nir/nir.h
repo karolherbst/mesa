@@ -2181,6 +2181,14 @@ typedef struct nir_shader {
     */
    void *constant_data;
    unsigned constant_data_size;
+
+   /**
+    * pointer size is:
+    *   AddressingModelLogical:    0    (default)
+    *   AddressingModelPhysical32: 32
+    *   AddressingModelPhysical64: 64
+    */
+   unsigned ptr_size;
 } nir_shader;
 
 static inline nir_function_impl *
