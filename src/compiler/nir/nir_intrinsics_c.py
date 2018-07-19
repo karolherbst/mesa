@@ -1,3 +1,5 @@
+from functools import reduce
+import operator
 
 template = """\
 /* Copyright (C) 2018 Red Hat
@@ -45,6 +47,7 @@ const nir_intrinsic_info nir_intrinsic_infos[nir_num_intrinsics] = {
     },
 % endif
    .flags = ${"0" if len(opcode.flags) == 0 else " | ".join(opcode.flags)},
+   .bit_sizes = ${reduce(operator.or_, opcode.bit_sizes, 0)},
 },
 % endfor
 };
@@ -54,6 +57,7 @@ from nir_intrinsics import INTR_OPCODES
 from mako.template import Template
 import argparse
 import os
+import functools
 
 def main():
     parser = argparse.ArgumentParser()
@@ -64,7 +68,7 @@ def main():
 
     path = os.path.join(args.outdir, 'nir_intrinsics.c')
     with open(path, 'wb') as f:
-        f.write(Template(template, output_encoding='utf-8').render(INTR_OPCODES=INTR_OPCODES))
+        f.write(Template(template, output_encoding='utf-8').render(INTR_OPCODES=INTR_OPCODES, reduce=reduce, operator=operator))
 
 if __name__ == '__main__':
     main()
