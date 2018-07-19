@@ -517,7 +517,7 @@ ttn_src_for_file_and_index(struct ttn_compile *c, unsigned file, unsigned index,
          nir_ssa_def *tgsi_frontface[4] = {
             nir_bcsel(&c->build,
                       nir_load_system_value(&c->build,
-                                            nir_intrinsic_load_front_face, 0),
+                                            nir_intrinsic_load_front_face, 0, 32),
                       nir_imm_float(&c->build, 1.0),
                       nir_imm_float(&c->build, -1.0)),
             nir_imm_float(&c->build, 0.0),
