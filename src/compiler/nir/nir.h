@@ -1254,6 +1254,9 @@ typedef struct {
 
    /** semantic flags for calls to this intrinsic */
    nir_intrinsic_semantic_flag flags;
+
+   /** bitfield of legal bit sizes */
+   unsigned bit_sizes : 7;
 } nir_intrinsic_info;
 
 extern const nir_intrinsic_info nir_intrinsic_infos[nir_num_intrinsics];
