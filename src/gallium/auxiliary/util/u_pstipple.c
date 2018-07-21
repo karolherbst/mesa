@@ -179,7 +179,7 @@ struct pstip_transform_context {
    int wincoordInput;
    unsigned wincoordFile;
    int maxInput;
-   uint samplersUsed;  /**< bitfield of samplers used */
+   uint64_t samplersUsed;  /**< bitfield of samplers used */
    int freeSampler;  /** an available sampler for the pstipple */
    int numImmed;
    uint coordOrigin;

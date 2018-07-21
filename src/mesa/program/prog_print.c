@@ -883,7 +883,7 @@ _mesa_fprint_program_parameters(FILE *f,
    fprintf(f, "IndirectRegisterFiles: 0x%x (0b%s)\n",
            prog->arb.IndirectRegisterFiles,
            binary(prog->arb.IndirectRegisterFiles));
-   fprintf(f, "SamplersUsed: 0x%x (0b%s)\n",
+   fprintf(f, "SamplersUsed: 0x%" PRIx64 " (0b%s)\n",
                  prog->SamplersUsed, binary(prog->SamplersUsed));
    fprintf(f, "Samplers=[ ");
    for (i = 0; i < MAX_SAMPLERS; i++) {

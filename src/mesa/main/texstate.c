@@ -719,7 +719,7 @@ update_program_texture_state(struct gl_context *ctx, struct gl_program **prog,
    int i;
 
    for (i = 0; i < MESA_SHADER_STAGES; i++) {
-      GLbitfield mask;
+      GLbitfield64 mask;
       GLuint s;
 
       if (!prog[i])
@@ -728,7 +728,7 @@ update_program_texture_state(struct gl_context *ctx, struct gl_program **prog,
       mask = prog[i]->SamplersUsed;
 
       while (mask) {
-         s = u_bit_scan(&mask);
+         s = u_bit_scan64(&mask);
 
          update_single_program_texture_state(ctx, prog[i],
                                              prog[i]->SamplerUnits[s],

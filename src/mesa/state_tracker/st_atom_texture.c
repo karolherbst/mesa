@@ -104,7 +104,7 @@ update_textures(struct st_context *st,
                 struct pipe_sampler_view **sampler_views)
 {
    const GLuint old_max = st->state.num_sampler_views[shader_stage];
-   GLbitfield samplers_used = prog->SamplersUsed;
+   GLbitfield64 samplers_used = prog->SamplersUsed;
    GLbitfield texel_fetch_samplers = prog->info.textures_used_by_txf;
    GLbitfield free_slots = ~prog->SamplersUsed;
    GLbitfield external_samplers_used = prog->ExternalSamplersUsed;

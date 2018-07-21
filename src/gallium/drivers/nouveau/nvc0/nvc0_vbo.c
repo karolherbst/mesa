@@ -1026,7 +1026,7 @@ nvc0_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info)
 
       for (int i = 0; i < nvc0->num_textures[s]; ++i) {
          struct nv50_tic_entry *tic = nv50_tic_entry(nvc0->textures[s][i]);
-         if (!(nvc0->textures_coherent[s] & (1 << i)))
+         if (!(nvc0->textures_coherent[s] & (1ull << i)))
             continue;
 
          BEGIN_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 1);

@@ -79,7 +79,7 @@ struct tgsi_lowering_config
     *
     * is true, then the s coord for sampler n is saturated.
     */
-   unsigned saturate_s, saturate_t, saturate_r;
+   uint64_t saturate_s, saturate_t, saturate_r;
 };
 
 const struct tgsi_token *

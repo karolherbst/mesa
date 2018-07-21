@@ -492,7 +492,7 @@ nvc0_validate_tic(struct nvc0_context *nvc0, int s)
    for (i = 0; i < nvc0->num_textures[s]; ++i) {
       struct nv50_tic_entry *tic = nv50_tic_entry(nvc0->textures[s][i]);
       struct nv04_resource *res;
-      const bool dirty = !!(nvc0->textures_dirty[s] & (1 << i));
+      const bool dirty = !!(nvc0->textures_dirty[s] & (1ull << i));
 
       if (!tic) {
          if (dirty)
@@ -559,7 +559,7 @@ nve4_validate_tic(struct nvc0_context *nvc0, unsigned s)
    for (i = 0; i < nvc0->num_textures[s]; ++i) {
       struct nv50_tic_entry *tic = nv50_tic_entry(nvc0->textures[s][i]);
       struct nv04_resource *res;
-      const bool dirty = !!(nvc0->textures_dirty[s] & (1 << i));
+      const bool dirty = !!(nvc0->textures_dirty[s] & (1ull << i));
 
       if (!tic) {
          nvc0->tex_handles[s][i] |= NVE4_TIC_ENTRY_INVALID;
@@ -592,7 +592,7 @@ nve4_validate_tic(struct nvc0_context *nvc0, unsigned s)
    }
    for (; i < nvc0->state.num_textures[s]; ++i) {
       nvc0->tex_handles[s][i] |= NVE4_TIC_ENTRY_INVALID;
-      nvc0->textures_dirty[s] |= 1 << i;
+      nvc0->textures_dirty[s] |= 1ull << i;
    }
 
    nvc0->state.num_textures[s] = nvc0->num_textures[s];
@@ -620,7 +620,7 @@ void nvc0_validate_textures(struct nvc0_context *nvc0)
    /* Invalidate all CP textures because they are aliased. */
    for (int i = 0; i < nvc0->num_textures[5]; i++)
       nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_TEX(i));
-   nvc0->textures_dirty[5] = ~0;
+   nvc0->textures_dirty[5] = ~0ull;
    nvc0->dirty_cp |= NVC0_NEW_CP_TEXTURES;
 }
 
@@ -636,7 +636,7 @@ nvc0_validate_tsc(struct nvc0_context *nvc0, int s)
    for (i = 0; i < nvc0->num_samplers[s]; ++i) {
       struct nv50_tsc_entry *tsc = nv50_tsc_entry(nvc0->samplers[s][i]);
 
-      if (!(nvc0->samplers_dirty[s] & (1 << i)))
+      if (!(nvc0->samplers_dirty[s] & (1ull << i)))
          continue;
       if (!tsc) {
          commands[n++] = (i << 4) | 0;
@@ -701,7 +701,7 @@ nve4_validate_tsc(struct nvc0_context *nvc0, int s)
    }
    for (; i < nvc0->state.num_samplers[s]; ++i) {
       nvc0->tex_handles[s][i] |= NVE4_TSC_ENTRY_INVALID;
-      nvc0->samplers_dirty[s] |= 1 << i;
+      nvc0->samplers_dirty[s] |= 1ull << i;
    }
 
    nvc0->state.num_samplers[s] = nvc0->num_samplers[s];
@@ -727,7 +727,7 @@ void nvc0_validate_samplers(struct nvc0_context *nvc0)
    }
 
    /* Invalidate all CP samplers because they are aliased. */
-   nvc0->samplers_dirty[5] = ~0;
+   nvc0->samplers_dirty[5] = ~0ull;
    nvc0->dirty_cp |= NVC0_NEW_CP_SAMPLERS;
 }
 
@@ -746,7 +746,7 @@ nve4_set_tex_handles(struct nvc0_context *nvc0)
       return;
 
    for (s = 0; s < 5; ++s) {
-      uint32_t dirty = nvc0->textures_dirty[s] | nvc0->samplers_dirty[s];
+      uint64_t dirty = nvc0->textures_dirty[s] | nvc0->samplers_dirty[s];
       if (!dirty)
          continue;
       BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);

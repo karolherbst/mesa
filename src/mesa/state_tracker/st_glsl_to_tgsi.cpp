@@ -188,7 +188,7 @@ public:
    unsigned num_atomics;
    unsigned num_atomic_arrays;
    int num_address_regs;
-   uint32_t samplers_used;
+   uint64_t samplers_used;
    glsl_base_type sampler_types[PIPE_MAX_SAMPLERS];
    enum tgsi_texture_type sampler_targets[PIPE_MAX_SAMPLERS];
    int images_used;
@@ -4588,7 +4588,7 @@ count_resources(glsl_to_tgsi_visitor *v, gl_program *prog)
       if (inst->info->is_tex) {
          for (int i = 0; i < inst->sampler_array_size; i++) {
             unsigned idx = inst->sampler_base + i;
-            v->samplers_used |= 1u << idx;
+            v->samplers_used |= 1ull << idx;
 
             debug_assert(idx < (int)ARRAY_SIZE(v->sampler_types));
             v->sampler_types[idx] = inst->tex_type;
@@ -6660,7 +6660,7 @@ st_translate_program(
 
    /* texture samplers */
    for (i = 0; i < frag_const->MaxTextureImageUnits; i++) {
-      if (program->samplers_used & (1u << i)) {
+      if (program->samplers_used & (1ull << i)) {
          enum tgsi_return_type type =
             st_translate_texture_type(program->sampler_types[i]);
 

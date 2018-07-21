@@ -1620,8 +1620,8 @@ _mesa_sampler_uniforms_pipeline_are_valid(struct gl_pipeline_object *pipeline)
     *           maximum number of texture image units allowed."
     */
 
-   GLbitfield mask;
-   GLbitfield TexturesUsed[MAX_COMBINED_TEXTURE_IMAGE_UNITS];
+   GLbitfield64 mask;
+   GLbitfield64 TexturesUsed[MAX_COMBINED_TEXTURE_IMAGE_UNITS];
    unsigned active_samplers = 0;
    const struct gl_program **prog =
       (const struct gl_program **) pipeline->CurrentProgram;
@@ -1635,7 +1635,7 @@ _mesa_sampler_uniforms_pipeline_are_valid(struct gl_pipeline_object *pipeline)
 
       mask = prog[idx]->SamplersUsed;
       while (mask) {
-         const int s = u_bit_scan(&mask);
+         const int s = u_bit_scan64(&mask);
          GLuint unit = prog[idx]->SamplerUnits[s];
          GLuint tgt = prog[idx]->sh.SamplerTargets[s];
 
@@ -1646,7 +1646,7 @@ _mesa_sampler_uniforms_pipeline_are_valid(struct gl_pipeline_object *pipeline)
          if (unit == 0)
             continue;
 
-         if (TexturesUsed[unit] & ~(1 << tgt)) {
+         if (TexturesUsed[unit] & ~(1ull << tgt)) {
             pipeline->InfoLog =
                ralloc_asprintf(pipeline,
                      "Program %d: "
@@ -1655,7 +1655,7 @@ _mesa_sampler_uniforms_pipeline_are_valid(struct gl_pipeline_object *pipeline)
             return false;
          }
 
-         TexturesUsed[unit] |= (1 << tgt);
+         TexturesUsed[unit] |= (1ull << tgt);
       }
 
       active_samplers += prog[idx]->info.num_textures;

@@ -312,7 +312,7 @@ nve4_compute_validate_samplers(struct nvc0_context *nvc0)
 
    /* Invalidate all 3D samplers because they are aliased. */
    for (int s = 0; s < 5; s++)
-      nvc0->samplers_dirty[s] = ~0;
+      nvc0->samplers_dirty[s] = ~0ull;
    nvc0->dirty_3d |= NVC0_NEW_3D_SAMPLERS;
 }
 
@@ -332,12 +332,12 @@ nve4_compute_set_tex_handles(struct nvc0_context *nvc0)
    uint64_t address;
    const unsigned s = nvc0_shader_stage(PIPE_SHADER_COMPUTE);
    unsigned i, n;
-   uint32_t dirty = nvc0->textures_dirty[s] | nvc0->samplers_dirty[s];
+   uint64_t dirty = nvc0->textures_dirty[s] | nvc0->samplers_dirty[s];
 
    if (!dirty)
       return;
    i = ffs(dirty) - 1;
-   n = util_logbase2(dirty) + 1 - i;
+   n = util_logbase2_64(dirty) + 1 - i;
    assert(n);
 
    address = screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s);
@@ -774,7 +774,7 @@ nve4_compute_validate_textures(struct nvc0_context *nvc0)
    for (i = 0; i < nvc0->num_textures[s]; ++i) {
       struct nv50_tic_entry *tic = nv50_tic_entry(nvc0->textures[s][i]);
       struct nv04_resource *res;
-      const bool dirty = !!(nvc0->textures_dirty[s] & (1 << i));
+      const bool dirty = !!(nvc0->textures_dirty[s] & (1ull << i));
 
       if (!tic) {
          nvc0->tex_handles[s][i] |= NVE4_TIC_ENTRY_INVALID;
@@ -814,7 +814,7 @@ nve4_compute_validate_textures(struct nvc0_context *nvc0)
    }
    for (; i < nvc0->state.num_textures[s]; ++i) {
       nvc0->tex_handles[s][i] |= NVE4_TIC_ENTRY_INVALID;
-      nvc0->textures_dirty[s] |= 1 << i;
+      nvc0->textures_dirty[s] |= 1ull << i;
    }
 
    if (n[0]) {
@@ -832,7 +832,7 @@ nve4_compute_validate_textures(struct nvc0_context *nvc0)
    for (int s = 0; s < 5; s++) {
       for (int i = 0; i < nvc0->num_textures[s]; i++)
          nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_3D_TEX(s, i));
-      nvc0->textures_dirty[s] = ~0;
+      nvc0->textures_dirty[s] = ~0ull;
    }
    nvc0->dirty_3d |= NVC0_NEW_3D_TEXTURES;
 }

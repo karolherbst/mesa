@@ -2065,7 +2065,7 @@ struct gl_program
    /** TEXTURE_x_BIT bitmask */
    GLbitfield16 TexturesUsed[MAX_COMBINED_TEXTURE_IMAGE_UNITS];
    /** Bitfield of which samplers are used */
-   GLbitfield SamplersUsed;
+   GLbitfield64 SamplersUsed;
    /** Texture units used for shadow sampling. */
    GLbitfield ShadowSamplers;
    /** Texture units used for samplerExternalOES */

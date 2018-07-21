@@ -100,7 +100,7 @@ void
 _mesa_update_shader_textures_used(struct gl_shader_program *shProg,
                                   struct gl_program *prog)
 {
-   GLbitfield mask = prog->SamplersUsed;
+   GLbitfield64 mask = prog->SamplersUsed;
    gl_shader_stage prog_stage =
       _mesa_program_enum_to_shader_stage(prog->Target);
    MAYBE_UNUSED struct gl_linked_shader *shader =
@@ -112,7 +112,7 @@ _mesa_update_shader_textures_used(struct gl_shader_program *shProg,
    memset(prog->TexturesUsed, 0, sizeof(prog->TexturesUsed));
 
    while (mask) {
-      s = u_bit_scan(&mask);
+      s = u_bit_scan64(&mask);
 
       update_single_shader_texture_used(shProg, prog,
                                         prog->SamplerUnits[s],

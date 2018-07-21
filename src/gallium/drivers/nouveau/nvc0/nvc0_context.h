@@ -218,11 +218,11 @@ struct nvc0_context {
 
    struct pipe_sampler_view *textures[6][PIPE_MAX_SAMPLERS];
    unsigned num_textures[6];
-   uint32_t textures_dirty[6];
-   uint32_t textures_coherent[6];
+   uint64_t textures_dirty[6];
+   uint64_t textures_coherent[6];
    struct nv50_tsc_entry *samplers[6][PIPE_MAX_SAMPLERS];
    unsigned num_samplers[6];
-   uint32_t samplers_dirty[6];
+   uint64_t samplers_dirty[6];
    bool seamless_cube_map;
    struct pipe_sampler_view *fbtexture;
 

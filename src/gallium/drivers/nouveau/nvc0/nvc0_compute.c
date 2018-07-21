@@ -151,7 +151,7 @@ nvc0_compute_validate_samplers(struct nvc0_context *nvc0)
 
    /* Invalidate all 3D samplers because they are aliased. */
    for (int s = 0; s < 5; s++)
-      nvc0->samplers_dirty[s] = ~0;
+      nvc0->samplers_dirty[s] = ~0ull;
    nvc0->dirty_3d |= NVC0_NEW_3D_SAMPLERS;
 }
 
@@ -168,7 +168,7 @@ nvc0_compute_validate_textures(struct nvc0_context *nvc0)
    for (int s = 0; s < 5; s++) {
       for (int i = 0; i < nvc0->num_textures[s]; i++)
          nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_3D_TEX(s, i));
-      nvc0->textures_dirty[s] = ~0;
+      nvc0->textures_dirty[s] = ~0ull;
    }
    nvc0->dirty_3d |= NVC0_NEW_3D_TEXTURES;
 }

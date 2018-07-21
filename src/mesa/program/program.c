@@ -78,7 +78,7 @@ _mesa_init_program(struct gl_context *ctx)
    assert(ctx->Const.Program[MESA_SHADER_FRAGMENT].MaxAddressOffset <= (1 << INST_INDEX_BITS));
 
    /* If this fails, increase prog_instruction::TexSrcUnit size */
-   STATIC_ASSERT(MAX_TEXTURE_UNITS <= (1 << 5));
+   STATIC_ASSERT(MAX_TEXTURE_UNITS <= (1 << 6));
 
    /* If this fails, increase prog_instruction::TexSrcTarget size */
    STATIC_ASSERT(NUM_TEXTURE_TARGETS <= (1 << 4));

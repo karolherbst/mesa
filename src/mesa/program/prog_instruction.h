@@ -237,7 +237,7 @@ struct prog_instruction
     */
    /*@{*/
    /** Source texture unit. */
-   GLuint TexSrcUnit:5;
+   GLuint TexSrcUnit:6;
 
    /** Source texture target, one of TEXTURE_{1D,2D,3D,CUBE,RECT}_INDEX */
    GLuint TexSrcTarget:4;

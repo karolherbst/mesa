@@ -136,7 +136,7 @@ public:
    unsigned precise:1;
    unsigned saturate:1;
    unsigned is_64bit_expanded:1;
-   unsigned sampler_base:5;
+   unsigned sampler_base:6;
    unsigned sampler_array_size:6; /**< 1-based size of sampler array, 1 if not array */
    gl_texture_index tex_target:5;
    glsl_base_type tex_type:6;

@@ -61,7 +61,7 @@ extern "C" {
 #define PIPE_MAX_CLIP_PLANES       8
 #define PIPE_MAX_COLOR_BUFS        8
 #define PIPE_MAX_CONSTANT_BUFFERS 32
-#define PIPE_MAX_SAMPLERS         32
+#define PIPE_MAX_SAMPLERS         64
 #define PIPE_MAX_SHADER_INPUTS    80 /* 32 GENERIC + 32 PATCH + 16 others */
 #define PIPE_MAX_SHADER_OUTPUTS   80 /* 32 GENERIC + 32 PATCH + 16 others */
 #define PIPE_MAX_SHADER_SAMPLER_VIEWS 128

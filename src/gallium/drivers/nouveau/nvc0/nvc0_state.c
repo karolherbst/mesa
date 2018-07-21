@@ -471,7 +471,7 @@ nvc0_stage_sampler_states_bind(struct nvc0_context *nvc0,
 
       if (hwcso[i] == old)
          continue;
-      nvc0->samplers_dirty[s] |= 1 << i;
+      nvc0->samplers_dirty[s] |= 1ull << i;
 
       nvc0->samplers[s][i] = nv50_tsc_entry(hwcso[i]);
       if (old)
@@ -528,17 +528,17 @@ nvc0_stage_set_sampler_views(struct nvc0_context *nvc0, int s,
 
       if (views[i] == nvc0->textures[s][i])
          continue;
-      nvc0->textures_dirty[s] |= 1 << i;
+      nvc0->textures_dirty[s] |= 1ull << i;
 
       if (views[i] && views[i]->texture) {
          struct pipe_resource *res = views[i]->texture;
          if (res->target == PIPE_BUFFER &&
              (res->flags & PIPE_RESOURCE_FLAG_MAP_COHERENT))
-            nvc0->textures_coherent[s] |= 1 << i;
+            nvc0->textures_coherent[s] |= 1ull << i;
          else
-            nvc0->textures_coherent[s] &= ~(1 << i);
+            nvc0->textures_coherent[s] &= ~(1ull << i);
       } else {
-         nvc0->textures_coherent[s] &= ~(1 << i);
+         nvc0->textures_coherent[s] &= ~(1ull << i);
       }
 
       if (old) {

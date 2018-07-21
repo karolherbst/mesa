@@ -276,7 +276,7 @@ nvc0_invalidate_resource_storage(struct nouveau_context *ctx,
          for (i = 0; i < nvc0->num_textures[s]; ++i) {
             if (nvc0->textures[s][i] &&
                 nvc0->textures[s][i]->texture == res) {
-               nvc0->textures_dirty[s] |= 1 << i;
+               nvc0->textures_dirty[s] |= 1ull << i;
                if (unlikely(s == 5)) {
                   nvc0->dirty_cp |= NVC0_NEW_CP_TEXTURES;
                   nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_TEX(i));
