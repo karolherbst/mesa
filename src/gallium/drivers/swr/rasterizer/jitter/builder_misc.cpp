@@ -754,17 +754,7 @@ namespace SwrJit
 
     Value* Builder::FMADDPS(Value* a, Value* b, Value* c)
     {
-        Value* vOut;
-        // use FMADs if available
-        if (JM()->mArch.AVX2())
-        {
-            vOut = VFMADDPS(a, b, c);
-        }
-        else
-        {
-            vOut = FADD(FMUL(a, b), c);
-        }
-        return vOut;
+        return FADD(FMUL(a, b), c); // llvm automatically optimizes this to VFMADDPS
     }
 
     //////////////////////////////////////////////////////////////////////////
