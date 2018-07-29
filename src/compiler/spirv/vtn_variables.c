@@ -513,7 +513,7 @@ _vtn_local_load_store(struct vtn_builder *b, bool load, nir_deref_instr *deref,
       if (load) {
          inout->def = nir_load_deref(&b->nb, deref);
       } else {
-         nir_store_deref(&b->nb, deref, nir_address_from_ssa(&b->nb, inout->def), ~0);
+         nir_store_deref(&b->nb, deref, inout->def, ~0);
       }
    } else if (glsl_type_is_array(deref->type) ||
               glsl_type_is_matrix(deref->type)) {
@@ -1011,11 +1011,7 @@ vtn_variable_store(struct vtn_builder *b, struct vtn_ssa_value *src,
        * and handle the store_deref directly:
        */
       nir_deref_instr *deref = vtn_pointer_to_deref(b, dest);
-      nir_ssa_def *def = nir_address_from_ssa(&b->nb, src->def);
-      if (deref->dest.ssa.num_components == 1 && def->num_components == 2) {
-         def = nir_channel(&b->nb, def, 0);
-      }
-      nir_store_deref(&b->nb, deref, def, ~0);
+      nir_store_deref(&b->nb, deref, src->def, ~0);
    } else if (vtn_pointer_is_external_block(b, dest)) {
       vtn_assert(dest->mode == vtn_variable_mode_ssbo ||
                  dest->mode == vtn_variable_mode_workgroup);
@@ -2071,16 +2067,7 @@ vtn_handle_variables(struct vtn_builder *b, SpvOp opcode,
          struct vtn_value *link_val = vtn_untyped_value(b, w[i]);
          if (link_val->value_type == vtn_value_type_constant) {
             chain->link[idx].mode = vtn_access_mode_literal;
-            switch (glsl_get_base_type(link_val->type->type)) {
-            case GLSL_TYPE_UINT:
-               chain->link[idx].id = link_val->constant->values[0].u32[0];
-               break;
-            case GLSL_TYPE_UINT64:
-               chain->link[idx].id = link_val->constant->values[0].u64[0];
-               break;
-            default:
-               vtn_fail("unsupported glsl base type");
-            }
+            chain->link[idx].id = link_val->constant->values[0].u32[0];
          } else {
             chain->link[idx].mode = vtn_access_mode_id;
             chain->link[idx].id = w[i];
@@ -2149,14 +2136,7 @@ vtn_handle_variables(struct vtn_builder *b, SpvOp opcode,
          return;
       }
 
-      struct vtn_ssa_value *val = vtn_variable_load(b, src);
-      if (res_type->base_type == vtn_base_type_phys_pointer &&
-          val->def->num_components == 1) {
-         nir_variable_mode nir_mode;
-         vtn_storage_class_to_mode(b, src->ptr_type->storage_class, src->ptr_type, &nir_mode);
-         val->def = nir_build_fptr(&b->nb, val->def, nir_mode);
-      }
-      vtn_push_ssa(b, w[2], res_type, val);
+      vtn_push_ssa(b, w[2], res_type, vtn_variable_load(b, src));
       break;
    }
 

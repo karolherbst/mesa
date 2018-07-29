@@ -400,7 +400,7 @@ enum vtn_access_mode {
 
 struct vtn_access_link {
    enum vtn_access_mode mode;
-   uint64_t id;
+   uint32_t id;
 };
 
 struct vtn_access_chain {
