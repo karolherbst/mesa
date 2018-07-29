@@ -212,39 +212,13 @@ vtn_handle_matrix_alu(struct vtn_builder *b, SpvOp opcode,
 }
 
 static void
-vtn_handle_bitcast(struct vtn_builder *b, struct vtn_value *vtn_dest,
-                   struct vtn_value *vtn_src, struct vtn_ssa_value *vtn_ssa)
+vtn_handle_bitcast(struct vtn_builder *b, struct vtn_ssa_value *dest,
+                   struct nir_ssa_def *src)
 {
-   struct vtn_ssa_value *dest = vtn_dest->ssa;
-   struct nir_ssa_def *src = nir_address_from_ssa(&b->nb, vtn_ssa->def);
+   /* in case the src is a deref instruction, recover the pointer: */
+   src = nir_address_from_ssa(&b->nb, src);
 
-   /* casts between generic pointer and non pointer types are undefined
-    * behaviour */
-   if ((vtn_src->type->base_type == vtn_base_type_phys_pointer &&
-        vtn_src->type->storage_class == SpvStorageClassGeneric &&
-        vtn_dest->type->base_type != vtn_base_type_phys_pointer) ||
-       (vtn_src->type->base_type != vtn_base_type_phys_pointer &&
-        vtn_dest->type->base_type == vtn_base_type_phys_pointer &&
-        vtn_dest->type->storage_class == SpvStorageClassGeneric))
-      vtn_fail("cast between generic pointers and non pointer types not supported!");
-
-   nir_variable_mode nir_mode;
-   if (vtn_dest->type->base_type == vtn_base_type_phys_pointer &&
-       vtn_dest->type->storage_class != SpvStorageClassGeneric)
-      vtn_storage_class_to_mode(b, vtn_dest->type->storage_class,
-                                vtn_dest->type, &nir_mode);
-
-   /* if fat ptrs get involved, things are a bit different. the .y component of
-    * the result is set to the result types address space */
-   if (vtn_src->type->base_type == vtn_base_type_phys_pointer)
-      src = nir_channel(&b->nb, src, 0);
-
-   if ((vtn_dest->type->base_type == vtn_base_type_phys_pointer &&
-        vtn_src->type->base_type == vtn_base_type_phys_pointer) ||
-       (vtn_dest->type->base_type == vtn_base_type_phys_pointer &&
-        src->num_components == 1) ||
-       (vtn_src->type->base_type == vtn_base_type_phys_pointer &&
-        glsl_get_vector_elements(dest->type) == 1)) {
+   if (glsl_get_vector_elements(dest->type) == src->num_components) {
       /* From the definition of OpBitcast in the SPIR-V 1.2 spec:
        *
        * "If Result Type has the same number of components as Operand, they
@@ -252,19 +226,6 @@ vtn_handle_bitcast(struct vtn_builder *b, struct vtn_value *vtn_dest,
        * component."
        */
       dest->def = nir_imov(&b->nb, src);
-
-      if (vtn_dest->type->base_type == vtn_base_type_phys_pointer &&
-          vtn_dest->type->storage_class == SpvStorageClassGeneric &&
-          vtn_src->type->base_type == vtn_base_type_phys_pointer &&
-          vtn_src->type->storage_class == SpvStorageClassGeneric)
-         return;
-
-      /* append the fat ptr type to the result */
-      if (vtn_dest->type->base_type == vtn_base_type_phys_pointer &&
-          vtn_dest->type->storage_class != SpvStorageClassGeneric)
-         dest->def = nir_vec2(&b->nb, dest->def,
-                              nir_imm_intN_t(&b->nb, nir_mode,
-                                             dest->def->bit_size));
       return;
    }
 
@@ -547,12 +508,9 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
 
    /* Collect the various SSA sources */
    const unsigned num_inputs = count - 3;
-   struct vtn_value *vtn_val[4] = { NULL, };
    struct vtn_ssa_value *vtn_src[4] = { NULL, };
-   for (unsigned i = 0; i < num_inputs; i++) {
-      vtn_val[i] = vtn_untyped_value(b, w[i + 3]);
+   for (unsigned i = 0; i < num_inputs; i++)
       vtn_src[i] = vtn_ssa_value(b, w[i + 3]);
-   }
 
    if (glsl_type_is_matrix(vtn_src[0]->type) ||
        (num_inputs >= 2 && glsl_type_is_matrix(vtn_src[1]->type))) {
@@ -565,16 +523,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    nir_ssa_def *src[4] = { NULL, };
    for (unsigned i = 0; i < num_inputs; i++) {
       vtn_assert(glsl_type_is_vector_or_scalar(vtn_src[i]->type));
-      /* for fat ptrs we only do alu instructions on the first component
-       * by default.
-       * OpBitcast needs special handling for typed -> generic pointer casts
-       */
-      if (vtn_val[i]->type->base_type == vtn_base_type_phys_pointer &&
-          vtn_src[i]->def->num_components > 1 &&
-          opcode != SpvOpBitcast)
-         src[i] = nir_channel(&b->nb, vtn_src[i]->def, 0);
-      else
-         src[i] = vtn_src[i]->def;
+      src[i] = vtn_src[i]->def;
    }
 
    switch (opcode) {
@@ -761,7 +710,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    }
 
    case SpvOpBitcast:
-      vtn_handle_bitcast(b, val, vtn_val[0], vtn_src[0]);
+      vtn_handle_bitcast(b, val->ssa, src[0]);
       break;
 
    case SpvOpConvertPtrToU: {
