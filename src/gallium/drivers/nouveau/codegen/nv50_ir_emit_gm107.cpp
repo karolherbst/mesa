@@ -4122,6 +4122,7 @@ SchedDataCalculatorGM107::setDelay(Instruction *insn, int delay,
       delay = CLAMP(delay, GM107_MIN_ISSUE_DELAY, GM107_MAX_ISSUE_DELAY);
    } else {
       delay = 0x0; // dual-issue
+      insn->bb->getProgram()->dualIssues++;
    }
 
    wr = getWrDepBar(insn);

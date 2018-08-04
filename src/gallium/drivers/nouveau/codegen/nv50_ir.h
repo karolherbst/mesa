@@ -1315,6 +1315,7 @@ public:
 
    int maxGPR;
    bool fp64;
+   int dualIssues;
 
    MemoryPool mem_Instruction;
    MemoryPool mem_CmpInstruction;
