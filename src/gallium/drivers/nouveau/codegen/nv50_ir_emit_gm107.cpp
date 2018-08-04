@@ -3494,7 +3494,7 @@ CodeEmitterGM107::getMinEncodingSize(const Instruction *i) const
 class SchedDataCalculatorGM107 : public Pass
 {
 public:
-   SchedDataCalculatorGM107(const TargetGM107 *targ) : targ(targ) {}
+   SchedDataCalculatorGM107(const TargetGM107 *targ) : lastDualIssued(false), targ(targ) {}
 
 private:
    struct RegScores
@@ -3590,6 +3590,7 @@ private:
 
    RegScores *score; // for current BB
    std::vector<RegScores> scoreBoards;
+   bool lastDualIssued;
 
    const TargetGM107 *targ;
    bool visit(Function *);
@@ -3867,17 +3868,19 @@ SchedDataCalculatorGM107::setDelay(Instruction *insn, int delay,
       delay = 0xd;
    }
 
-   if (!next || !targ->canDualIssue(insn, next)) {
+   if (lastDualIssued || !next || delay > 1 || !targ->canDualIssue(insn, next)) {
       delay = CLAMP(delay, GM107_MIN_ISSUE_DELAY, GM107_MAX_ISSUE_DELAY);
+      lastDualIssued = false;
    } else {
       delay = 0x0; // dual-issue
+      lastDualIssued = true;
       insn->bb->getProgram()->dualIssues++;
    }
 
    wr = getWrDepBar(insn);
    rd = getRdDepBar(insn);
 
-   if (delay == GM107_MIN_ISSUE_DELAY && (wr & rd) != 7) {
+   if (delay <= GM107_MIN_ISSUE_DELAY && (wr & rd) != 7) {
       // Barriers take one additional clock cycle to become active on top of
       // the clock consumed by the instruction producing it.
       if (!next || insn->bb != next->bb) {
@@ -3890,6 +3893,8 @@ SchedDataCalculatorGM107::setDelay(Instruction *insn, int delay,
    }
 
    emitStall(insn, delay);
+   if (lastDualIssued)
+      emitYield(insn);
 }
 
 
