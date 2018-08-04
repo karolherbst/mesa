@@ -1119,6 +1119,7 @@ Program::Program(Type type, Target *arch)
    binSize = 0;
 
    maxGPR = -1;
+   dualIssues = 0;
 
    main = new Function(this, "MAIN", ~0);
    calls.insert(&main->call);
@@ -1283,6 +1284,7 @@ out:
    INFO_DBG(prog->dbgFlags, VERBOSE, "nv50_ir_generate_code: ret = %i\n", ret);
 
    info->bin.maxGPR = prog->maxGPR;
+   info->bin.dualIssues = prog->dualIssues;
    info->bin.code = prog->code;
    info->bin.codeSize = prog->binSize;
    info->bin.tlsSpace = prog->tlsSize;

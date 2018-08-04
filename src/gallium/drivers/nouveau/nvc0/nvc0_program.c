@@ -699,10 +699,10 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
                                                 &prog->pipe.stream_output);
 
    pipe_debug_message(debug, SHADER_INFO,
-                      "type: %d, local: %d, shared: %d, gpr: %d, inst: %d, bytes: %d",
+                      "type: %d, local: %d, shared: %d, gpr: %d, inst: %d, bytes: %d, dual_issue: %f",
                       prog->type, info->bin.tlsSpace, info->bin.smemSize,
                       prog->num_gprs, info->bin.instructions,
-                      info->bin.codeSize);
+                      info->bin.codeSize, (float)info->bin.dualIssues / info->bin.instructions);
 
 #ifdef DEBUG
    if (debug_get_option("NV50_PROG_CHIPSET", NULL) && info->dbgFlags)

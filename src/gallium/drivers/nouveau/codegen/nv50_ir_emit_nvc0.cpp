@@ -3194,6 +3194,7 @@ SchedDataCalculator::setDelay(Instruction *insn, int delay, Instruction *next)
          insn->sched |= 0x20;
    } else {
       insn->sched = 0x04; // dual-issue
+      insn->bb->getProgram()->dualIssues++;
    }
 
    if (prevData != 0x04 || prevOp != OP_EXPORT)
