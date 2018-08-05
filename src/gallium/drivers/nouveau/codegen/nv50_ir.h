@@ -1032,6 +1032,8 @@ public:
 
       enum TexQuery query;
       const struct ImgFormatDesc *format;
+
+      bool scalar; // for GM107s TEXS, TLDS, TLD4S
    } tex;
 
    ValueRef dPdx[3];
