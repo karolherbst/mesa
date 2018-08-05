@@ -353,6 +353,31 @@ static const char *interpStr[16] =
    "samp sc"
 };
 
+static const char *texMaskStr[16] =
+{
+   "",
+   "r",
+   "g",
+   "rg",
+   "b",
+   "rb",
+   "gb",
+   "rgb",
+   "a",
+   "ra",
+   "ga",
+   "rga",
+   "ba",
+   "rba",
+   "gba",
+   "rgba",
+};
+
+static const char *gatherCompStr[4] =
+{
+   "r", "g", "b", "a",
+};
+
 #define PRINT(args...)                                \
    do {                                               \
       pos += snprintf(&buf[pos], size - pos, args);   \
@@ -633,8 +658,10 @@ void Instruction::print() const
       if (perPatch)
          PRINT("patch ");
       if (asTex())
-         PRINT("%s %s$r%u $s%u %s", asTex()->tex.target.getName(),
+         PRINT("%s %s$r%u $s%u %s %s", asTex()->tex.target.getName(),
                colour[TXT_MEM], asTex()->tex.r, asTex()->tex.s,
+               op == OP_TXG ? gatherCompStr[asTex()->tex.gatherComp]
+                            : texMaskStr[asTex()->tex.mask],
                colour[TXT_INSN]);
       if (postFactor)
          PRINT("x2^%i ", postFactor);
