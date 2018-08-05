@@ -274,6 +274,9 @@ private:
       void texConstraintNVE0(TexInstruction *);
       void texConstraintGM107(TexInstruction *);
 
+      bool isScalarTexGM107(TexInstruction *);
+      void handleScalarTexGM107(TexInstruction *);
+
       std::list<Instruction *> constrList;
 
       const Target *targ;
@@ -2106,6 +2109,58 @@ RegAlloc::InsertConstraintsPass::condenseSrcs(Instruction *insn,
    constrList.push_back(merge);
 }
 
+bool
+RegAlloc::InsertConstraintsPass::isScalarTexGM107(TexInstruction *tex)
+{
+   if (tex->tex.rIndirectSrc >= 0)
+      return false;
+
+   if (tex->tex.mask == 5 || tex->tex.mask == 6)
+      return false;
+
+   switch (tex->op) {
+   case OP_TEX:
+      break;
+   default:
+      return false;
+   }
+
+   // legal variants:
+   // TEXS.1D.LZ
+   // TEXS.2D
+   // TEXS.2D.LZ
+   // TEXS.2D.LL
+   // TEXS.2D.DC
+   // TEXS.2D.LL.DC
+   // TEXS.2D.LZ.DC
+   // TEXS.A2D
+   // TEXS.A2D.LZ
+   // TEXS.A2D.LZ.DC
+   // TEXS.3D
+   // TEXS.3D.LZ
+   // TEXS.CUBE
+   // TEXS.CUBE.LL
+
+   switch (tex->tex.target.getEnum()) {
+   case TEX_TARGET_2D:
+      return true;
+   default:
+      return false;
+   }
+}
+
+void
+RegAlloc::InsertConstraintsPass::handleScalarTexGM107(TexInstruction *tex)
+{
+   tex->tex.scalar = true;
+
+   // 1. handle dests
+   if (tex->defExists(3))
+      condenseDefs(tex, 2, 3);
+   if (tex->defExists(1))
+      condenseDefs(tex, 0, 1);
+}
+
 void
 RegAlloc::InsertConstraintsPass::texConstraintGM107(TexInstruction *tex)
 {
@@ -2113,6 +2168,12 @@ RegAlloc::InsertConstraintsPass::texConstraintGM107(TexInstruction *tex)
 
    if (isTextureOp(tex->op))
       textureMask(tex);
+
+   if (isScalarTexGM107(tex)) {
+      handleScalarTexGM107(tex);
+      return;
+   }
+
    condenseDefs(tex);
 
    if (isSurfaceOp(tex->op)) {

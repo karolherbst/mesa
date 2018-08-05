@@ -191,6 +191,7 @@ private:
 
    void emitTEXs(int);
    void emitTEX();
+   void emitTEXS();
    void emitTLD();
    void emitTLD4();
    void emitTXD();
@@ -2656,6 +2657,44 @@ CodeEmitterGM107::emitTEXs(int pos)
       emitGPR(pos);
 }
 
+static uint8_t
+getTEXSMask(uint8_t mask)
+{
+   switch (mask) {
+   case 0x1: return 0x0;
+   case 0x2: return 0x1;
+   case 0x3: return 0x4;
+   case 0x4: return 0x2;
+   case 0x7: return 0x0;
+   case 0x8: return 0x3;
+   case 0x9: return 0x5;
+   case 0xa: return 0x6;
+   case 0xb: return 0x1;
+   case 0xc: return 0x7;
+   case 0xd: return 0x2;
+   case 0xe: return 0x3;
+   case 0xf: return 0x4;
+   default:
+      assert(!"invalid mask");
+   }
+}
+
+static uint8_t
+getTEXSTarget(const TexInstruction::Target &targ)
+{
+   if (targ == TEX_TARGET_1D)
+      return 0x0;
+   if (targ == TEX_TARGET_2D)
+      return 0x1; // 0x6
+   if (targ == TEX_TARGET_2D_ARRAY)
+      return 0x7; // 0x9
+   if (targ == TEX_TARGET_3D)
+      return 0xa; // 0xb
+   if (targ == TEX_TARGET_CUBE)
+      return 0xc; // 0xd
+   return 0xff;
+}
+
 void
 CodeEmitterGM107::emitTEX()
 {
@@ -2696,6 +2735,22 @@ CodeEmitterGM107::emitTEX()
    emitTEXs (0x14);
    emitGPR  (0x08, insn->src(0));
    emitGPR  (0x00, insn->def(0));
+}
+
+void
+CodeEmitterGM107::emitTEXS()
+{
+   const TexInstruction *tex = this->insn->asTex();
+
+   emitInsn (0xd8000000);
+   emitField(0x35, 4, getTEXSTarget(tex->tex.target));
+   emitField(0x32, 3, getTEXSMask(tex->tex.mask));
+   emitField(0x31, 1, tex->tex.liveOnly);
+   emitField(0x24, 13, tex->tex.r);
+   emitGPR  (0x1c, insn->getDef(1));
+   emitGPR  (0x14, insn->getSrc(1));
+   emitGPR  (0x08, insn->getSrc(0));
+   emitGPR  (0x00, insn->getDef(0));
 }
 
 void
@@ -3411,7 +3466,10 @@ CodeEmitterGM107::emitInstruction(Instruction *i)
    case OP_TEX:
    case OP_TXB:
    case OP_TXL:
-      emitTEX();
+      if (insn->asTex()->tex.scalar)
+         emitTEXS();
+      else
+         emitTEX();
       break;
    case OP_TXF:
       emitTLD();
