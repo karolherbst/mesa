@@ -354,7 +354,7 @@ radv_physical_device_init(struct radv_physical_device *device,
 		(device->instance->perftest_flags & RADV_PERFTEST_DCC_MSAA);
 
 	radv_physical_device_init_mem_types(device);
-	radv_fill_device_extension_table(device, &device->supported_extensions);
+	radv_physical_device_get_supported_extensions(device, &device->supported_extensions);
 
 	result = radv_init_wsi(device);
 	if (result != VK_SUCCESS) {
@@ -540,7 +540,7 @@ VkResult radv_CreateInstance(
 		const char *ext_name = pCreateInfo->ppEnabledExtensionNames[i];
 		int index = radv_get_instance_extension_index(ext_name);
 
-		if (index < 0 || !radv_supported_instance_extensions.extensions[index]) {
+		if (index < 0 || !radv_instance_extensions_supported.extensions[index]) {
 			vk_free2(&default_alloc, pAllocator, instance);
 			return vk_error(instance, VK_ERROR_EXTENSION_NOT_PRESENT);
 		}
@@ -2677,7 +2677,7 @@ VkResult radv_EnumerateInstanceExtensionProperties(
 	VK_OUTARRAY_MAKE(out, pProperties, pPropertyCount);
 
 	for (int i = 0; i < RADV_INSTANCE_EXTENSION_COUNT; i++) {
-		if (radv_supported_instance_extensions.extensions[i]) {
+		if (radv_instance_extensions_supported.extensions[i]) {
 			vk_outarray_append(&out, prop) {
 				*prop = radv_instance_extensions[i];
 			}
@@ -2713,10 +2713,35 @@ PFN_vkVoidFunction radv_GetInstanceProcAddr(
 {
 	RADV_FROM_HANDLE(radv_instance, instance, _instance);
 
-	return radv_lookup_entrypoint_checked(pName,
-	                                      instance ? instance->apiVersion : 0,
-	                                      instance ? &instance->enabled_extensions : NULL,
-	                                      NULL);
+	/* The Vulkan 1.0 spec for vkGetInstanceProcAddr has a table of exactly
+	 * when we have to return valid function pointers, NULL, or it's left
+	 * undefined.  See the table for exact details.
+	 */
+	if (pName == NULL)
+		return NULL;
+
+#define LOOKUP_RADV_ENTRYPOINT(entrypoint) \
+	if (strcmp(pName, "vk" #entrypoint) == 0) \
+		return (PFN_vkVoidFunction)radv_##entrypoint
+
+	LOOKUP_RADV_ENTRYPOINT(EnumerateInstanceExtensionProperties);
+	LOOKUP_RADV_ENTRYPOINT(EnumerateInstanceLayerProperties);
+	LOOKUP_RADV_ENTRYPOINT(EnumerateInstanceVersion);
+	LOOKUP_RADV_ENTRYPOINT(CreateInstance);
+
+#undef LOOKUP_RADV_ENTRYPOINT
+
+	if (instance == NULL)
+		return NULL;
+
+	int idx = radv_get_entrypoint_index(pName);
+	if (idx < 0)
+		return NULL;
+
+	if (!radv_entrypoint_is_enabled(idx, instance->apiVersion, &instance->enabled_extensions, NULL))
+		return NULL;
+
+	return radv_dispatch_table.entrypoints[idx];
 }
 
 /* The loader wants us to expose a second GetInstanceProcAddr function
@@ -2741,10 +2766,19 @@ PFN_vkVoidFunction radv_GetDeviceProcAddr(
 {
 	RADV_FROM_HANDLE(radv_device, device, _device);
 
-	return radv_lookup_entrypoint_checked(pName,
-	                                      device->instance->apiVersion,
-	                                      &device->instance->enabled_extensions,
-	                                      &device->enabled_extensions);
+	if (!device || !pName)
+		return NULL;
+
+	int idx = radv_get_entrypoint_index(pName);
+	if (idx < 0)
+		return NULL;
+
+	if (!radv_entrypoint_is_enabled(idx, device->instance->apiVersion,
+	                                &device->instance->enabled_extensions,
+	                                &device->enabled_extensions))
+		return NULL;
+
+	return radv_dispatch_table.entrypoints[idx];
 }
 
 bool radv_get_memory_fd(struct radv_device *device,

@@ -21,6 +21,11 @@
 
 include Makefile.sources
 
+vulkan_api_generators_py = \
+	$(top_srcdir)/src/vulkan/util/vk_entrypoints_gen.py \
+	$(top_srcdir)/src/vulkan/util/vk_extensions_gen.py \
+	$(top_srcdir)/src/vulkan/util/vk_extensions.py
+
 noinst_HEADERS = \
 	$(top_srcdir)/include/vulkan/vk_platform.h \
 	$(top_srcdir)/include/vulkan/vulkan_core.h \
@@ -138,17 +143,20 @@ libvulkan_radeon_la_SOURCES = $(VULKAN_GEM_FILES)
 
 vulkan_api_xml = $(top_srcdir)/src/vulkan/registry/vk.xml
 
-radv_entrypoints.c: radv_entrypoints_gen.py radv_extensions.py $(vulkan_api_xml)
+radv_entrypoints.c: radv_entrypoints_gen.py radv_extensions.py $(vulkan_api_xml) \
+		    $(vulkan_api_generators_py)
 	$(MKDIR_GEN)
-	$(AM_V_GEN)$(PYTHON2) $(srcdir)/radv_entrypoints_gen.py \
+	$(AM_V_GEN) PYTHONPATH=$(top_srcdir)/src/vulkan/util \
+	$(PYTHON2) $(srcdir)/radv_entrypoints_gen.py \
 		--xml $(vulkan_api_xml) \
 		--outdir $(builddir)
 radv_entrypoints.h: radv_entrypoints.c
 
-radv_extensions.c: radv_extensions.py \
-		 $(vulkan_api_xml)
+radv_extensions.c: radv_extensions_gen.py radv_extensions.py \
+		   $(vulkan_api_xml) $(vulkan_api_generators_py)
 	$(MKDIR_GEN)
-	$(AM_V_GEN)$(PYTHON2) $(srcdir)/radv_extensions.py \
+	$(AM_V_GEN) PYTHONPATH=$(top_srcdir)/src/vulkan/util \
+	$(PYTHON2) $(srcdir)/radv_extensions_gen.py \
 		--xml $(vulkan_api_xml) \
 		--out-c radv_extensions.c \
 		--out-h radv_extensions.h
@@ -164,6 +172,7 @@ CLEANFILES = $(BUILT_SOURCES) dev_icd.json radeon_icd.@host_cpu@.json
 EXTRA_DIST = \
 	$(top_srcdir)/include/vulkan/vk_icd.h \
 	radv_entrypoints_gen.py \
+	radv_extensions_gen.py \
 	radv_extensions.py \
 	radv_icd.py \
 	vk_format_layout.csv \
@@ -189,12 +198,14 @@ icdconf_DATA = radeon_icd.@host_cpu@.json
 # The following is used for development purposes, by setting VK_ICD_FILENAMES.
 noinst_DATA = dev_icd.json
 
-dev_icd.json : radv_extensions.py radv_icd.py
-	$(AM_V_GEN)$(PYTHON2) $(srcdir)/radv_icd.py \
+dev_icd.json : radv_extensions.py radv_icd.py  $(vulkan_api_generators_py)
+	$(AM_V_GEN) PYTHONPATH=$(top_srcdir)/src/vulkan/util \
+	$(PYTHON2) $(srcdir)/radv_icd.py \
 		--lib-path="${abs_top_builddir}/${LIB_DIR}" --out $@
 
-radeon_icd.@host_cpu@.json : radv_extensions.py radv_icd.py
-	$(AM_V_GEN)$(PYTHON2) $(srcdir)/radv_icd.py \
+radeon_icd.@host_cpu@.json : radv_extensions.py radv_icd.py  $(vulkan_api_generators_py)
+	$(AM_V_GEN) PYTHONPATH=$(top_srcdir)/src/vulkan/util \
+	$(PYTHON2) $(srcdir)/radv_icd.py \
 		--lib-path="${libdir}" --out $@
 
 include $(top_srcdir)/install-lib-links.mk

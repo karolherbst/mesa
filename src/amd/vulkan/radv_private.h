@@ -267,11 +267,10 @@ void radv_logi_v(const char *format, va_list va);
 		return;					\
 	} while (0)
 
-void *radv_lookup_entrypoint_unchecked(const char *name);
-void *radv_lookup_entrypoint_checked(const char *name,
-                                    uint32_t core_version,
-                                    const struct radv_instance_extension_table *instance,
-                                    const struct radv_device_extension_table *device);
+int radv_get_entrypoint_index(const char *name);
+bool radv_entrypoint_is_enabled(int index, uint32_t core_version,
+                                const struct radv_instance_extension_table *instance,
+				const struct radv_device_extension_table *device);
 
 struct radv_physical_device {
 	VK_LOADER_DATA                              _loader_data;

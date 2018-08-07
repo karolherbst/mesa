@@ -83,24 +83,34 @@ LOCAL_GENERATED_SOURCES += $(intermediates)/vk_format_table.c
 
 RADV_ENTRYPOINTS_SCRIPT := $(MESA_TOP)/src/amd/vulkan/radv_entrypoints_gen.py
 RADV_EXTENSIONS_SCRIPT := $(MESA_TOP)/src/amd/vulkan/radv_extensions.py
+RADV_EXTENSIONS_GEN_SCRIPT := $(MESA_TOP)/src/amd/vulkan/radv_extensions_gen.py
 VK_FORMAT_TABLE_SCRIPT := $(MESA_TOP)/src/amd/vulkan/vk_format_table.py
 VK_FORMAT_PARSE_SCRIPT := $(MESA_TOP)/src/amd/vulkan/vk_format_parse.py
+
+vulkan_api_generators_py := \
+	$(MESA_TOP)/src/vulkan/util/vk_entrypoints_gen.py \
+	$(MESA_TOP)/src/vulkan/util/vk_extensions_gen.py \
+	$(MESA_TOP)/src/vulkan/util/vk_extensions.py
 
 vulkan_api_xml = $(MESA_TOP)/src/vulkan/registry/vk.xml
 vk_format_layout_csv = $(MESA_TOP)/src/amd/vulkan/vk_format_layout.csv
 
 $(intermediates)/radv_entrypoints.c: $(RADV_ENTRYPOINTS_SCRIPT) \
 					$(RADV_EXTENSIONS_SCRIPT) \
-					$(vulkan_api_xml)
+					$(vulkan_api_xml) \
+					$(vulkan_api_generators_py)
 	@mkdir -p $(dir $@)
+	PYTHONPATH=$(MESA_TOP)/src/vulkan/util \
 	$(MESA_PYTHON2) $(RADV_ENTRYPOINTS_SCRIPT) \
 		--xml $(vulkan_api_xml) \
 		--outdir $(dir $@)
 
 $(intermediates)/radv_entrypoints.h: $(intermediates)/radv_entrypoints.c
 
-$(intermediates)/radv_extensions.c: $(RADV_EXTENSIONS_SCRIPT) $(vulkan_api_xml)
-	@mkdir -p $(dir $@)
+$(intermediates)/radv_extensions.c: $(RADV_EXTENSIONS_GEN_SCRIPT) $(RADV_EXTENSIONS_SCRIPT) \
+					$(vulkan_api_xml) $(vulkan_api_generators_py)
+	@mkdir -p $(dir $@)\
+	PYTHONPATH=$(MESA_TOP)/src/vulkan/util \
 	$(MESA_PYTHON2) $(RADV_EXTENSIONS_SCRIPT) \
 		--xml $(vulkan_api_xml) \
 		--out-c $@ \

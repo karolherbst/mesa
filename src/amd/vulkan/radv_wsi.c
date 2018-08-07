@@ -32,7 +32,11 @@
 static PFN_vkVoidFunction
 radv_wsi_proc_addr(VkPhysicalDevice physicalDevice, const char *pName)
 {
-	return radv_lookup_entrypoint_unchecked(pName);
+	int idx = radv_get_entrypoint_index(pName);
+	if (idx < 0)
+		return NULL;
+
+	return radv_dispatch_table.entrypoints[idx];
 }
 
 VkResult

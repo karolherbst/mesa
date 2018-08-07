@@ -24,25 +24,20 @@ COPYRIGHT = """\
  */
 """
 
-import argparse
-import copy
-import re
-import xml.etree.cElementTree as et
+from vk_extensions import ApiVersion, Extension, VkVersion
 
-from mako.template import Template
+API_PATCH_VERSION = 80
 
-MAX_API_VERSION = '1.1.70'
+# Supported API versions.  Each one is the maximum patch version for the given
+# version.  Version come in increasing order and each version is available if
+# it's provided "enable" condition is true and all previous versions are
+# available.
+API_VERSIONS = [
+    ApiVersion('1.0',   True),
+    ApiVersion('1.1',   '!ANDROID && device->rad_info.has_syncobj_wait_for_submit'),
+]
 
-class Extension:
-    def __init__(self, name, ext_version, enable):
-        self.name = name
-        self.ext_version = int(ext_version)
-        if enable is True:
-            self.enable = 'true';
-        elif enable is False:
-            self.enable = 'false';
-        else:
-            self.enable = enable;
+MAX_API_VERSION = None # Computed later
 
 # On Android, we disable all surface and swapchain extensions. Android's Vulkan
 # loader implements VK_KHR_surface and VK_KHR_swapchain, and applications
@@ -114,206 +109,9 @@ EXTENSIONS = [
     Extension('VK_AMD_shader_trinary_minmax',             1, True),
 ]
 
-class VkVersion:
-    def __init__(self, string):
-        split = string.split('.')
-        self.major = int(split[0])
-        self.minor = int(split[1])
-        if len(split) > 2:
-            assert len(split) == 3
-            self.patch = int(split[2])
-        else:
-            self.patch = None
-
-        # Sanity check.  The range bits are required by the definition of the
-        # VK_MAKE_VERSION macro
-        assert self.major < 1024 and self.minor < 1024
-        assert self.patch is None or self.patch < 4096
-        assert(str(self) == string)
-
-    def __str__(self):
-        ver_list = [str(self.major), str(self.minor)]
-        if self.patch is not None:
-            ver_list.append(str(self.patch))
-        return '.'.join(ver_list)
-
-    def c_vk_version(self):
-        patch = self.patch if self.patch is not None else 0
-        ver_list = [str(self.major), str(self.minor), str(patch)]
-        return 'VK_MAKE_VERSION(' + ', '.join(ver_list) + ')'
-
-    def __int_ver(self):
-        # This is just an expansion of VK_VERSION
-        patch = self.patch if self.patch is not None else 0
-        return (self.major << 22) | (self.minor << 12) | patch
-
-    def __gt__(self, other):
-        # If only one of them has a patch version, "ignore" it by making
-        # other's patch version match self.
-        if (self.patch is None) != (other.patch is None):
-            other = copy.copy(other)
-            other.patch = self.patch
-
-        return self.__int_ver() > other.__int_ver()
-
-
-MAX_API_VERSION = VkVersion(MAX_API_VERSION)
-
-def _init_exts_from_xml(xml):
-    """ Walk the Vulkan XML and fill out extra extension information. """
-
-    xml = et.parse(xml)
-
-    ext_name_map = {}
-    for ext in EXTENSIONS:
-        ext_name_map[ext.name] = ext
-
-    for ext_elem in xml.findall('.extensions/extension'):
-        ext_name = ext_elem.attrib['name']
-        if ext_name not in ext_name_map:
-            continue
-
-        ext = ext_name_map[ext_name]
-        ext.type = ext_elem.attrib['type']
-
-_TEMPLATE_H = Template(COPYRIGHT + """
-#ifndef RADV_EXTENSIONS_H
-#define RADV_EXTENSIONS_H
-
-enum {
-   RADV_INSTANCE_EXTENSION_COUNT = ${len(instance_extensions)},
-   RADV_DEVICE_EXTENSION_COUNT = ${len(device_extensions)},
-};
-
-struct radv_instance_extension_table {
-   union {
-      bool extensions[RADV_INSTANCE_EXTENSION_COUNT];
-      struct {
-%for ext in instance_extensions:
-        bool ${ext.name[3:]};
-%endfor
-      };
-   };
-};
-
-struct radv_device_extension_table {
-   union {
-      bool extensions[RADV_DEVICE_EXTENSION_COUNT];
-      struct {
-%for ext in device_extensions:
-        bool ${ext.name[3:]};
-%endfor
-      };
-   };
-};
-
-extern const VkExtensionProperties radv_instance_extensions[RADV_INSTANCE_EXTENSION_COUNT];
-extern const VkExtensionProperties radv_device_extensions[RADV_DEVICE_EXTENSION_COUNT];
-extern const struct radv_instance_extension_table radv_supported_instance_extensions;
-
-
-struct radv_physical_device;
-
-void radv_fill_device_extension_table(const struct radv_physical_device *device,
-                                      struct radv_device_extension_table* table);
-#endif
-""")
-
-_TEMPLATE_C = Template(COPYRIGHT + """
-#include "radv_private.h"
-
-#include "vk_util.h"
-
-/* Convert the VK_USE_PLATFORM_* defines to booleans */
-%for platform in ['ANDROID_KHR', 'WAYLAND_KHR', 'XCB_KHR', 'XLIB_KHR', 'DISPLAY_KHR', 'XLIB_XRANDR_EXT']:
-#ifdef VK_USE_PLATFORM_${platform}
-#   undef VK_USE_PLATFORM_${platform}
-#   define VK_USE_PLATFORM_${platform} true
-#else
-#   define VK_USE_PLATFORM_${platform} false
-#endif
-%endfor
-
-/* And ANDROID too */
-#ifdef ANDROID
-#   undef ANDROID
-#   define ANDROID true
-#else
-#   define ANDROID false
-#endif
-
-#define RADV_HAS_SURFACE (VK_USE_PLATFORM_WAYLAND_KHR || \\
-                         VK_USE_PLATFORM_XCB_KHR || \\
-                         VK_USE_PLATFORM_XLIB_KHR || \\
-                         VK_USE_PLATFORM_DISPLAY_KHR)
-
-
-const VkExtensionProperties radv_instance_extensions[RADV_INSTANCE_EXTENSION_COUNT] = {
-%for ext in instance_extensions:
-   {"${ext.name}", ${ext.ext_version}},
-%endfor
-};
-
-const VkExtensionProperties radv_device_extensions[RADV_DEVICE_EXTENSION_COUNT] = {
-%for ext in device_extensions:
-   {"${ext.name}", ${ext.ext_version}},
-%endfor
-};
-
-const struct radv_instance_extension_table radv_supported_instance_extensions = {
-%for ext in instance_extensions:
-   .${ext.name[3:]} = ${ext.enable},
-%endfor
-};
-
-void radv_fill_device_extension_table(const struct radv_physical_device *device,
-                                      struct radv_device_extension_table* table)
-{
-%for ext in device_extensions:
-   table->${ext.name[3:]} = ${ext.enable};
-%endfor
-}
-
-VkResult radv_EnumerateInstanceVersion(
-    uint32_t*                                   pApiVersion)
-{
-    *pApiVersion = ${MAX_API_VERSION.c_vk_version()};
-    return VK_SUCCESS;
-}
-
-uint32_t
-radv_physical_device_api_version(struct radv_physical_device *dev)
-{
-    if (!ANDROID && dev->rad_info.has_syncobj_wait_for_submit)
-        return VK_MAKE_VERSION(1, 1, 70);
-    return VK_MAKE_VERSION(1, 0, 68);
-}
-""")
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--out-c', help='Output C file.', required=True)
-    parser.add_argument('--out-h', help='Output H file.', required=True)
-    parser.add_argument('--xml',
-                        help='Vulkan API XML file.',
-                        required=True,
-                        action='append',
-                        dest='xml_files')
-    args = parser.parse_args()
-
-    for filename in args.xml_files:
-        _init_exts_from_xml(filename)
-
-    for ext in EXTENSIONS:
-        assert ext.type == 'instance' or ext.type == 'device'
-
-    template_env = {
-        'MAX_API_VERSION': MAX_API_VERSION,
-        'instance_extensions': [e for e in EXTENSIONS if e.type == 'instance'],
-        'device_extensions': [e for e in EXTENSIONS if e.type == 'device'],
-    }
-
-    with open(args.out_c, 'w') as f:
-        f.write(_TEMPLATE_C.render(**template_env))
-    with open(args.out_h, 'w') as f:
-        f.write(_TEMPLATE_H.render(**template_env))
+MAX_API_VERSION = VkVersion('0.0.0')
+for version in API_VERSIONS:
+    version.version = VkVersion(version.version)
+    version.version.patch = API_PATCH_VERSION
+    assert version.version > MAX_API_VERSION
+    MAX_API_VERSION = version.version

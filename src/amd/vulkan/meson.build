@@ -18,25 +18,72 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+radv_extensions_py = files('radv_extensions.py')
+
 radv_entrypoints = custom_target(
   'radv_entrypoints.[ch]',
   input : ['radv_entrypoints_gen.py', vk_api_xml],
   output : ['radv_entrypoints.h', 'radv_entrypoints.c'],
   command : [
-    prog_python, '@INPUT0@', '--xml', '@INPUT1@', '--outdir',
-    meson.current_build_dir()
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
+    prog_python, '@INPUT0@', '--xml', '@INPUT1@',
+    '--outdir', meson.current_build_dir(),
   ],
-  depend_files : files('radv_extensions.py'),
+  depend_files : [radv_extensions_py, vk_api_generators_py],
 )
 
 radv_extensions_c = custom_target(
   'radv_extensions.c',
-  input : ['radv_extensions.py', vk_api_xml],
-  output : ['radv_extensions.c', 'radv_extensions.h'],
+  input : ['radv_extensions_gen.py', vk_api_xml],
+  output : 'radv_extensions.c',
   command : [
-    prog_python, '@INPUT0@', '--xml', '@INPUT1@', '--out-c', '@OUTPUT0@',
-    '--out-h', '@OUTPUT1@'
+   'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
+    prog_python2, '@INPUT0@', '--xml', '@INPUT1@',
+    '--out-c', '@OUTPUT@',
   ],
+  depend_files : [radv_extensions_py, vk_api_generators_py],
+)
+
+radv_extensions_h = custom_target(
+  'radv_extensions.h',
+  input : ['radv_extensions_gen.py', vk_api_xml],
+  output : 'radv_extensions.h',
+  command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
+    prog_python2, '@INPUT0@', '--xml', '@INPUT1@',
+    '--out-h', '@OUTPUT@',
+  ],
+  depend_files : [radv_extensions_py, vk_api_generators_py],
+)
+
+radeon_icd = custom_target(
+  'radeon_icd',
+  input : 'radv_icd.py',
+  output : 'radeon_icd.@0@.json'.format(host_machine.cpu()),
+  command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
+    prog_python, '@INPUT@',
+    '--lib-path', join_paths(get_option('prefix'), get_option('libdir')),
+    '--out', '@OUTPUT@',
+  ],
+  depend_files : [radv_extensions_py, vk_api_generators_py],
+  build_by_default : true,
+  install_dir : with_vulkan_icd_dir,
+  install : true,
+)
+
+radv_dev_icd = custom_target(
+  'radv_dev_icd',
+  input : 'radv_icd.py',
+  output : 'dev_icd.@0@.json'.format(host_machine.cpu()),
+  command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
+    prog_python2, '@INPUT@', '--lib-path', meson.current_build_dir(),
+    '--out', '@OUTPUT@'
+  ],
+  depend_files : [radv_extensions_py, vk_api_generators_py],
+  build_by_default : true,
+  install : false,
 )
 
 vk_format_table_c = custom_target(
@@ -129,7 +176,7 @@ endif
 
 libvulkan_radeon = shared_library(
   'vulkan_radeon',
-  [libradv_files, radv_entrypoints, radv_extensions_c, vk_format_table_c],
+  [libradv_files, radv_entrypoints, radv_extensions_c, radv_extensions_h, vk_format_table_c],
   include_directories : [
     inc_common, inc_amd, inc_amd_common, inc_compiler, inc_vulkan_util,
     inc_vulkan_wsi,
@@ -146,32 +193,4 @@ libvulkan_radeon = shared_library(
   c_args : [c_vis_args, no_override_init_args, radv_flags],
   link_args : [ld_args_bsymbolic, ld_args_gc_sections],
   install : true,
-)
-
-radeon_icd = custom_target(
-  'radeon_icd',
-  input : 'radv_icd.py',
-  output : 'radeon_icd.@0@.json'.format(host_machine.cpu()),
-  command : [
-    prog_python, '@INPUT@',
-    '--lib-path', join_paths(get_option('prefix'), get_option('libdir')),
-    '--out', '@OUTPUT@',
-  ],
-  depend_files : files('radv_extensions.py'),
-  build_by_default : true,
-  install_dir : with_vulkan_icd_dir,
-  install : true,
-)
-
-radv_dev_icd = custom_target(
-  'radv_dev_icd',
-  input : 'radv_icd.py',
-  output : 'dev_icd.json',
-  command : [
-    prog_python, '@INPUT@', '--lib-path', meson.current_build_dir(),
-    '--out', '@OUTPUT@'
-  ],
-  depend_files : files('radv_extensions.py'),
-  build_by_default : true,
-  install : false,
 )
