@@ -61,7 +61,9 @@ struct ${name_prefix}_dispatch_table {
 %for layer in LAYERS:
 extern const struct ${name_prefix}_dispatch_table ${layer}_dispatch_table;
 %endfor
+%if generate_trampolines:
 extern const struct ${name_prefix}_dispatch_table ${name_prefix}_tramp_dispatch_table;
+%endif
 
 % for e in entrypoints:
   % if e.alias:
@@ -146,7 +148,7 @@ static const uint16_t string_map[${strmap.hash_size}] = {
 };
 
 int
-${name_prefix}_string_map_lookup(const char *str)
+${name_prefix}_get_entrypoint_index(const char *str)
 {
     static const uint32_t prime_factor = ${strmap.prime_factor};
     static const uint32_t prime_step = ${strmap.prime_step};
@@ -206,15 +208,16 @@ ${name_prefix}_string_map_lookup(const char *str)
 % endfor
 
 
+% if generate_trampolines:
 /** Trampoline entrypoints for all device functions */
 
-% for e in entrypoints:
-  % if e.alias or not e.is_device_entrypoint():
-    <% continue %>
-  % endif
-  % if e.guard is not None:
+  % for e in entrypoints:
+    % if e.alias or not e.is_device_entrypoint():
+      <% continue %>
+    % endif
+    % if e.guard is not None:
 #ifdef ${e.guard}
-  % endif
+    % endif
   static ${e.return_type}
   ${e.prefixed_name(name_prefix + '_tramp')}(${e.decl_params()})
   {
@@ -231,25 +234,26 @@ ${name_prefix}_string_map_lookup(const char *str)
       assert(!"Unhandled device child trampoline case: ${e.params[0].type}");
     % endif
   }
-  % if e.guard is not None:
+    % if e.guard is not None:
 #endif // ${e.guard}
-  % endif
-% endfor
+    % endif
+  % endfor
 
 const struct ${name_prefix}_dispatch_table ${name_prefix}_tramp_dispatch_table = {
-% for e in entrypoints:
-  % if not e.is_device_entrypoint():
-    <% continue %>
-  % endif
-  % if e.guard is not None:
+  % for e in entrypoints:
+    % if not e.is_device_entrypoint():
+      <% continue %>
+    % endif
+    % if e.guard is not None:
 #ifdef ${e.guard}
-  % endif
+    % endif
     .${e.name} = ${e.prefixed_name(name_prefix + '_tramp')},
-  % if e.guard is not None:
+    % if e.guard is not None:
 #endif // ${e.guard}
-  % endif
-% endfor
+    % endif
+  % endfor
 };
+%endif
 
 
 /** Return true if the core version or extension in which the given entrypoint
@@ -461,7 +465,8 @@ def get_entrypoints_defines(doc):
     return entrypoints_to_defines
 
 
-def generate_entrypoints(max_api_version, extensions, layers, name_prefix, xml_files, out_c, out_h, has_intel_entrypoints=False):
+def generate_entrypoints(max_api_version, extensions, layers, name_prefix, xml_files, out_c, out_h,
+                         has_intel_entrypoints=False, generate_trampolines=True):
     entrypoints = []
 
     for filename in xml_files:
@@ -495,11 +500,13 @@ def generate_entrypoints(max_api_version, extensions, layers, name_prefix, xml_f
             f.write(TEMPLATE_H.render(entrypoints=entrypoints,
                                       LAYERS=layers,
                                       name_prefix=name_prefix,
+                                      generate_trampolines=generate_trampolines,
                                       filename=os.path.basename(__file__)))
         with open(out_c, 'wb') as f:
             f.write(TEMPLATE_C.render(entrypoints=entrypoints,
                                       LAYERS=layers,
                                       name_prefix=name_prefix,
+                                      generate_trampolines=generate_trampolines,
                                       strmap=strmap,
                                       filename=os.path.basename(__file__)))
     except Exception:
