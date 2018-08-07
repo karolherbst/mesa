@@ -27,6 +27,11 @@ VK_ENTRYPOINTS_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/vulkan/anv_entrypoints_ge
 
 VK_EXTENSIONS_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/vulkan/anv_extensions_gen.py
 
+vulkan_api_generators_py := \
+	$(MESA_TOP)/src/vulkan/util/vk_entrypoints_gen.py \
+	$(MESA_TOP)/src/vulkan/util/vk_extensions_gen.py \
+	$(MESA_TOP)/src/vulkan/util/vk_extensions.py
+
 VULKAN_COMMON_INCLUDES := \
 	$(MESA_TOP)/include \
 	$(MESA_TOP)/src/mapi \
@@ -65,6 +70,7 @@ $(intermediates)/vulkan/dummy.c:
 	$(hide) touch $@
 
 $(intermediates)/vulkan/anv_entrypoints.h: $(intermediates)/vulkan/dummy.c
+	PYTHONPATH=$(MESA_TOP)/src/vulkan/util \
 	$(VK_ENTRYPOINTS_SCRIPT) \
 		--outdir $(dir $@) \
 		--xml $(MESA_TOP)/src/vulkan/registry/vk.xml
@@ -242,18 +248,21 @@ LOCAL_GENERATED_SOURCES += $(intermediates)/vulkan/anv_extensions.h
 
 $(intermediates)/vulkan/anv_entrypoints.c:
 	@mkdir -p $(dir $@)
+	PYTHONPATH=$(MESA_TOP)/src/vulkan/util \
 	$(VK_ENTRYPOINTS_SCRIPT) \
 		--xml $(MESA_TOP)/src/vulkan/registry/vk.xml \
 		--outdir $(dir $@)
 
 $(intermediates)/vulkan/anv_extensions.c:
 	@mkdir -p $(dir $@)
+	PYTHONPATH=$(MESA_TOP)/src/vulkan/util \
 	$(VK_EXTENSIONS_SCRIPT) \
 		--xml $(MESA_TOP)/src/vulkan/registry/vk.xml \
 		--out-c $@
 
 $(intermediates)/vulkan/anv_extensions.h:
 	@mkdir -p $(dir $@)
+	PYTHONPATH=$(MESA_TOP)/src/vulkan/util \
 	$(VK_EXTENSIONS_SCRIPT) \
 		--xml $(MESA_TOP)/src/vulkan/registry/vk.xml \
 		--out-h $@

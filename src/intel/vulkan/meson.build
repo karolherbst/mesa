@@ -25,10 +25,11 @@ anv_entrypoints = custom_target(
   input : ['anv_entrypoints_gen.py', vk_api_xml],
   output : ['anv_entrypoints.h', 'anv_entrypoints.c'],
   command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
     prog_python, '@INPUT0@', '--xml', '@INPUT1@',
     '--outdir', meson.current_build_dir(),
   ],
-  depend_files : anv_extensions_py,
+  depend_files : [anv_extensions_py, vk_api_generators_py],
 )
 
 anv_extensions_c = custom_target(
@@ -36,10 +37,11 @@ anv_extensions_c = custom_target(
   input : ['anv_extensions_gen.py', vk_api_xml],
   output : 'anv_extensions.c',
   command : [
+   'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
     prog_python, '@INPUT0@', '--xml', '@INPUT1@',
     '--out-c', '@OUTPUT@',
   ],
-  depend_files : anv_extensions_py,
+  depend_files : [anv_extensions_py, vk_api_generators_py],
 )
 
 anv_extensions_h = custom_target(
@@ -47,10 +49,11 @@ anv_extensions_h = custom_target(
   input : ['anv_extensions_gen.py', vk_api_xml],
   output : 'anv_extensions.h',
   command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
     prog_python, '@INPUT0@', '--xml', '@INPUT1@',
     '--out-h', '@OUTPUT@',
   ],
-  depend_files : anv_extensions_py,
+  depend_files : [anv_extensions_py, vk_api_generators_py],
 )
 
 intel_icd = custom_target(
@@ -58,11 +61,12 @@ intel_icd = custom_target(
   input : 'anv_icd.py',
   output : 'intel_icd.@0@.json'.format(host_machine.cpu()),
   command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
     prog_python, '@INPUT@',
     '--lib-path', join_paths(get_option('prefix'), get_option('libdir')),
     '--out', '@OUTPUT@',
   ],
-  depend_files : anv_extensions_py,
+  depend_files : [anv_extensions_py, vk_api_generators_py],
   build_by_default : true,
   install_dir : with_vulkan_icd_dir,
   install : true,
@@ -73,10 +77,11 @@ dev_icd = custom_target(
   input : 'anv_icd.py',
   output : 'dev_icd.@0@.json'.format(host_machine.cpu()),
   command : [
+    'env', 'PYTHONPATH=@0@'.format(join_paths(meson.source_root(), 'src/vulkan/util/')),
     prog_python, '@INPUT@', '--lib-path', meson.current_build_dir(),
     '--out', '@OUTPUT@'
   ],
-  depend_files : files('anv_extensions.py'),
+  depend_files : [anv_extensions_py, vk_api_generators_py],
   build_by_default : true,
   install : false,
 )

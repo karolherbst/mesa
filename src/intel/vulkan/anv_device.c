@@ -1251,6 +1251,52 @@ anv_GetDeviceGroupPeerMemoryFeatures(
                           VK_PEER_MEMORY_FEATURE_GENERIC_DST_BIT;
 }
 
+static void * __attribute__ ((noinline))
+anv_resolve_entrypoint(const struct gen_device_info *devinfo, uint32_t index)
+{
+   if (devinfo == NULL) {
+      return anv_dispatch_table.entrypoints[index];
+   }
+
+   const struct anv_dispatch_table *genX_table;
+   switch (devinfo->gen) {
+   case 11:
+      genX_table = &gen11_dispatch_table;
+      break;
+   case 10:
+      genX_table = &gen10_dispatch_table;
+      break;
+   case 9:
+      genX_table = &gen9_dispatch_table;
+      break;
+   case 8:
+      genX_table = &gen8_dispatch_table;
+      break;
+   case 7:
+      if (devinfo->is_haswell)
+         genX_table = &gen75_dispatch_table;
+      else
+         genX_table = &gen7_dispatch_table;
+      break;
+   default:
+      unreachable("unsupported gen\\n");
+   }
+
+   if (genX_table->entrypoints[index])
+      return genX_table->entrypoints[index];
+   else
+      return anv_dispatch_table.entrypoints[index];
+}
+
+void *
+anv_lookup_entrypoint(const struct gen_device_info *devinfo, const char *name)
+{
+   int idx = anv_get_entrypoint_index(name);
+   if (idx < 0)
+      return NULL;
+   return anv_resolve_entrypoint(devinfo, idx);
+}
+
 PFN_vkVoidFunction anv_GetInstanceProcAddr(
     VkInstance                                  _instance,
     const char*                                 pName)
