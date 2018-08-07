@@ -10,6 +10,9 @@ PYTHON_GEN = $(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS)
 
 EXTRA_DIST = \
 	util/gen_enum_to_str.py \
+	util/vk_entrypoints_gen.py \
+	util/vk_extensions_gen.py \
+	util/vk_extensions.py \
 	util/meson.build \
 	wsi/meson.build \
 	meson.build

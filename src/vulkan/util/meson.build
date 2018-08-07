@@ -43,3 +43,5 @@ libvulkan_util = static_library(
   c_args : [c_vis_args],
   build_by_default : false,
 )
+
+vk_api_generators_py = files(['vk_extensions.py', 'vk_extensions_gen.py', 'vk_entrypoints_gen.py'])
