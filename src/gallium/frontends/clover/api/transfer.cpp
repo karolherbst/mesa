@@ -199,6 +199,20 @@ namespace {
    }
 
    ///
+   /// Checks that the memory migration flags are correct.
+   ///
+   void
+   validate_mem_migration_flags(const command_queue &q,
+                                const cl_mem_migration_flags flags) {
+      cl_mem_migration_flags valid;
+
+      valid = CL_MIGRATE_MEM_OBJECT_HOST |
+              CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED;
+      if ((flags & valid) != flags)
+         throw error(CL_INVALID_VALUE);
+   }
+
+   ///
    /// Class that encapsulates the task of mapping an object of type
    /// \a T.  The return value of get() should be implicitly
    /// convertible to \a void *.
@@ -271,6 +285,18 @@ namespace {
       return [=, &q](event &) {
          dst_obj->resource(q).copy(q, dst_orig, region,
                                    src_obj->resource(q), src_orig);
+      };
+   }
+
+   ///
+   /// Migrate SVM memory
+   ///
+   std::function<void (event &)>
+   svm_migrate_op(command_queue &q, cl_uint num_svm_pointers,
+                  const void **svm_pointers, std::vector<size_t> &sizes,
+                  cl_mem_migration_flags flags) {
+      return [=, &q](event &) {
+         q.svm_migrate(num_svm_pointers, svm_pointers, sizes.data(), flags);
       };
    }
 }
@@ -1098,9 +1124,44 @@ clEnqueueSVMMigrateMem(cl_command_queue d_q,
                        const void **svm_pointers,
                        const size_t *sizes,
                        const cl_mem_migration_flags flags,
-                       cl_uint  num_events_in_wait_list,
-                       const cl_event *event_wait_list,
-                       cl_event *event) {
-   CLOVER_NOT_SUPPORTED_UNTIL("2.1");
-   return CL_INVALID_VALUE;
+                       cl_uint num_deps,
+                       const cl_event *d_deps,
+                       cl_event *rd_ev) try {
+   auto &q = obj(d_q);
+   auto deps = objs<wait_list_tag>(d_deps, num_deps);
+
+   validate_common(q, deps);
+   validate_mem_migration_flags(q, flags);
+
+   if (!num_svm_pointers || !svm_pointers)
+      throw error(CL_INVALID_VALUE);
+
+   std::vector<size_t> sizes_copy(num_svm_pointers);
+   for (unsigned i = 0; i < num_svm_pointers; ++i) {
+      const void *ptr = svm_pointers[i];
+      size_t size = sizes ? sizes[i] : 0;
+      if (!ptr)
+         throw error(CL_INVALID_VALUE);
+
+      auto p = q.context().find_svm_allocation(ptr);
+      if (!p.first)
+         throw error(CL_INVALID_VALUE);
+
+      std::ptrdiff_t pdiff = (uint8_t*)ptr - (uint8_t*)p.first;
+      if (size && size + pdiff > p.second)
+         throw error(CL_INVALID_VALUE);
+
+      sizes_copy[i] = size ? size : p.second;
+   }
+
+   auto hev = create<hard_event>(
+      q, CL_COMMAND_MIGRATE_MEM_OBJECTS, deps,
+      svm_migrate_op(q, num_svm_pointers,
+                     svm_pointers, sizes_copy, flags));
+
+   ret_object(rd_ev, hev);
+   return CL_SUCCESS;
+
+} catch (error &e) {
+   return e.get();
 }
