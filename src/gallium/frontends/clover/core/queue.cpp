@@ -82,6 +82,21 @@ command_queue::flush() {
    }
 }
 
+void
+command_queue::svm_migrate(cl_uint num_svm_pointers,
+                           const void* const* svm_pointers,
+                           const size_t *sizes, cl_mem_migration_flags flags) {
+   uint64_t pflags = 0;
+
+   if (!pipe->svm_migrate)
+      return;
+
+   pflags |= flags & CL_MIGRATE_MEM_OBJECT_HOST ? PIPE_SVM_MIGRATE_HOST : 0;
+   pflags |= flags & CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED ?
+             PIPE_SVM_MIGRATE_CONTENT_UNDEFINED : 0;
+   pipe->svm_migrate(pipe, num_svm_pointers, svm_pointers, sizes, pflags);
+}
+
 cl_command_queue_properties
 command_queue::properties() const {
    return props;

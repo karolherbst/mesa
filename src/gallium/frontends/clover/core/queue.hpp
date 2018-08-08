@@ -47,6 +47,8 @@ namespace clover {
       operator=(const command_queue &q) = delete;
 
       void flush();
+      void svm_migrate(cl_uint num_svm_pointers, const void* const* svm_pointers,
+                       const size_t *sizes, cl_mem_migration_flags flags);
 
       cl_command_queue_properties properties() const;
       bool profiling_enabled() const;
