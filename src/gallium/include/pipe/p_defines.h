@@ -1131,6 +1131,18 @@ enum pipe_context_param
 };
 
 /**
+ * Share Virtual Memory migrate flags to determine where to migrate a range of
+ * virtual address. This is usefull for instance to migrate some range of a
+ * process to device memory so that while data is in use by a GPU it will do
+ * local memory access instead of having to go through slower system bus.
+ */
+enum pipe_svm_migrate_flag
+{
+    PIPE_SVM_MIGRATE_HOST,              /**< Migrate back to host memory. */
+    PIPE_SVM_MIGRATE_CONTENT_UNDEFINED, /**< No need to copy content. */
+};
+
+/**
  * Composite query types
  */
 
