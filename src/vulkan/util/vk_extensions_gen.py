@@ -126,12 +126,14 @@ _TEMPLATE_C = Template(COPYRIGHT + """
 
 static const uint32_t max_api_version = ${max_api_version.c_vk_version()};
 
+%if max_api_version > VkVersion('1.0'):
 VkResult ${name_prefix}_EnumerateInstanceVersion(
     uint32_t*                                   pApiVersion)
 {
     *pApiVersion = max_api_version;
     return VK_SUCCESS;
 }
+%endif
 
 const VkExtensionProperties ${name_prefix}_instance_extensions[${name_prefix.upper()}_INSTANCE_EXTENSION_COUNT] = {
 %for ext in instance_extensions:
@@ -194,6 +196,7 @@ def generate_extensions(max_api_version, api_versions, extensions, name_prefix, 
         'name_prefix': name_prefix,
         'instance_extensions': [e for e in extensions if e.type == 'instance'],
         'device_extensions': [e for e in extensions if e.type == 'device'],
+        'VkVersion': VkVersion,
     }
 
     if out_h:
