@@ -174,7 +174,7 @@ _vulkan_drivers = get_option('vulkan-drivers')
 if _vulkan_drivers.contains('auto')
   if system_has_kms_drm
     if host_machine.cpu_family().startswith('x86')
-      _vulkan_drivers = ['amd', 'intel']
+      _vulkan_drivers = ['amd', 'intel', 'nouveau']
     else
       error('Unknown architecture. Please pass -Dvulkan-drivers to set driver options. Patches gladly accepted to fix this.')
     endif
@@ -188,6 +188,7 @@ endif
 
 with_intel_vk = _vulkan_drivers.contains('intel')
 with_amd_vk = _vulkan_drivers.contains('amd')
+with_nouveau_vk = _vulkan_drivers.contains('nouveau')
 with_any_vk = _vulkan_drivers.length() != 0 and _vulkan_drivers != ['']
 
 if with_dri_swrast and (with_gallium_softpipe or with_gallium_swr)
@@ -1093,7 +1094,7 @@ _libdrm_checks = [
   ['amdgpu', with_amd_vk or with_gallium_radeonsi],
   ['radeon', (with_gallium_radeonsi or with_dri_r100 or with_dri_r200 or
               with_gallium_r300 or with_gallium_r600)],
-  ['nouveau', (with_gallium_nouveau or with_dri_nouveau)],
+  ['nouveau', (with_gallium_nouveau or with_dri_nouveau or with_nouveau_vk)],
   ['etnaviv', with_gallium_etnaviv],
   ['freedreno', with_gallium_freedreno],
 ]
