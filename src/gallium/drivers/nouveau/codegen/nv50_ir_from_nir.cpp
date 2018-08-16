@@ -1932,9 +1932,9 @@ Converter::visit(nir_intrinsic_instr *insn)
 
                interp = mkOp1(nvirOp, TYPE_U32, lo, sym);
                if (nvirOp == OP_PINTERP)
-                  interp->setSrc(s, fp.position);
+                  interp->setSrc(s++, fp.position);
                if (mode & NV50_IR_INTERP_OFFSET)
-                  interp->setSrc(s, getSrc(&insn->src[0], 0));
+                  interp->setSrc(s++, getSrc(&insn->src[0], 0));
                interp->setInterpolate(mode);
                interp->setIndirect(0, 0, indirect);
 
