@@ -2709,7 +2709,6 @@ Converter::visit(nir_alu_instr *insn)
       mkCmp(OP_SLCT, CC_NE, dType, newDefs[0], sTypes[0], getSrc(&insn->src[1]), getSrc(&insn->src[2]), getSrc(&insn->src[0]));
       break;
    }
-   CASE_OPIU(bfe):
    CASE_OPIU(bitfield_extract): {
       DEFAULT_CHECKS;
       Value *tmp = getSSA();
