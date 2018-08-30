@@ -11,8 +11,14 @@
 // SIZE:    22 / 14 * 8 bytes
 //
 gm107_div_u32:
-   sched (st 0xd wr 0x0 wt 0x3f) (st 0x1 wt 0x1) (st 0x6)
-   flo u32 $r2 $r1
+   sched (st 0x0) (st 0x0) (st 0x0)
+//   bra #gm107_trap_handler
+//   rtt
+   bpt trap 0x0
+//   bpt trap 0x0
+//   bpt trap 0x0
+//   sched (st 0xd wr 0x0 wt 0x3f) (st 0x1 wt 0x1) (st 0x6)
+//   flo u32 $r2 $r1
    lop xor 1 $r2 $r2 0x1f
    mov $r3 0x1 0xf
    sched (st 0x1) (st 0xf wr 0x0) (st 0x6 wr 0x0 wt 0x1)
@@ -351,8 +357,50 @@ rsq_norm:
    nop 0
    nop 0
 
+.align 0x40 // TRAP_HANDLER needs a 0x40 aligned address
+gm107_trap_handler:
+//   sched (st 0x0) (st 0x0) (st 0x0)
+//   nop 0
+//   nop 0
+//   nop 0
+//   sched (st 0x0) (st 0x0) (st 0x0)
+   // wait for remaining register writes and other operations. Nvidia uses only two nops though
+//   nop 0
+//   nop 0
+//   nop 0
+   sched (st 0x0) (st 0x0) (st 0x0)
+   ld b64 $r16 c0[0x18]
+   st b32 g[$r16+0x10] $r0 1
+   st b32 g[$r16+0x14] $r1 1
+   sched (st 0x0) (st 0x0) (st 0x0)
+   st b32 g[$r16+0x18] $r2 1
+   st b32 g[$r16+0x1c] $r3 1
+   st b32 g[$r16+0x20] $r4 1
+   sched (st 0x0) (st 0x0) (st 0x0)
+   st b32 g[$r16+0x24] $r5 1
+   st b32 g[$r16+0x28] $r6 1
+   st b32 g[$r16+0x2c] $r7 1
+   sched (st 0x0) (st 0x0) (st 0x0)
+   st b32 g[$r16+0x30] $r8 1
+   st b32 g[$r16+0x34] $r9 1
+   st b32 g[$r16+0x38] $r10 1
+   sched (st 0x0) (st 0x0) (st 0x0)
+   st b32 g[$r16+0x3c] $r11 1
+   st b32 g[$r16+0x40] $r12 1
+   st b32 g[$r16+0x44] $r13 1
+   sched (st 0x0) (st 0x0) (st 0x0)
+   st b32 g[$r16+0x48] $r14 1
+   st b32 g[$r16+0x4c] $r15 1
+   st b32 g[$r16+0x50] $r16 1
+   sched (st 0x0) (st 0x0) (st 0x0)
+//   bpt pause 0x0
+   rtt terminate
+   rtt
+   exit
+
 .section #gm107_builtin_offsets
 .b64 #gm107_div_u32
 .b64 #gm107_div_s32
 .b64 #gm107_rcp_f64
 .b64 #gm107_rsq_f64
+.b64 #gm107_trap_handler
