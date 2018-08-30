@@ -646,7 +646,7 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
    prog->code_size = info->bin.codeSize;
    prog->relocs = info->bin.relocData;
    prog->fixups = info->bin.fixupData;
-   prog->num_gprs = MAX2(4, (info->bin.maxGPR + 1));
+   prog->num_gprs = MAX2(20, (info->bin.maxGPR + 1));
    prog->cp.smem_size = info->bin.smemSize;
    prog->num_barriers = info->numBarriers;
 
