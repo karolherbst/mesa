@@ -4,6 +4,7 @@
 #include "pipe/p_screen.h"
 #include "util/disk_cache.h"
 #include "util/u_memory.h"
+#include "util/set.h"
 
 #ifdef DEBUG
 # define NOUVEAU_ENABLE_DRIVER_STATISTICS
@@ -63,6 +64,11 @@ struct nouveau_screen {
    struct disk_cache *disk_shader_cache;
 
    bool prefer_nir;
+
+   struct {
+      struct nouveau_ntfy *ntfy;
+      struct set *contexts;
+   } ntfy;
 
 #ifdef NOUVEAU_ENABLE_DRIVER_STATISTICS
    union {
