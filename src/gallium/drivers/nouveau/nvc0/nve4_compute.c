@@ -172,7 +172,11 @@ nve4_screen_compute_setup(struct nvc0_screen *screen,
    BEGIN_NVC0(push, NVE4_CP(TRAP_HANDLER), 1);
    PUSH_DATA (push, 0x7f700 + gm107_builtin_offsets[4]);
    BEGIN_NVC0(push, NVE4_CP(SET_SHADER_EXCEPTIONS), 1);
-   PUSH_DATA (push, 0xffffffff);
+   /* disabled bits:
+    * 0x00004000: OOR_ADDR (causes hangs on some GPUs)
+    * 0x00040000: INVALID_CONST_ADDR_LDC (causes hangs on some GPUs)
+    */
+   PUSH_DATA (push, 0xfffaafff);
    BEGIN_NVC0(push, NVE4_CP(GRAPH_SCRATCH(0)), 3);
    PUSH_DATA (push, 0x0);
    PUSH_DATA (push, 0x1);
