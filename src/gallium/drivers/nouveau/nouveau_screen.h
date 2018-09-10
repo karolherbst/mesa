@@ -5,6 +5,9 @@
 #include "util/disk_cache.h"
 #include "util/u_atomic.h"
 #include "util/u_memory.h"
+#include "util/set.h"
+
+#include <c11/threads.h>
 
 #ifdef DEBUG
 # define NOUVEAU_ENABLE_DRIVER_STATISTICS
@@ -64,6 +67,13 @@ struct nouveau_screen {
    } firmware_info;
 
    struct disk_cache *disk_shader_cache;
+
+   struct {
+      struct nouveau_ntfy *ntfy;
+      struct set *contexts;
+      bool stop;
+      thrd_t thrd;
+   } ntfy;
 
 #ifdef NOUVEAU_ENABLE_DRIVER_STATISTICS
    union {

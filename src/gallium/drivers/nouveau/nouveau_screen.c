@@ -8,11 +8,14 @@
 #include "util/u_format_s3tc.h"
 #include "util/u_string.h"
 
+#include "util/hash_table.h"
 #include "util/os_time.h"
 
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+
+#include <nvif/cl906f.h>
 
 #include <nouveau_drm.h>
 
@@ -165,6 +168,29 @@ nouveau_disk_cache_create(struct nouveau_screen *screen)
                         cache_id, 0);
 }
 
+static void
+read_drm_event(struct nouveau_screen *screen)
+{
+   do {
+      if (nouveau_channel_ntfy_wait(screen->ntfy.ntfy)) {
+         struct set_entry *entry;
+         set_foreach(screen->ntfy.contexts, entry) {
+            struct nouveau_context *context = (void*)entry->key;
+            if (!context->device_reset_callback.reset) {
+               abort();
+            }
+            /* we don't know which context triggered it */
+            context->device_reset_callback.reset(context, PIPE_UNKNOWN_CONTEXT_RESET);
+         }
+         nouveau_channel_ntfy_del(&screen->ntfy.ntfy);
+         thrd_exit(EXIT_SUCCESS);
+      }
+   } while (!screen->ntfy.stop);
+   nouveau_channel_ntfy_put(screen->ntfy.ntfy);
+   nouveau_channel_ntfy_del(&screen->ntfy.ntfy);
+   thrd_exit(EXIT_SUCCESS);
+}
+
 int
 nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
 {
@@ -224,6 +250,18 @@ nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
    if (ret)
       return ret;
 
+   screen->ntfy.contexts =
+      _mesa_set_create(NULL, _mesa_hash_pointer, _mesa_key_pointer_equal);
+
+   screen->ntfy.stop = false;
+   ret = nouveau_channel_ntfy_new(screen->channel, NV906F_V0_NTFY_KILLED,
+                                  &screen->ntfy.ntfy);
+   if (!ret) {
+      ret = nouveau_channel_ntfy_get(screen->ntfy.ntfy);
+      if (!ret)
+         ret = thrd_create(&screen->ntfy.thrd, (void*)read_drm_event, screen);
+   }
+
    /* getting CPU time first appears to be more accurate */
    screen->cpu_gpu_time_delta = os_time_get();
 
@@ -270,6 +308,10 @@ void
 nouveau_screen_fini(struct nouveau_screen *screen)
 {
    int fd = screen->drm->fd;
+   int res;
+
+   screen->ntfy.stop = true;
+   thrd_join(screen->ntfy.thrd, &res);
 
    nouveau_mm_destroy(screen->mm_GART);
    nouveau_mm_destroy(screen->mm_VRAM);
@@ -298,8 +340,32 @@ nouveau_set_debug_callback(struct pipe_context *pipe,
       memset(&context->debug, 0, sizeof(context->debug));
 }
 
+static void
+nouveau_set_device_reset_callback(struct pipe_context *pipe,
+                                  const struct pipe_device_reset_callback *cb)
+{
+   struct nouveau_context *context = nouveau_context(pipe);
+
+   if (cb)
+      context->device_reset_callback = *cb;
+   else
+      memset(&context->device_reset_callback, 0, sizeof(context->device_reset_callback));
+}
+
+static enum pipe_reset_status
+nouveau_get_device_reset_status(struct pipe_context *ctx)
+{
+   /* we can always return PIPE_NO_RESET here as the status is specified
+    * through the installed reset callback */
+   return PIPE_NO_RESET;
+}
+
 void
 nouveau_context_init(struct nouveau_context *context)
 {
    context->pipe.set_debug_callback = nouveau_set_debug_callback;
+   context->pipe.set_device_reset_callback = nouveau_set_device_reset_callback;
+   context->pipe.get_device_reset_status = nouveau_get_device_reset_status;
+
+   _mesa_set_add(context->screen->ntfy.contexts, context);
 }
