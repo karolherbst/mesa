@@ -2,6 +2,7 @@
 #define __NV50_SCREEN_H__
 
 #include "nouveau_screen.h"
+#include "nouveau_context.h"
 #include "nouveau_fence.h"
 #include "nouveau_mm.h"
 #include "nouveau_heap.h"
@@ -28,6 +29,13 @@ struct nv50_context;
 #define NV50_MAX_GLOBALS 16
 
 #define ONE_TEMP_SIZE (4/*vector*/ * sizeof(float))
+
+/* affected by LOCAL_WARPS_LOG_ALLOC / LOCAL_WARPS_NO_CLAMP */
+#define LOCAL_WARPS_ALLOC 32
+/* affected by STACK_WARPS_LOG_ALLOC / STACK_WARPS_NO_CLAMP */
+#define STACK_WARPS_ALLOC 32
+
+#define THREADS_IN_WARP 32
 
 struct nv50_blitter;
 
@@ -65,21 +73,12 @@ struct nv50_screen {
 
    int num_occlusion_queries_active;
 
-   struct nouveau_bo *code;
-   struct nouveau_bo *uniforms;
-   struct nouveau_bo *txc; /* TIC (offset 0) and TSC (65536) */
-   struct nouveau_bo *stack_bo;
-   struct nouveau_bo *tls_bo;
-
    unsigned TPs;
    unsigned MPsInTP;
    unsigned max_tls_space;
-   unsigned cur_tls_space;
    unsigned mp_count;
 
-   struct nouveau_heap *vp_code_heap;
-   struct nouveau_heap *gp_code_heap;
-   struct nouveau_heap *fp_code_heap;
+   unsigned compute_oclass;
 
    struct nv50_blitter *blitter;
 
@@ -96,22 +95,10 @@ struct nv50_screen {
    } tsc;
 
    struct {
-      uint32_t *map;
-      struct nouveau_bo *bo;
-   } fence;
-
-   struct {
       struct nv50_program *prog; /* compute state object to read MP counters */
       struct nv50_hw_sm_query *mp_counter[4]; /* counter to query allocation */
       uint8_t num_hw_sm_active;
    } pm;
-
-   struct nouveau_object *sync;
-
-   struct nouveau_object *tesla;
-   struct nouveau_object *compute;
-   struct nouveau_object *eng2d;
-   struct nouveau_object *m2mf;
 };
 
 static inline struct nv50_screen *
@@ -134,19 +121,19 @@ int nv50_screen_tsc_alloc(struct nv50_screen *, void *);
 int nv50_screen_compute_setup(struct nv50_screen *, struct nouveau_pushbuf *);
 
 static inline void
-nv50_resource_fence(struct nv04_resource *res, uint32_t flags)
+nv50_resource_fence(struct nv04_resource *res, struct nouveau_context *context,
+                    uint32_t flags)
 {
-   struct nv50_screen *screen = nv50_screen(res->base.screen);
-
    if (res->mm) {
-      nouveau_fence_ref(screen->base.fence.current, &res->fence);
+      nouveau_fence_ref(context->fence.current, &res->fence);
       if (flags & NOUVEAU_BO_WR)
-         nouveau_fence_ref(screen->base.fence.current, &res->fence_wr);
+         nouveau_fence_ref(context->fence.current, &res->fence_wr);
    }
 }
 
 static inline void
-nv50_resource_validate(struct nv04_resource *res, uint32_t flags)
+nv50_resource_validate(struct nv04_resource *res,
+                       struct nouveau_context *context, uint32_t flags)
 {
    if (likely(res->bo)) {
       if (flags & NOUVEAU_BO_WR)
@@ -155,7 +142,7 @@ nv50_resource_validate(struct nv04_resource *res, uint32_t flags)
       if (flags & NOUVEAU_BO_RD)
          res->status |= NOUVEAU_BUFFER_STATUS_GPU_READING;
 
-      nv50_resource_fence(res, flags);
+      nv50_resource_fence(res, context, flags);
    }
 }
 
@@ -215,6 +202,6 @@ nv50_screen_tsc_free(struct nv50_screen *screen, struct nv50_tsc_entry *tsc)
    }
 }
 
-extern int nv50_tls_realloc(struct nv50_screen *screen, unsigned tls_space);
+extern int nv50_tls_realloc(struct nv50_context *, unsigned tls_space);
 
 #endif

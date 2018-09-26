@@ -730,7 +730,7 @@ nvc0_program_alloc_code(struct nvc0_context *nvc0, struct nvc0_program *prog)
       size = size + (is_cp ? 0x40 : 0x70);
    size = align(size, 0x40);
 
-   ret = nouveau_heap_alloc(screen->text_heap, size, prog, &prog->mem);
+   ret = nouveau_heap_alloc(nvc0->text_heap, size, prog, &prog->mem);
    if (ret)
       return ret;
    prog->code_base = prog->mem->start;
@@ -767,7 +767,7 @@ nvc0_program_upload_code(struct nvc0_context *nvc0, struct nvc0_program *prog)
 
    if (prog->relocs)
       nv50_ir_relocate_code(prog->relocs, prog->code, code_pos,
-                            screen->lib_code->start, 0);
+                            nvc0->lib_code->start, 0);
    if (prog->fixups) {
       nv50_ir_apply_fixups(prog->fixups, prog->code,
                            prog->fp.force_persample_interp,
@@ -788,11 +788,11 @@ nvc0_program_upload_code(struct nvc0_context *nvc0, struct nvc0_program *prog)
    }
 
    if (!is_cp)
-      nvc0->base.push_data(&nvc0->base, screen->text, prog->code_base,
+      nvc0->base.push_data(&nvc0->base, nvc0->text, prog->code_base,
                            NV_VRAM_DOMAIN(&screen->base),
                            NVC0_SHADER_HEADER_SIZE, prog->hdr);
 
-   nvc0->base.push_data(&nvc0->base, screen->text, code_pos,
+   nvc0->base.push_data(&nvc0->base, nvc0->text, code_pos,
                         NV_VRAM_DOMAIN(&screen->base), prog->code_size,
                         prog->code);
 }
@@ -807,7 +807,7 @@ nvc0_program_upload(struct nvc0_context *nvc0, struct nvc0_program *prog)
 
    ret = nvc0_program_alloc_code(nvc0, prog);
    if (ret) {
-      struct nouveau_heap *heap = screen->text_heap;
+      struct nouveau_heap *heap = nvc0->text_heap;
       struct nvc0_program *progs[] = { /* Sorted accordingly to SP_START_ID */
          nvc0->compprog, nvc0->vertprog, nvc0->tctlprog,
          nvc0->tevlprog, nvc0->gmtyprog, nvc0->fragprog
@@ -825,8 +825,8 @@ nvc0_program_upload(struct nvc0_context *nvc0, struct nvc0_program *prog)
       /* Make sure to synchronize before deleting the code segment. */
       IMMED_NVC0(nvc0->base.pushbuf, NVC0_3D(SERIALIZE), 0);
 
-      if ((screen->text->size << 1) <= (1 << 23)) {
-         ret = nvc0_screen_resize_text_area(screen, screen->text->size << 1);
+      if ((nvc0->text->size << 1) <= (1 << 23)) {
+         ret = nvc0_context_resize_text_area(nvc0, nvc0->text->size << 1);
          if (ret) {
             NOUVEAU_ERR("Error allocating TEXT area: %d\n", ret);
             return false;
@@ -834,12 +834,12 @@ nvc0_program_upload(struct nvc0_context *nvc0, struct nvc0_program *prog)
          nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_3D_TEXT);
          BCTX_REFN_bo(nvc0->bufctx_3d, 3D_TEXT,
                       NV_VRAM_DOMAIN(&screen->base) | NOUVEAU_BO_RD,
-                      screen->text);
-         if (screen->compute) {
+                      nvc0->text);
+         if (nvc0->compute) {
             nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_TEXT);
             BCTX_REFN_bo(nvc0->bufctx_cp, CP_TEXT,
                          NV_VRAM_DOMAIN(&screen->base) | NOUVEAU_BO_RD,
-                         screen->text);
+                         nvc0->text);
          }
 
          /* Re-upload the builtin function into the new code segment. */
@@ -898,20 +898,20 @@ nvc0_program_library_upload(struct nvc0_context *nvc0)
    uint32_t size;
    const uint32_t *code;
 
-   if (screen->lib_code)
+   if (nvc0->lib_code)
       return;
 
    nv50_ir_get_target_library(screen->base.device->chipset, &code, &size);
    if (!size)
       return;
 
-   ret = nouveau_heap_alloc(screen->text_heap, align(size, 0x100), NULL,
-                            &screen->lib_code);
+   ret = nouveau_heap_alloc(nvc0->text_heap, align(size, 0x100), NULL,
+                            &nvc0->lib_code);
    if (ret)
       return;
 
    nvc0->base.push_data(&nvc0->base,
-                        screen->text, screen->lib_code->start, NV_VRAM_DOMAIN(&screen->base),
+                        nvc0->text, nvc0->lib_code->start, NV_VRAM_DOMAIN(&screen->base),
                         size, code);
    /* no need for a memory barrier, will be emitted with first program */
 }

@@ -30,11 +30,11 @@
 #include "codegen/nv50_ir_driver.h"
 
 int
-nv50_screen_compute_setup(struct nv50_screen *screen,
-                          struct nouveau_pushbuf *push)
+nv50_context_compute_setup(struct nv50_context *nv50,
+                           struct nouveau_pushbuf *push)
 {
-   struct nouveau_device *dev = screen->base.device;
-   struct nouveau_object *chan = screen->base.channel;
+   struct nouveau_device *dev = nv50->screen->base.device;
+   struct nouveau_object *chan = nv50->base.channel;
    struct nv04_fifo *fifo = (struct nv04_fifo *)chan->data;
    unsigned obj_class;
    int i, ret;
@@ -63,20 +63,20 @@ nv50_screen_compute_setup(struct nv50_screen *screen,
    }
 
    ret = nouveau_object_new(chan, 0xbeef50c0, obj_class, NULL, 0,
-                            &screen->compute);
+                            &nv50->compute);
    if (ret)
       return ret;
 
    BEGIN_NV04(push, SUBC_CP(NV01_SUBCHAN_OBJECT), 1);
-   PUSH_DATA (push, screen->compute->handle);
+   PUSH_DATA (push, nv50->compute->handle);
 
    BEGIN_NV04(push, NV50_CP(UNK02A0), 1);
    PUSH_DATA (push, 1);
    BEGIN_NV04(push, NV50_CP(DMA_STACK), 1);
    PUSH_DATA (push, fifo->vram);
    BEGIN_NV04(push, NV50_CP(STACK_ADDRESS_HIGH), 2);
-   PUSH_DATAh(push, screen->stack_bo->offset);
-   PUSH_DATA (push, screen->stack_bo->offset);
+   PUSH_DATAh(push, nv50->stack_bo->offset);
+   PUSH_DATA (push, nv50->stack_bo->offset);
    BEGIN_NV04(push, NV50_CP(STACK_SIZE_LOG), 1);
    PUSH_DATA (push, 4);
 
@@ -130,15 +130,15 @@ nv50_screen_compute_setup(struct nv50_screen *screen,
    BEGIN_NV04(push, NV50_CP(DMA_TIC), 1);
    PUSH_DATA (push, fifo->vram);
    BEGIN_NV04(push, NV50_CP(TIC_ADDRESS_HIGH), 3);
-   PUSH_DATAh(push, screen->txc->offset);
-   PUSH_DATA (push, screen->txc->offset);
+   PUSH_DATAh(push, nv50->txc->offset);
+   PUSH_DATA (push, nv50->txc->offset);
    PUSH_DATA (push, NV50_TIC_MAX_ENTRIES - 1);
 
    BEGIN_NV04(push, NV50_CP(DMA_TSC), 1);
    PUSH_DATA (push, fifo->vram);
    BEGIN_NV04(push, NV50_CP(TSC_ADDRESS_HIGH), 3);
-   PUSH_DATAh(push, screen->txc->offset + 65536);
-   PUSH_DATA (push, screen->txc->offset + 65536);
+   PUSH_DATAh(push, nv50->txc->offset + 65536);
+   PUSH_DATA (push, nv50->txc->offset + 65536);
    PUSH_DATA (push, NV50_TSC_MAX_ENTRIES - 1);
 
    BEGIN_NV04(push, NV50_CP(DMA_CODE_CB), 1);
@@ -147,10 +147,10 @@ nv50_screen_compute_setup(struct nv50_screen *screen,
    BEGIN_NV04(push, NV50_CP(DMA_LOCAL), 1);
    PUSH_DATA (push, fifo->vram);
    BEGIN_NV04(push, NV50_CP(LOCAL_ADDRESS_HIGH), 2);
-   PUSH_DATAh(push, screen->tls_bo->offset + 65536);
-   PUSH_DATA (push, screen->tls_bo->offset + 65536);
+   PUSH_DATAh(push, nv50->tls_bo->offset + 65536);
+   PUSH_DATA (push, nv50->tls_bo->offset + 65536);
    BEGIN_NV04(push, NV50_CP(LOCAL_SIZE_LOG), 1);
-   PUSH_DATA (push, util_logbase2((screen->max_tls_space / ONE_TEMP_SIZE) * 2));
+   PUSH_DATA (push, util_logbase2((nv50->screen->max_tls_space / ONE_TEMP_SIZE) * 2));
 
    return 0;
 }
@@ -187,7 +187,7 @@ nv50_state_validate_cp(struct nv50_context *nv50, uint32_t mask)
                              nv50->bufctx_cp);
 
    if (unlikely(nv50->state.flushed))
-      nv50_bufctx_fence(nv50->bufctx_cp, true);
+      nv50_bufctx_fence(nv50->bufctx_cp, &nv50->base, true);
    return ret;
 }
 
@@ -195,7 +195,7 @@ static void
 nv50_compute_upload_input(struct nv50_context *nv50, const uint32_t *input)
 {
    struct nv50_screen *screen = nv50->screen;
-   struct nouveau_pushbuf *push = screen->base.pushbuf;
+   struct nouveau_pushbuf *push = nv50->base.pushbuf;
    unsigned size = align(nv50->compprog->parm_size, 0x4);
 
    BEGIN_NV04(push, NV50_CP(USER_PARAM_COUNT), 1);
@@ -219,7 +219,7 @@ nv50_compute_upload_input(struct nv50_context *nv50, const uint32_t *input)
       BEGIN_NV04(push, NV50_CP(USER_PARAM(0)), size / 4);
       nouveau_pushbuf_data(push, bo, offset, size);
 
-      nouveau_fence_work(screen->base.fence.current, nouveau_mm_free_work, mm);
+      nouveau_fence_work(nv50->base.fence.current, nouveau_mm_free_work, mm);
       nouveau_bo_ref(NULL, &bo);
       nouveau_bufctx_reset(nv50->bufctx, 0);
    }

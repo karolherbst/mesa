@@ -132,7 +132,7 @@ nv50_validate_fb(struct nv50_context *nv50)
    PUSH_DATA (push, fb->width << 16);
    PUSH_DATA (push, fb->height << 16);
 
-   if (nv50->screen->tesla->oclass >= NVA3_3D_CLASS) {
+   if (nv50->tesla->oclass >= NVA3_3D_CLASS) {
       unsigned ms = 1 << ms_mode;
       BEGIN_NV04(push, NV50_3D(CB_ADDR), 1);
       PUSH_DATA (push, (NV50_CB_AUX_SAMPLE_OFFSET << (8 - 2)) | NV50_CB_AUX);
@@ -434,7 +434,7 @@ nv50_validate_min_samples(struct nv50_context *nv50)
    struct nouveau_pushbuf *push = nv50->base.pushbuf;
    int samples;
 
-   if (nv50->screen->tesla->oclass < NVA3_3D_CLASS)
+   if (nv50->tesla->oclass < NVA3_3D_CLASS)
       return;
 
    samples = util_next_power_of_two(nv50->min_samples);
@@ -556,7 +556,7 @@ nv50_state_validate(struct nv50_context *nv50, uint32_t mask,
          PUSH_DATA (nv50->base.pushbuf, 0);
       }
 
-      nv50_bufctx_fence(bufctx, false);
+      nv50_bufctx_fence(bufctx, &nv50->base, false);
    }
    nouveau_pushbuf_bufctx(nv50->base.pushbuf, bufctx);
    ret = nouveau_pushbuf_validate(nv50->base.pushbuf);
@@ -575,7 +575,7 @@ nv50_state_validate_3d(struct nv50_context *nv50, uint32_t mask)
 
    if (unlikely(nv50->state.flushed)) {
       nv50->state.flushed = false;
-      nv50_bufctx_fence(nv50->bufctx_3d, true);
+      nv50_bufctx_fence(nv50->bufctx_3d, &nv50->base, true);
    }
    return ret;
 }

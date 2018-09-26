@@ -168,11 +168,8 @@ int
 nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
 {
    struct pipe_screen *pscreen = &screen->base;
-   struct nv04_fifo nv04_data = { .vram = 0xbeef0201, .gart = 0xbeef0202 };
-   struct nvc0_fifo nvc0_data = { };
    uint64_t time;
-   int size, ret;
-   void *data;
+   int ret;
    union nouveau_bo_config mm_config;
 
    char *nv_dbg = getenv("NOUVEAU_MESA_DEBUG");
@@ -191,14 +188,6 @@ nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
     */
    screen->refcount = -1;
 
-   if (dev->chipset < 0xc0) {
-      data = &nv04_data;
-      size = sizeof(nv04_data);
-   } else {
-      data = &nvc0_data;
-      size = sizeof(nvc0_data);
-   }
-
    /*
     * Set default VRAM domain if not overridden
     */
@@ -209,17 +198,7 @@ nouveau_screen_init(struct nouveau_screen *screen, struct nouveau_device *dev)
          screen->vram_domain = NOUVEAU_BO_GART;
    }
 
-   ret = nouveau_object_new(&dev->object, 0, NOUVEAU_FIFO_CHANNEL_CLASS,
-                            data, size, &screen->channel);
-   if (ret)
-      return ret;
-
    ret = nouveau_client_new(screen->device, &screen->client);
-   if (ret)
-      return ret;
-   ret = nouveau_pushbuf_new(screen->client, screen->channel,
-                             4, 512 * 1024, 1,
-                             &screen->pushbuf);
    if (ret)
       return ret;
 
@@ -272,10 +251,7 @@ nouveau_screen_fini(struct nouveau_screen *screen)
    nouveau_mm_destroy(screen->mm_GART);
    nouveau_mm_destroy(screen->mm_VRAM);
 
-   nouveau_pushbuf_del(&screen->pushbuf);
-
    nouveau_client_del(&screen->client);
-   nouveau_object_del(&screen->channel);
 
    nouveau_device_del(&screen->device);
    nouveau_drm_del(&screen->drm);
@@ -296,8 +272,48 @@ nouveau_set_debug_callback(struct pipe_context *pipe,
       memset(&context->debug, 0, sizeof(context->debug));
 }
 
-void
+int
 nouveau_context_init(struct nouveau_context *context)
 {
+   struct nv04_fifo nv04_data = { .vram = 0xbeef0201, .gart = 0xbeef0202 };
+   struct nvc0_fifo nvc0_data = { };
+   struct nouveau_device *dev = context->screen->device;
+   void *data;
+   int size, ret;
+
    context->pipe.set_debug_callback = nouveau_set_debug_callback;
+
+   if (dev->chipset < 0xc0) {
+      data = &nv04_data;
+      size = sizeof(nv04_data);
+   } else {
+      data = &nvc0_data;
+      size = sizeof(nvc0_data);
+   }
+
+   ret = nouveau_object_new(&dev->object, 0, NOUVEAU_FIFO_CHANNEL_CLASS,
+                            data, size, &context->channel);
+   if (ret)
+      return ret;
+
+   ret = nouveau_pushbuf_new(context->screen->client, context->channel,
+                             4, 512 * 1024, 1,
+                             &context->pushbuf);
+   return ret;
 }
+
+void
+nouveau_context_destroy(struct nouveau_context *context)
+{
+   int i;
+
+   for (i = 0; i < NOUVEAU_MAX_SCRATCH_BUFS; ++i)
+      if (context->scratch.bo[i])
+         nouveau_bo_ref(NULL, &context->scratch.bo[i]);
+
+   nouveau_pushbuf_del(&context->pushbuf);
+   nouveau_object_del(&context->channel);
+
+   FREE(context);
+}
+

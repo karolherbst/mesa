@@ -34,7 +34,7 @@ void
 nv30_fragtex_validate(struct nv30_context *nv30)
 {
    struct pipe_screen *pscreen = &nv30->screen->base.base;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
    unsigned dirty = nv30->fragprog.dirty_samplers;
 

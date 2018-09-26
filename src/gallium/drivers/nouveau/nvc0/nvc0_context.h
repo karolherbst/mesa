@@ -167,6 +167,33 @@ struct nvc0_resident {
    uint32_t flags;
 };
 
+struct nvc0_graph_state {
+   bool flushed;
+   bool rasterizer_discard;
+   bool early_z_forced;
+   bool prim_restart;
+   uint32_t instance_elts; /* bitmask of per-instance elements */
+   uint32_t instance_base;
+   uint32_t constant_vbos;
+   uint32_t constant_elts;
+   int32_t index_bias;
+   uint16_t scissor;
+   bool flatshade;
+   uint8_t patch_vertices;
+   uint8_t vbo_mode; /* 0 = normal, 1 = translate, 3 = translate, forced */
+   uint8_t num_vtxbufs;
+   uint8_t num_vtxelts;
+   uint8_t num_textures[6];
+   uint8_t num_samplers[6];
+   uint8_t tls_required; /* bitmask of shader types using l[] */
+   uint8_t clip_enable;
+   uint32_t clip_mode;
+   bool uniform_buffer_bound[6];
+   struct nvc0_transform_feedback_state *tfb;
+   bool seamless_cube_map;
+   bool post_depth_coverage;
+};
+
 struct nvc0_context {
    struct nouveau_context base;
 
@@ -174,7 +201,52 @@ struct nvc0_context {
    struct nouveau_bufctx *bufctx;
    struct nouveau_bufctx *bufctx_cp;
 
+   struct nouveau_bo *text;
+   struct nouveau_bo *uniform_bo;
+   struct nouveau_bo *tls;
+   struct nouveau_bo *txc; /* TIC (offset 0) and TSC (65536) */
+   struct nouveau_bo *poly_cache;
+
+   /* only maintained on Maxwell+ */
+   struct nvc0_cb_binding cb_bindings[5][NVC0_MAX_CONST_BUFFERS];
+
+   struct nouveau_object *eng3d; /* sqrt(1/2)|kepler> + sqrt(1/2)|fermi> */
+   struct nouveau_object *eng2d;
+   struct nouveau_object *m2mf;
+   struct nouveau_object *compute;
+   struct nouveau_object *nvsw;
+
    struct nvc0_screen *screen;
+
+   struct {
+      struct nouveau_bo *bo;
+      uint32_t *map;
+   } fence;
+
+   struct nouveau_heap *text_heap;
+   struct nouveau_heap *lib_code; /* allocated from text_heap */
+
+   struct nvc0_blitter *blitter;
+
+   struct nv50_tsc_entry *default_tsc;
+
+   struct {
+      void **entries;
+      int next;
+      uint32_t lock[NVC0_TIC_MAX_ENTRIES / 32];
+      bool maxwell;
+   } tic;
+
+   struct {
+      void **entries;
+      int next;
+      uint32_t lock[NVC0_TSC_MAX_ENTRIES / 32];
+   } tsc;
+
+   struct {
+      struct pipe_image_view **entries;
+      int next;
+   } img;
 
    void (*m2mf_copy_rect)(struct nvc0_context *,
                           const struct nv50_m2mf_rect *dst,
@@ -185,6 +257,7 @@ struct nvc0_context {
    uint32_t dirty_cp; /* dirty flags for compute state */
 
    struct nvc0_graph_state state;
+   struct nvc0_graph_state save_state;
 
    struct nvc0_blend_stateobj *blend;
    struct nvc0_rasterizer_stateobj *rast;
@@ -436,5 +509,53 @@ void nve4_launch_grid(struct pipe_context *, const struct pipe_grid_info *);
 /* nvc0_compute.c */
 void nvc0_launch_grid(struct pipe_context *, const struct pipe_grid_info *);
 void nvc0_compute_validate_globals(struct nvc0_context *);
+
+int nve4_context_compute_setup(struct nvc0_context *, struct nouveau_pushbuf *);
+int nvc0_context_compute_setup(struct nvc0_context *, struct nouveau_pushbuf *);
+
+int nvc0_context_resize_text_area(struct nvc0_context *, uint64_t);
+
+// 3D Only
+void nvc0_context_bind_cb_3d(struct nvc0_context *, bool *, int, int, int, uint64_t);
+
+static inline void
+nvc0_context_tic_unlock(struct nvc0_context *nvc0, struct nv50_tic_entry *tic)
+{
+   if (tic->bindless)
+      return;
+   if (tic->id >= 0)
+      nvc0->tic.lock[tic->id / 32] &= ~(1 << (tic->id % 32));
+}
+
+static inline void
+nvc0_context_tsc_unlock(struct nvc0_context *nvc0, struct nv50_tsc_entry *tsc)
+{
+   if (tsc->id >= 0)
+      nvc0->tsc.lock[tsc->id / 32] &= ~(1 << (tsc->id % 32));
+}
+
+static inline void
+nvc0_context_tic_free(struct nvc0_context *nvc0, struct nv50_tic_entry *tic)
+{
+   if (tic->id >= 0) {
+      nvc0->tic.entries[tic->id] = NULL;
+      nvc0->tic.lock[tic->id / 32] &= ~(1 << (tic->id % 32));
+   }
+}
+
+static inline void
+nvc0_context_tsc_free(struct nvc0_context *nvc0, struct nv50_tsc_entry *tsc)
+{
+   if (tsc->id >= 0) {
+      nvc0->tsc.entries[tsc->id] = NULL;
+      nvc0->tsc.lock[tsc->id / 32] &= ~(1 << (tsc->id % 32));
+   }
+}
+
+bool nvc0_blitter_create(struct nvc0_context *);
+void nvc0_blitter_destroy(struct nvc0_context *);
+
+int nvc0_context_tic_alloc(struct nvc0_context *, void *);
+int nvc0_context_tsc_alloc(struct nvc0_context *, void *);
 
 #endif

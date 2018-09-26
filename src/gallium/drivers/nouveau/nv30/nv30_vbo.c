@@ -465,7 +465,7 @@ nv30_draw_elements(struct nv30_context *nv30, bool shorten,
 		   unsigned index_size)
 {
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    unsigned prim = nv30_prim_gl(mode);
 
    if (eng3d->oclass >= NV40_3D_CLASS && index_bias != nv30->state.index_bias) {

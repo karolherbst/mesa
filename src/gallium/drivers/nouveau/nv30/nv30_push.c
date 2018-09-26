@@ -245,7 +245,7 @@ nv30_push_vbo(struct nv30_context *nv30, const struct pipe_draw_info *info)
       ctx.restart_index = 0;
    }
 
-   if (nv30->screen->eng3d->oclass >= NV40_3D_CLASS) {
+   if (nv30->eng3d->oclass >= NV40_3D_CLASS) {
       BEGIN_NV04(ctx.push, NV40_3D(PRIM_RESTART_ENABLE), 2);
       PUSH_DATA (ctx.push, info->primitive_restart);
       PUSH_DATA (ctx.push, info->restart_index);

@@ -187,7 +187,7 @@ nv50_hw_metric_get_driver_query_info(struct nv50_screen *screen, unsigned id,
 {
    int count = 0;
 
-   if (screen->compute)
+   if (screen->compute_oclass)
       if (screen->base.class_3d >= NV84_3D_CLASS)
          count += NV50_HW_METRIC_QUERY_COUNT;
 
@@ -195,7 +195,7 @@ nv50_hw_metric_get_driver_query_info(struct nv50_screen *screen, unsigned id,
       return count;
 
    if (id < count) {
-      if (screen->compute) {
+      if (screen->compute_oclass) {
          if (screen->base.class_3d >= NV84_3D_CLASS) {
             info->name = nv50_hw_metric_names[id];
             info->query_type = NV50_HW_METRIC_QUERY(id);

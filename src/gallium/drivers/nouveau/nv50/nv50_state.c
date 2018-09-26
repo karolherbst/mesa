@@ -121,7 +121,7 @@ nv50_blend_state_create(struct pipe_context *pipe,
    bool emit_common_func = cso->rt[0].blend_enable;
    uint32_t ms;
 
-   if (nv50_context(pipe)->screen->tesla->oclass >= NVA3_3D_CLASS) {
+   if (nv50_context(pipe)->tesla->oclass >= NVA3_3D_CLASS) {
       SB_BEGIN_3D(so, BLEND_INDEPENDENT, 1);
       SB_DATA    (so, cso->independent_blend_enable);
    }
@@ -142,7 +142,7 @@ nv50_blend_state_create(struct pipe_context *pipe,
             emit_common_func = true;
       }
 
-      if (nv50_context(pipe)->screen->tesla->oclass >= NVA3_3D_CLASS) {
+      if (nv50_context(pipe)->tesla->oclass >= NVA3_3D_CLASS) {
          emit_common_func = false;
 
          for (i = 0; i < 8; ++i) {

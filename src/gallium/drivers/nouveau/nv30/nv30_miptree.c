@@ -343,7 +343,7 @@ nv30_miptree_transfer_unmap(struct pipe_context *pipe,
       nv30_transfer_rect(nv30, NEAREST, &tx->tmp, &tx->img);
 
       /* Allow the copies above to finish executing before freeing the source */
-      nouveau_fence_work(nv30->screen->base.fence.current,
+      nouveau_fence_work(nv30->base.fence.current,
                          nouveau_fence_unref_bo, tx->tmp.bo);
    } else {
       nouveau_bo_ref(NULL, &tx->tmp.bo);
@@ -411,7 +411,7 @@ nv30_miptree_create(struct pipe_screen *pscreen,
       if (pt->bind & PIPE_BIND_SCANOUT) {
          struct nv30_screen *screen = nv30_screen(pscreen);
          int pitch_align = MAX2(
-               screen->eng3d->oclass >= NV40_3D_CLASS ? 1024 : 256,
+               screen->eng3d_oclass >= NV40_3D_CLASS ? 1024 : 256,
                /* round_down_pow2(mt->uniform_pitch / 4) */
                1 << (util_last_bit(mt->uniform_pitch / 4) - 1));
          mt->uniform_pitch = align(mt->uniform_pitch, pitch_align);

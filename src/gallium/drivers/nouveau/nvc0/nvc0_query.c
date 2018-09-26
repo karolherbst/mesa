@@ -146,7 +146,7 @@ nvc0_render_condition(struct pipe_context *pipe,
    if (!pq) {
       PUSH_SPACE(push, 2);
       IMMED_NVC0(push, NVC0_3D(COND_MODE), cond);
-      if (nvc0->screen->compute)
+      if (nvc0->compute)
          IMMED_NVC0(push, NVC0_CP(COND_MODE), cond);
       return;
    }
@@ -163,7 +163,7 @@ nvc0_render_condition(struct pipe_context *pipe,
    BEGIN_NVC0(push, NVC0_2D(COND_ADDRESS_HIGH), 2);
    PUSH_DATAh(push, hq->bo->offset + hq->offset);
    PUSH_DATA (push, hq->bo->offset + hq->offset);
-   if (nvc0->screen->compute) {
+   if (nvc0->compute) {
       BEGIN_NVC0(push, NVC0_CP(COND_ADDRESS_HIGH), 3);
       PUSH_DATAh(push, hq->bo->offset + hq->offset);
       PUSH_DATA (push, hq->bo->offset + hq->offset);
@@ -214,10 +214,8 @@ nvc0_screen_get_driver_query_group_info(struct pipe_screen *pscreen,
 #endif
 
    if (screen->base.drm->version >= 0x01000101) {
-      if (screen->compute) {
-         if (screen->base.class_3d <= GM200_3D_CLASS) {
-            count += 2;
-         }
+      if (screen->base.class_3d <= GM200_3D_CLASS) {
+         count += 2;
       }
    }
 
@@ -225,7 +223,7 @@ nvc0_screen_get_driver_query_group_info(struct pipe_screen *pscreen,
       return count;
 
    if (id == NVC0_HW_SM_QUERY_GROUP) {
-      if (screen->compute) {
+//      if (nvc0->compute) {
          info->name = "MP counters";
 
          /* Expose the maximum number of hardware counters available, although
@@ -235,17 +233,17 @@ nvc0_screen_get_driver_query_group_info(struct pipe_screen *pscreen,
          info->max_active_queries = 8;
          info->num_queries = nvc0_hw_sm_get_num_queries(screen);
          return 1;
-      }
+//      }
    } else
    if (id == NVC0_HW_METRIC_QUERY_GROUP) {
-      if (screen->compute) {
+//      if (nvc0->compute) {
           if (screen->base.class_3d <= GM200_3D_CLASS) {
             info->name = "Performance metrics";
             info->max_active_queries = 4; /* A metric uses at least 2 queries */
             info->num_queries = nvc0_hw_metric_get_num_queries(screen);
             return 1;
          }
-      }
+//      }
    }
 #ifdef NOUVEAU_ENABLE_DRIVER_STATISTICS
    else if (id == NVC0_SW_QUERY_DRV_STAT_GROUP) {

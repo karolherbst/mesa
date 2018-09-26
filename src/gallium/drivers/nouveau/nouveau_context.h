@@ -14,6 +14,7 @@ struct nouveau_context {
    struct nouveau_screen *screen;
 
    struct nouveau_client *client;
+   struct nouveau_object *channel;
    struct nouveau_pushbuf *pushbuf;
    struct pipe_debug_callback debug;
 
@@ -54,6 +55,16 @@ struct nouveau_context {
       uint32_t buf_cache_count;
       uint32_t buf_cache_frame;
    } stats;
+
+   struct {
+      struct nouveau_fence *head;
+      struct nouveau_fence *tail;
+      struct nouveau_fence *current;
+      u32 sequence;
+      u32 sequence_ack;
+      void (*emit)(struct pipe_context *, u32 *sequence);
+      u32  (*update)(struct pipe_context *);
+   } fence;
 };
 
 static inline struct nouveau_context *
@@ -65,8 +76,10 @@ nouveau_context(struct pipe_context *pipe)
 void
 nouveau_context_init_vdec(struct nouveau_context *);
 
-void
+int
 nouveau_context_init(struct nouveau_context *);
+void
+nouveau_context_destroy(struct nouveau_context *);
 
 void
 nouveau_scratch_runout_release(struct nouveau_context *);
@@ -89,18 +102,6 @@ nouveau_scratch_done(struct nouveau_context *nv)
 void *
 nouveau_scratch_get(struct nouveau_context *, unsigned size, uint64_t *gpu_addr,
                     struct nouveau_bo **);
-
-static inline void
-nouveau_context_destroy(struct nouveau_context *ctx)
-{
-   int i;
-
-   for (i = 0; i < NOUVEAU_MAX_SCRATCH_BUFS; ++i)
-      if (ctx->scratch.bo[i])
-         nouveau_bo_ref(NULL, &ctx->scratch.bo[i]);
-
-   FREE(ctx);
-}
 
 static inline  void
 nouveau_context_update_frame_stats(struct nouveau_context *nv)

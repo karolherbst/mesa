@@ -130,8 +130,8 @@ gm200_validate_sample_locations(struct nvc0_context *nvc0, unsigned ms)
 
    BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
    PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-   PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
-   PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
+   PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
+   PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
    BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 64);
    PUSH_DATA (push, NVC0_CB_AUX_SAMPLE_INFO);
    for (pixel_y = 0; pixel_y < 4; pixel_y++) {
@@ -163,13 +163,12 @@ static void
 nvc0_validate_sample_locations(struct nvc0_context *nvc0, unsigned ms)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
    unsigned i;
 
    BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
    PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-   PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
-   PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
+   PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
+   PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
    BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 2 * ms);
    PUSH_DATA (push, NVC0_CB_AUX_SAMPLE_INFO);
    for (i = 0; i < ms; i++) {
@@ -253,7 +252,7 @@ nvc0_validate_fb(struct nvc0_context *nvc0)
          PUSH_DATA(push, 0);
          PUSH_DATA(push, 0);
 
-         nvc0_resource_fence(res, NOUVEAU_BO_WR);
+         nvc0_resource_fence(res, &nvc0->base, NOUVEAU_BO_WR);
 
          assert(!fb->zsbuf);
       }
@@ -463,12 +462,11 @@ static inline void
 nvc0_upload_uclip_planes(struct nvc0_context *nvc0, unsigned s)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
 
    BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
    PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-   PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
-   PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+   PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+   PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
    BEGIN_1IC0(push, NVC0_3D(CB_POS), PIPE_MAX_CLIP_PLANES * 4 + 1);
    PUSH_DATA (push, NVC0_CB_AUX_UCP_INFO);
    PUSH_DATAp(push, &nvc0->clip.ucp[0][0], PIPE_MAX_CLIP_PLANES * 4);
@@ -575,7 +573,7 @@ nvc0_constbufs_validate(struct nvc0_context *nvc0)
          nvc0->constbuf_dirty[s] &= ~(1 << i);
 
          if (nvc0->constbuf[s][i].user) {
-            struct nouveau_bo *bo = nvc0->screen->uniform_bo;
+            struct nouveau_bo *bo = nvc0->uniform_bo;
             const unsigned base = NVC0_CB_USR_INFO(s);
             const unsigned size = nvc0->constbuf[s][0].size;
             assert(i == 0); /* we really only want OpenGL uniforms here */
@@ -584,8 +582,8 @@ nvc0_constbufs_validate(struct nvc0_context *nvc0)
             if (!nvc0->state.uniform_buffer_bound[s]) {
                nvc0->state.uniform_buffer_bound[s] = true;
 
-               nvc0_screen_bind_cb_3d(nvc0->screen, &can_serialize, s, i,
-                                      NVC0_MAX_CONSTBUF_SIZE, bo->offset + base);
+               nvc0_context_bind_cb_3d(nvc0, &can_serialize, s, i,
+                                       NVC0_MAX_CONSTBUF_SIZE, bo->offset + base);
             }
             nvc0_cb_bo_push(&nvc0->base, bo, NV_VRAM_DOMAIN(&nvc0->screen->base),
                          base, NVC0_MAX_CONSTBUF_SIZE,
@@ -595,9 +593,9 @@ nvc0_constbufs_validate(struct nvc0_context *nvc0)
             struct nv04_resource *res =
                nv04_resource(nvc0->constbuf[s][i].u.buf);
             if (res) {
-               nvc0_screen_bind_cb_3d(nvc0->screen, &can_serialize, s, i,
-                                      nvc0->constbuf[s][i].size,
-                                      res->address + nvc0->constbuf[s][i].offset);
+               nvc0_context_bind_cb_3d(nvc0, &can_serialize, s, i,
+                                       nvc0->constbuf[s][i].size,
+                                       res->address + nvc0->constbuf[s][i].offset);
 
                BCTX_REFN(nvc0->bufctx_3d, 3D_CB(s, i), res, RD);
 
@@ -607,7 +605,7 @@ nvc0_constbufs_validate(struct nvc0_context *nvc0)
                if (i == 0)
                   nvc0->state.uniform_buffer_bound[s] = false;
             } else if (i != 0) {
-               nvc0_screen_bind_cb_3d(nvc0->screen, &can_serialize, s, i, -1, 0);
+               nvc0_context_bind_cb_3d(nvc0, &can_serialize, s, i, -1, 0);
             }
          }
       }
@@ -625,14 +623,13 @@ static void
 nvc0_validate_buffers(struct nvc0_context *nvc0)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
    int i, s;
 
    for (s = 0; s < 5; s++) {
       BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
       PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-      PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
-      PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
       BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 4 * NVC0_MAX_BUFFERS);
       PUSH_DATA (push, NVC0_CB_AUX_BUF_INFO(0));
       for (i = 0; i < NVC0_MAX_BUFFERS; i++) {
@@ -704,12 +701,11 @@ nvc0_validate_min_samples(struct nvc0_context *nvc0)
 static void
 nvc0_validate_driverconst(struct nvc0_context *nvc0)
 {
-   struct nvc0_screen *screen = nvc0->screen;
    int i;
 
    for (i = 0; i < 5; ++i)
-      nvc0_screen_bind_cb_3d(screen, NULL, i, 15, NVC0_CB_AUX_SIZE,
-                             screen->uniform_bo->offset + NVC0_CB_AUX_INFO(i));
+      nvc0_context_bind_cb_3d(nvc0, NULL, i, 15, NVC0_CB_AUX_SIZE,
+                              nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(i));
 
    nvc0->dirty_cp |= NVC0_NEW_CP_DRIVERCONST;
 }
@@ -831,12 +827,12 @@ nvc0_validate_fbread(struct nvc0_context *nvc0)
       pipe_sampler_view_reference(&nvc0->fbtexture, NULL);
    nvc0->fbtexture = new_view;
 
-   if (screen->default_tsc->id < 0) {
-      struct nv50_tsc_entry *tsc = nv50_tsc_entry(screen->default_tsc);
-      tsc->id = nvc0_screen_tsc_alloc(screen, tsc);
-      nvc0->base.push_data(&nvc0->base, screen->txc, 65536 + tsc->id * 32,
+   if (nvc0->default_tsc->id < 0) {
+      struct nv50_tsc_entry *tsc = nv50_tsc_entry(nvc0->default_tsc);
+      tsc->id = nvc0_context_tsc_alloc(nvc0, tsc);
+      nvc0->base.push_data(&nvc0->base, nvc0->txc, 65536 + tsc->id * 32,
                            NV_VRAM_DOMAIN(&screen->base), 32, tsc->tsc);
-      screen->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
+      nvc0->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
 
       IMMED_NVC0(push, NVC0_3D(TSC_FLUSH), 0);
       if (screen->base.class_3d < NVE4_3D_CLASS) {
@@ -848,19 +844,19 @@ nvc0_validate_fbread(struct nvc0_context *nvc0)
    if (new_view) {
       struct nv50_tic_entry *tic = nv50_tic_entry(new_view);
       assert(tic->id < 0);
-      tic->id = nvc0_screen_tic_alloc(screen, tic);
-      nvc0->base.push_data(&nvc0->base, screen->txc, tic->id * 32,
+      tic->id = nvc0_context_tic_alloc(nvc0, tic);
+      nvc0->base.push_data(&nvc0->base, nvc0->txc, tic->id * 32,
                            NV_VRAM_DOMAIN(&screen->base), 32, tic->tic);
-      screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
+      nvc0->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
       if (screen->base.class_3d >= NVE4_3D_CLASS) {
          BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
          PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-         PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
-         PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
+         PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
+         PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(4));
          BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 1);
          PUSH_DATA (push, NVC0_CB_AUX_FB_TEX_INFO);
-         PUSH_DATA (push, (screen->default_tsc->id << 20) | tic->id);
+         PUSH_DATA (push, (nvc0->default_tsc->id << 20) | tic->id);
       } else {
          BEGIN_NVC0(push, NVC0_3D(BIND_TIC2(0)), 1);
          PUSH_DATA (push, (tic->id << 9) | 1);
@@ -879,7 +875,7 @@ nvc0_switch_pipe_context(struct nvc0_context *ctx_to)
    if (ctx_from)
       ctx_to->state = ctx_from->state;
    else
-      ctx_to->state = ctx_to->screen->save_state;
+      ctx_to->state = ctx_to->save_state;
 
    ctx_to->dirty_3d = ~0;
    ctx_to->dirty_cp = ~0;

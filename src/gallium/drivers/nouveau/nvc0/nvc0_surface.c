@@ -341,7 +341,7 @@ nvc0_clear_render_target(struct pipe_context *pipe,
       IMMED_NVC0(push, NVC0_3D(MULTISAMPLE_MODE), 0);
 
       /* tiled textures don't have to be fenced, they're not mapped directly */
-      nvc0_resource_fence(res, NOUVEAU_BO_WR);
+      nvc0_resource_fence(res, &nvc0->base, NOUVEAU_BO_WR);
    }
 
    if (!render_condition_enabled)
@@ -403,7 +403,7 @@ nvc0_clear_buffer_push_nvc0(struct pipe_context *pipe,
       size -= nr * 4;
    }
 
-   nvc0_resource_validate(buf, NOUVEAU_BO_WR);
+   nvc0_resource_validate(buf, &nvc0->base, NOUVEAU_BO_WR);
 
    nouveau_bufctx_reset(nvc0->bufctx, 0);
 }
@@ -450,7 +450,7 @@ nvc0_clear_buffer_push_nve4(struct pipe_context *pipe,
       size -= nr * 4;
    }
 
-   nvc0_resource_validate(buf, NOUVEAU_BO_WR);
+   nvc0_resource_validate(buf, &nvc0->base, NOUVEAU_BO_WR);
 
    nouveau_bufctx_reset(nvc0->bufctx, 0);
 }
@@ -596,7 +596,7 @@ nvc0_clear_buffer(struct pipe_context *pipe,
 
    IMMED_NVC0(push, NVC0_3D(COND_MODE), nvc0->cond_condmode);
 
-   nvc0_resource_validate(buf, NOUVEAU_BO_WR);
+   nvc0_resource_validate(buf, &nvc0->base, NOUVEAU_BO_WR);
 
    if (width * height != elements) {
       offset += width * height * data_size;
@@ -912,7 +912,7 @@ nvc0_blitter_make_sampler(struct nvc0_blitter *blit)
 static void
 nvc0_blit_select_fp(struct nvc0_blitctx *ctx, const struct pipe_blit_info *info)
 {
-   struct nvc0_blitter *blitter = ctx->nvc0->screen->blitter;
+   struct nvc0_blitter *blitter = ctx->nvc0->blitter;
 
    const enum pipe_texture_target ptarg =
       nv50_blit_reinterpret_pipe_texture_target(info->src.resource->target);
@@ -1057,7 +1057,7 @@ nvc0_blitctx_pre_blit(struct nvc0_blitctx *ctx,
                       const struct pipe_blit_info *info)
 {
    struct nvc0_context *nvc0 = ctx->nvc0;
-   struct nvc0_blitter *blitter = nvc0->screen->blitter;
+   struct nvc0_blitter *blitter = nvc0->blitter;
    int s;
 
    ctx->saved.fb.width = nvc0->framebuffer.width;
@@ -1553,8 +1553,8 @@ nvc0_blit_eng2d(struct nvc0_context *nvc0, const struct pipe_blit_info *info)
          PUSH_DATA (push, srcy >> 32);
       }
    }
-   nvc0_resource_validate(&dst->base, NOUVEAU_BO_WR);
-   nvc0_resource_validate(&src->base, NOUVEAU_BO_RD);
+   nvc0_resource_validate(&dst->base, &nvc0->base, NOUVEAU_BO_WR);
+   nvc0_resource_validate(&src->base, &nvc0->base, NOUVEAU_BO_RD);
 
    nouveau_bufctx_reset(nvc0->bufctx, NVC0_BIND_2D);
 
@@ -1658,27 +1658,27 @@ nvc0_flush_resource(struct pipe_context *ctx,
 }
 
 bool
-nvc0_blitter_create(struct nvc0_screen *screen)
+nvc0_blitter_create(struct nvc0_context *nvc0)
 {
-   screen->blitter = CALLOC_STRUCT(nvc0_blitter);
-   if (!screen->blitter) {
+   nvc0->blitter = CALLOC_STRUCT(nvc0_blitter);
+   if (!nvc0->blitter) {
       NOUVEAU_ERR("failed to allocate blitter struct\n");
       return false;
    }
-   screen->blitter->screen = screen;
+   nvc0->blitter->screen = nvc0->screen;
 
-   (void) mtx_init(&screen->blitter->mutex, mtx_plain);
+   (void) mtx_init(&nvc0->blitter->mutex, mtx_plain);
 
-   nvc0_blitter_make_vp(screen->blitter);
-   nvc0_blitter_make_sampler(screen->blitter);
+   nvc0_blitter_make_vp(nvc0->blitter);
+   nvc0_blitter_make_sampler(nvc0->blitter);
 
    return true;
 }
 
 void
-nvc0_blitter_destroy(struct nvc0_screen *screen)
+nvc0_blitter_destroy(struct nvc0_context *nvc0)
 {
-   struct nvc0_blitter *blitter = screen->blitter;
+   struct nvc0_blitter *blitter = nvc0->blitter;
    unsigned i, m;
 
    for (i = 0; i < NV50_BLIT_MAX_TEXTURE_TYPES; ++i) {

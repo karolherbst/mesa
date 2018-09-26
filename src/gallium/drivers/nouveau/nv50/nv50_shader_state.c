@@ -136,7 +136,7 @@ nv50_program_update_context_state(struct nv50_context *nv50,
       if (nv50->state.new_tls_space)
          nouveau_bufctx_reset(nv50->bufctx_3d, NV50_BIND_3D_TLS);
       if (!nv50->state.tls_required || nv50->state.new_tls_space)
-         BCTX_REFN_bo(nv50->bufctx_3d, 3D_TLS, flags, nv50->screen->tls_bo);
+         BCTX_REFN_bo(nv50->bufctx_3d, 3D_TLS, flags, nv50->tls_bo);
       nv50->state.new_tls_space = false;
       nv50->state.tls_required |= 1 << stage;
    } else {
@@ -242,7 +242,7 @@ nv50_fragprog_validate(struct nv50_context *nv50)
    BEGIN_NV04(push, NV50_3D(FP_START_ID), 1);
    PUSH_DATA (push, fp->code_base);
 
-   if (nv50->screen->tesla->oclass >= NVA3_3D_CLASS) {
+   if (nv50->tesla->oclass >= NVA3_3D_CLASS) {
       BEGIN_NV04(push, SUBC_3D(NVA3_3D_FP_MULTISAMPLE), 1);
       if (nv50->min_samples > 1 || fp->fp.has_samplemask)
          PUSH_DATA(push,

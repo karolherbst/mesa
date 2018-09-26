@@ -37,10 +37,10 @@ struct nv30_query_object {
 };
 
 static volatile void *
-nv30_ntfy(struct nv30_screen *screen, struct nv30_query_object *qo)
+nv30_ntfy(struct nv30_context *context, struct nv30_query_object *qo)
 {
-   struct nv04_notify *query = screen->query->data;
-   struct nouveau_bo *notify = screen->notify;
+   struct nv04_notify *query = context->query->data;
+   struct nouveau_bo *notify = context->notify;
    volatile void *ntfy = NULL;
 
    if (qo && qo->hw)
@@ -50,11 +50,11 @@ nv30_ntfy(struct nv30_screen *screen, struct nv30_query_object *qo)
 }
 
 static void
-nv30_query_object_del(struct nv30_screen *screen, struct nv30_query_object **po)
+nv30_query_object_del(struct nv30_context *context, struct nv30_query_object **po)
 {
    struct nv30_query_object *qo = *po; *po = NULL;
    if (qo) {
-      volatile uint32_t *ntfy = nv30_ntfy(screen, qo);
+      volatile uint32_t *ntfy = nv30_ntfy(context, qo);
       while (ntfy[3] & 0xff000000) {
       }
       nouveau_heap_free(&qo->hw);
@@ -64,7 +64,7 @@ nv30_query_object_del(struct nv30_screen *screen, struct nv30_query_object **po)
 }
 
 static struct nv30_query_object *
-nv30_query_object_new(struct nv30_screen *screen)
+nv30_query_object_new(struct nv30_context *context)
 {
    struct nv30_query_object *oq, *qo = CALLOC_STRUCT(nv30_query_object);
    volatile uint32_t *ntfy;
@@ -75,14 +75,14 @@ nv30_query_object_new(struct nv30_screen *screen)
    /* allocate a new hw query object, if no hw objects left we need to
     * spin waiting for one to become free
     */
-   while (nouveau_heap_alloc(screen->query_heap, 32, NULL, &qo->hw)) {
-      oq = LIST_FIRST_ENTRY(struct nv30_query_object, &screen->queries, list);
-      nv30_query_object_del(screen, &oq);
+   while (nouveau_heap_alloc(context->query_heap, 32, NULL, &qo->hw)) {
+      oq = LIST_FIRST_ENTRY(struct nv30_query_object, &context->queries, list);
+      nv30_query_object_del(context, &oq);
    }
 
-   LIST_ADDTAIL(&qo->list, &screen->queries);
+   LIST_ADDTAIL(&qo->list, &context->queries);
 
-   ntfy = nv30_ntfy(screen, qo);
+   ntfy = nv30_ntfy(context, qo);
    ntfy[0] = 0x00000000;
    ntfy[1] = 0x00000000;
    ntfy[2] = 0x00000000;
@@ -155,7 +155,7 @@ nv30_query_begin(struct pipe_context *pipe, struct pipe_query *pq)
 
    switch (q->type) {
    case PIPE_QUERY_TIME_ELAPSED:
-      q->qo[0] = nv30_query_object_new(nv30->screen);
+      q->qo[0] = nv30_query_object_new(nv30);
       if (q->qo[0]) {
          BEGIN_NV04(push, NV30_3D(QUERY_GET), 1);
          PUSH_DATA (push, (q->report << 24) | q->qo[0]->hw->start);
@@ -180,11 +180,10 @@ static bool
 nv30_query_end(struct pipe_context *pipe, struct pipe_query *pq)
 {
    struct nv30_context *nv30 = nv30_context(pipe);
-   struct nv30_screen *screen = nv30->screen;
    struct nv30_query *q = nv30_query(pq);
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
 
-   q->qo[1] = nv30_query_object_new(screen);
+   q->qo[1] = nv30_query_object_new(nv30);
    if (q->qo[1]) {
       BEGIN_NV04(push, NV30_3D(QUERY_GET), 1);
       PUSH_DATA (push, (q->report << 24) | q->qo[1]->hw->start);
@@ -202,10 +201,10 @@ static boolean
 nv30_query_result(struct pipe_context *pipe, struct pipe_query *pq,
                   boolean wait, union pipe_query_result *result)
 {
-   struct nv30_screen *screen = nv30_screen(pipe->screen);
+   struct nv30_context *context = nv30_context(pipe);
    struct nv30_query *q = nv30_query(pq);
-   volatile uint32_t *ntfy0 = nv30_ntfy(screen, q->qo[0]);
-   volatile uint32_t *ntfy1 = nv30_ntfy(screen, q->qo[1]);
+   volatile uint32_t *ntfy0 = nv30_ntfy(context, q->qo[0]);
+   volatile uint32_t *ntfy1 = nv30_ntfy(context, q->qo[1]);
 
    if (ntfy1) {
       while (ntfy1[3] & 0xff000000) {
@@ -225,8 +224,8 @@ nv30_query_result(struct pipe_context *pipe, struct pipe_query *pq,
          break;
       }
 
-      nv30_query_object_del(screen, &q->qo[0]);
-      nv30_query_object_del(screen, &q->qo[1]);
+      nv30_query_object_del(context, &q->qo[0]);
+      nv30_query_object_del(context, &q->qo[1]);
    }
 
    if (q->type == PIPE_QUERY_OCCLUSION_PREDICATE ||
@@ -274,7 +273,7 @@ nv30_set_active_query_state(struct pipe_context *pipe, boolean enable)
 void
 nv30_query_init(struct pipe_context *pipe)
 {
-   struct nouveau_object *eng3d = nv30_context(pipe)->screen->eng3d;
+   struct nouveau_object *eng3d = nv30_context(pipe)->eng3d;
 
    pipe->create_query = nv30_query_create;
    pipe->destroy_query = nv30_query_destroy;

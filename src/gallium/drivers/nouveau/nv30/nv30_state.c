@@ -39,7 +39,7 @@ static void *
 nv30_blend_state_create(struct pipe_context *pipe,
                         const struct pipe_blend_state *cso)
 {
-   struct nouveau_object *eng3d = nv30_context(pipe)->screen->eng3d;
+   struct nouveau_object *eng3d = nv30_context(pipe)->eng3d;
    struct nv30_blend_stateobj *so;
    uint32_t blend[2], cmask[2];
    int i;
@@ -211,7 +211,7 @@ static void *
 nv30_zsa_state_create(struct pipe_context *pipe,
                       const struct pipe_depth_stencil_alpha_state *cso)
 {
-   struct nouveau_object *eng3d = nv30_context(pipe)->screen->eng3d;
+   struct nouveau_object *eng3d = nv30_context(pipe)->eng3d;
    struct nv30_zsa_stateobj *so;
 
    so = CALLOC_STRUCT(nv30_zsa_stateobj);

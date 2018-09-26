@@ -451,10 +451,10 @@ nv50_program_upload_code(struct nv50_context *nv50, struct nv50_program *prog)
    uint8_t prog_type;
 
    switch (prog->type) {
-   case PIPE_SHADER_VERTEX:   heap = nv50->screen->vp_code_heap; break;
-   case PIPE_SHADER_GEOMETRY: heap = nv50->screen->gp_code_heap; break;
-   case PIPE_SHADER_FRAGMENT: heap = nv50->screen->fp_code_heap; break;
-   case PIPE_SHADER_COMPUTE:  heap = nv50->screen->fp_code_heap; break;
+   case PIPE_SHADER_VERTEX:   heap = nv50->vp_code_heap; break;
+   case PIPE_SHADER_GEOMETRY: heap = nv50->gp_code_heap; break;
+   case PIPE_SHADER_FRAGMENT: heap = nv50->fp_code_heap; break;
+   case PIPE_SHADER_COMPUTE:  heap = nv50->fp_code_heap; break;
    default:
       assert(!"invalid program type");
       return false;
@@ -486,7 +486,7 @@ nv50_program_upload_code(struct nv50_context *nv50, struct nv50_program *prog)
       prog_type = prog->type;
    }
 
-   ret = nv50_tls_realloc(nv50->screen, prog->tls_space);
+   ret = nv50_tls_realloc(nv50, prog->tls_space);
    if (ret < 0) {
       nouveau_heap_free(&prog->mem);
       return false;
@@ -502,7 +502,7 @@ nv50_program_upload_code(struct nv50_context *nv50, struct nv50_program *prog)
                            false /* flatshade */,
                            prog->fp.alphatest - 1);
 
-   nv50_sifc_linear_u8(&nv50->base, nv50->screen->code,
+   nv50_sifc_linear_u8(&nv50->base, nv50->code,
                        (prog_type << NV50_CODE_BO_SIZE_LOG2) + prog->code_base,
                        NOUVEAU_BO_VRAM, prog->code_size, prog->code);
 

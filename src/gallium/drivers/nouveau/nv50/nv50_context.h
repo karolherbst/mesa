@@ -115,9 +115,33 @@ struct nv50_context {
 
    struct nv50_screen *screen;
 
+   struct nouveau_bo *code;
+   struct nouveau_bo *uniforms;
+   struct nouveau_bo *txc; /* TIC (offset 0) and TSC (65536) */
+   struct nouveau_bo *stack_bo;
+   struct nouveau_bo *tls_bo;
+
+   struct nouveau_heap *vp_code_heap;
+   struct nouveau_heap *gp_code_heap;
+   struct nouveau_heap *fp_code_heap;
+
+   struct {
+      uint32_t *map;
+      struct nouveau_bo *bo;
+   } fence;
+
+   struct nouveau_object *sync;
+
+   struct nouveau_object *tesla;
+   struct nouveau_object *compute;
+   struct nouveau_object *eng2d;
+   struct nouveau_object *m2mf;
+
    struct nouveau_bufctx *bufctx_3d;
    struct nouveau_bufctx *bufctx;
    struct nouveau_bufctx *bufctx_cp;
+
+   unsigned cur_tls_space;
 
    uint32_t dirty_3d; /* dirty flags for 3d state */
    uint32_t dirty_cp; /* dirty flags for compute state */
@@ -214,7 +238,8 @@ nv50_context_shader_stage(unsigned pipe)
 /* nv50_context.c */
 struct pipe_context *nv50_create(struct pipe_screen *, void *, unsigned flags);
 
-void nv50_bufctx_fence(struct nouveau_bufctx *, bool on_flush);
+void nv50_bufctx_fence(struct nouveau_bufctx *,
+                       struct nouveau_context *context, bool on_flush);
 
 void nv50_default_kick_notify(struct nouveau_pushbuf *);
 
@@ -336,5 +361,9 @@ nv98_video_buffer_create(struct pipe_context *pipe,
 /* nv50_compute.c */
 void
 nv50_launch_grid(struct pipe_context *, const struct pipe_grid_info *);
+
+int
+nv50_context_compute_setup(struct nv50_context *, struct nouveau_pushbuf *);
+
 
 #endif

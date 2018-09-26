@@ -20,9 +20,7 @@ struct nouveau_screen {
    struct pipe_screen base;
    struct nouveau_drm *drm;
    struct nouveau_device *device;
-   struct nouveau_object *channel;
    struct nouveau_client *client;
-   struct nouveau_pushbuf *pushbuf;
 
    int refcount;
 
@@ -35,16 +33,6 @@ struct nouveau_screen {
     */
 
    uint16_t class_3d;
-
-   struct {
-      struct nouveau_fence *head;
-      struct nouveau_fence *tail;
-      struct nouveau_fence *current;
-      u32 sequence;
-      u32 sequence_ack;
-      void (*emit)(struct pipe_screen *, u32 *sequence);
-      u32  (*update)(struct pipe_screen *);
-   } fence;
 
    struct nouveau_mman *mm_VRAM;
    struct nouveau_mman *mm_GART;

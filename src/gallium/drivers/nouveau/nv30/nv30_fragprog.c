@@ -66,7 +66,7 @@ void
 nv30_fragprog_validate(struct nv30_context *nv30)
 {
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    struct nv30_fragprog *fp = nv30->fragprog.program;
    bool upload = false;
    int i;

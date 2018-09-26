@@ -124,7 +124,7 @@ nv30_render_draw_elements(struct vbuf_render *render,
 {
    struct nv30_render *r = nv30_render(render);
    struct nv30_context *nv30 = r->nv30;
-   struct nouveau_pushbuf *push = nv30->screen->base.pushbuf;
+   struct nouveau_pushbuf *push = nv30->base.pushbuf;
    unsigned i;
 
    BEGIN_NV04(push, NV30_3D(VTXBUF(0)), r->vertex_info.num_attribs);
@@ -223,7 +223,8 @@ static const struct {
 static bool
 vroute_add(struct nv30_render *r, uint attrib, uint sem, uint *idx)
 {
-   struct nv30_screen *screen = r->nv30->screen;
+   struct nv30_context *nv30 = r->nv30;
+   struct nv30_screen *screen = nv30->screen;
    struct nv30_fragprog *fp = r->nv30->fragprog.program;
    struct vertex_info *vinfo = &r->vertex_info;
    enum pipe_format format;
@@ -231,7 +232,7 @@ vroute_add(struct nv30_render *r, uint attrib, uint sem, uint *idx)
    uint result = *idx;
 
    if (sem == TGSI_SEMANTIC_GENERIC) {
-      uint num_texcoords = (screen->eng3d->oclass < NV40_3D_CLASS) ? 8 : 10;
+      uint num_texcoords = (nv30->eng3d->oclass < NV40_3D_CLASS) ? 8 : 10;
       for (result = 0; result < num_texcoords; result++) {
          if (fp->texcoord[result] == *idx + 8) {
             sem = TGSI_SEMANTIC_TEXCOORD;
@@ -253,7 +254,7 @@ vroute_add(struct nv30_render *r, uint attrib, uint sem, uint *idx)
    r->vtxptr[attrib] = vinfo->size;
    vinfo->size += draw_translate_vinfo_size(emit);
 
-   if (screen->eng3d->oclass < NV40_3D_CLASS) {
+   if (nv30->eng3d->oclass < NV40_3D_CLASS) {
       r->vtxprog[attrib][0] = 0x001f38d8;
       r->vtxprog[attrib][1] = 0x0080001b | (attrib << 9);
       r->vtxprog[attrib][2] = 0x0836106c;
@@ -279,9 +280,8 @@ nv30_render_validate(struct nv30_context *nv30)
 {
    struct nv30_render *r = nv30_render(nv30->draw->render);
    struct nv30_rasterizer_stateobj *rast = nv30->rast;
-   struct pipe_screen *pscreen = &nv30->screen->base.base;
-   struct nouveau_pushbuf *push = nv30->screen->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_pushbuf *push = nv30->base.pushbuf;
+   struct nouveau_object *eng3d = nv30->eng3d;
    struct nv30_vertprog *vp = nv30->vertprog.program;
    struct vertex_info *vinfo = &r->vertex_info;
    unsigned vp_attribs = 0;
@@ -291,7 +291,7 @@ nv30_render_validate(struct nv30_context *nv30)
    int i;
 
    if (!r->vertprog) {
-      struct nouveau_heap *heap = nv30_screen(pscreen)->vp_exec_heap;
+      struct nouveau_heap *heap = nv30->vp_exec_heap;
       if (nouveau_heap_alloc(heap, 16, &r->vertprog, &r->vertprog)) {
          while (heap->next && heap->size < 16) {
             struct nouveau_heap **evict = heap->next->priv;

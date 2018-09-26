@@ -54,7 +54,7 @@ nv30_transfer_scaled(struct nv30_rect *src, struct nv30_rect *dst)
 static inline bool
 nv30_transfer_blit(XFER_ARGS)
 {
-   if (nv30->screen->eng3d->oclass < NV40_3D_CLASS)
+   if (nv30->eng3d->oclass < NV40_3D_CLASS)
       return false;
    if (dst->offset & 63 || dst->pitch & 63 || dst->d > 1)
       return false;
@@ -70,7 +70,7 @@ nv30_transfer_blit(XFER_ARGS)
 static inline struct nouveau_heap *
 nv30_transfer_rect_vertprog(struct nv30_context *nv30)
 {
-   struct nouveau_heap *heap = nv30->screen->vp_exec_heap;
+   struct nouveau_heap *heap = nv30->vp_exec_heap;
    struct nouveau_heap *vp;
 
    vp = nv30->blit_vp;
@@ -445,7 +445,7 @@ nv30_transfer_rect_sifm(XFER_ARGS)
       PUSH_RELOC(push, dst->bo, dst->offset, NOUVEAU_BO_LOW, 0, 0);
       PUSH_RELOC(push, dst->bo, dst->offset, NOUVEAU_BO_LOW, 0, 0);
       BEGIN_NV04(push, NV05_SIFM(SURFACE), 1);
-      PUSH_DATA (push, nv30->screen->surf2d->handle);
+      PUSH_DATA (push, nv30->surf2d->handle);
    } else {
       BEGIN_NV04(push, NV04_SSWZ(DMA_IMAGE), 1);
       PUSH_RELOC(push, dst->bo, 0, NOUVEAU_BO_OR, fifo->vram, fifo->gart);
@@ -454,7 +454,7 @@ nv30_transfer_rect_sifm(XFER_ARGS)
                                 (util_logbase2(dst->h) << 24));
       PUSH_RELOC(push, dst->bo, dst->offset, NOUVEAU_BO_LOW, 0, 0);
       BEGIN_NV04(push, NV05_SIFM(SURFACE), 1);
-      PUSH_DATA (push, nv30->screen->swzsurf->handle);
+      PUSH_DATA (push, nv30->swzsurf->handle);
    }
 
    BEGIN_NV04(push, NV03_SIFM(DMA_IMAGE), 1);
@@ -689,7 +689,7 @@ nv30_transfer_copy_data(struct nouveau_context *nv,
                         struct nouveau_bo *src, unsigned s_off, unsigned s_dom,
                         unsigned size)
 {
-   struct nv04_fifo *fifo = nv->screen->channel->data;
+   struct nv04_fifo *fifo = nv->channel->data;
    struct nouveau_pushbuf_refn refs[] = {
       { src, s_dom | NOUVEAU_BO_RD },
       { dst, d_dom | NOUVEAU_BO_WR },

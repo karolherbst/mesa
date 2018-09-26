@@ -45,7 +45,26 @@ struct nv30_context {
    struct nv30_screen *screen;
    struct blitter_context *blitter;
 
+   struct nouveau_object *ntfy;
+
+   struct nouveau_object *null;
+   struct nouveau_object *eng3d;
+   struct nouveau_object *m2mf;
+   struct nouveau_object *surf2d;
+   struct nouveau_object *swzsurf;
+   struct nouveau_object *sifm;
+
+   /*XXX: nvfx state */
+   struct nouveau_heap *vp_exec_heap;
+   struct nouveau_heap *vp_data_heap;
+
+   struct nouveau_bo *notify;
+   struct nouveau_object *fence;
    struct nouveau_bufctx *bufctx;
+
+   struct nouveau_object *query;
+   struct nouveau_heap *query_heap;
+   struct list_head queries;
 
    struct {
       unsigned rt_enable;

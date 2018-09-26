@@ -2501,7 +2501,7 @@ nvc0_hw_sm_upload_input(struct nvc0_context *nvc0, struct nvc0_hw_query *hq)
    uint64_t address;
    const int s = 5;
 
-   address = screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s);
+   address = nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s);
 
    PUSH_SPACE(push, 11);
 
@@ -2795,7 +2795,7 @@ nvc0_hw_sm_get_driver_query_info(struct nvc0_screen *screen, unsigned id,
    int count = 0;
 
    if (screen->base.drm->version >= 0x01000101) {
-      if (screen->compute)
+//      if (screen->compute)
          count = nvc0_hw_sm_get_num_queries(screen);
    }
 
@@ -2803,7 +2803,7 @@ nvc0_hw_sm_get_driver_query_info(struct nvc0_screen *screen, unsigned id,
       return count;
 
    if (id < count) {
-      if (screen->compute) {
+//      if (screen->compute) {
          if (screen->base.class_3d <= GM200_3D_CLASS) {
             const struct nvc0_hw_sm_query_cfg **queries =
                nvc0_hw_sm_get_queries(screen);
@@ -2813,7 +2813,7 @@ nvc0_hw_sm_get_driver_query_info(struct nvc0_screen *screen, unsigned id,
             info->group_id = NVC0_HW_SM_QUERY_GROUP;
             return 1;
          }
-      }
+//      }
    }
    return 0;
 }

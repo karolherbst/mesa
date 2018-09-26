@@ -493,17 +493,17 @@ nv84_create_decoder(struct pipe_context *context,
       surf.offset = dec->vpring->size - 0x1000;
       context->clear_render_target(context, &surf.base, &color, 0, 0, 1024, 1, false);
 
-      PUSH_SPACE(screen->pushbuf, 5);
-      PUSH_REFN(screen->pushbuf, dec->fence, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
+      PUSH_SPACE(nv50->base.pushbuf, 5);
+      PUSH_REFN(nv50->base.pushbuf, dec->fence, NOUVEAU_BO_VRAM | NOUVEAU_BO_RDWR);
       /* The clear_render_target is done via 3D engine, so use it to write to a
        * sempahore to indicate that it's done.
        */
-      BEGIN_NV04(screen->pushbuf, NV50_3D(QUERY_ADDRESS_HIGH), 4);
-      PUSH_DATAh(screen->pushbuf, dec->fence->offset);
-      PUSH_DATA (screen->pushbuf, dec->fence->offset);
-      PUSH_DATA (screen->pushbuf, 1);
-      PUSH_DATA (screen->pushbuf, 0xf010);
-      PUSH_KICK (screen->pushbuf);
+      BEGIN_NV04(nv50->base.pushbuf, NV50_3D(QUERY_ADDRESS_HIGH), 4);
+      PUSH_DATAh(nv50->base.pushbuf, dec->fence->offset);
+      PUSH_DATA (nv50->base.pushbuf, dec->fence->offset);
+      PUSH_DATA (nv50->base.pushbuf, 1);
+      PUSH_DATA (nv50->base.pushbuf, 0xf010);
+      PUSH_KICK (nv50->base.pushbuf);
 
       PUSH_SPACE(bsp_push, 2 + 12 + 2 + 4 + 3);
 
@@ -756,7 +756,7 @@ firmware_present(struct pipe_screen *pscreen, enum pipe_video_format codec)
    int present, ret;
 
    if (!FIRMWARE_PRESENT(checked, VP_KERN)) {
-      ret = nouveau_object_new(screen->channel, 0, 0x7476, NULL, 0, &obj);
+//      ret = nouveau_object_new(screen->channel, 0, 0x7476, NULL, 0, &obj);
       if (!ret)
          screen->firmware_info.profiles_present |= FIRMWARE_VP_KERN;
       nouveau_object_del(&obj);
@@ -765,7 +765,7 @@ firmware_present(struct pipe_screen *pscreen, enum pipe_video_format codec)
 
    if (codec == PIPE_VIDEO_FORMAT_MPEG4_AVC) {
       if (!FIRMWARE_PRESENT(checked, BSP_KERN)) {
-         ret = nouveau_object_new(screen->channel, 0, 0x74b0, NULL, 0, &obj);
+//         ret = nouveau_object_new(screen->channel, 0, 0x74b0, NULL, 0, &obj);
          if (!ret)
             screen->firmware_info.profiles_present |= FIRMWARE_BSP_KERN;
          nouveau_object_del(&obj);

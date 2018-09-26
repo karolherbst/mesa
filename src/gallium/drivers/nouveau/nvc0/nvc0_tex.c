@@ -446,7 +446,7 @@ nvc0_create_texture_view(struct pipe_context *pipe,
                          uint32_t flags,
                          enum pipe_texture_target target)
 {
-   if (nvc0_context(pipe)->screen->tic.maxwell)
+   if (nvc0_context(pipe)->tic.maxwell)
       return gm107_create_texture_view(pipe, texture, templ, flags, target);
    return gf100_create_texture_view(pipe, texture, templ, flags, target);
 }
@@ -468,7 +468,7 @@ nvc0_update_tic(struct nvc0_context *nvc0, struct nv50_tic_entry *tic,
    tic->tic[2] |= address >> 32;
 
    if (tic->id >= 0) {
-      nvc0->base.push_data(&nvc0->base, nvc0->screen->txc, tic->id * 32,
+      nvc0->base.push_data(&nvc0->base, nvc0->txc, tic->id * 32,
                            NV_VRAM_DOMAIN(&nvc0->screen->base), 32,
                            tic->tic);
       return true;
@@ -500,9 +500,9 @@ nvc0_validate_tic(struct nvc0_context *nvc0, int s)
       need_flush |= nvc0_update_tic(nvc0, tic, res);
 
       if (tic->id < 0) {
-         tic->id = nvc0_screen_tic_alloc(nvc0->screen, tic);
+         tic->id = nvc0_context_tic_alloc(nvc0, tic);
 
-         nvc0->base.push_data(&nvc0->base, nvc0->screen->txc, tic->id * 32,
+         nvc0->base.push_data(&nvc0->base, nvc0->txc, tic->id * 32,
                               NV_VRAM_DOMAIN(&nvc0->screen->base), 32,
                               tic->tic);
          need_flush = true;
@@ -515,7 +515,7 @@ nvc0_validate_tic(struct nvc0_context *nvc0, int s)
          PUSH_DATA (push, (tic->id << 4) | 1);
          NOUVEAU_DRV_STAT(&nvc0->screen->base, tex_cache_flush_count, 1);
       }
-      nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
+      nvc0->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
       res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
       res->status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
@@ -566,9 +566,9 @@ nve4_validate_tic(struct nvc0_context *nvc0, unsigned s)
       need_flush |= nvc0_update_tic(nvc0, tic, res);
 
       if (tic->id < 0) {
-         tic->id = nvc0_screen_tic_alloc(nvc0->screen, tic);
+         tic->id = nvc0_context_tic_alloc(nvc0, tic);
 
-         nvc0->base.push_data(&nvc0->base, nvc0->screen->txc, tic->id * 32,
+         nvc0->base.push_data(&nvc0->base, nvc0->txc, tic->id * 32,
                               NV_VRAM_DOMAIN(&nvc0->screen->base), 32,
                               tic->tic);
          need_flush = true;
@@ -577,7 +577,7 @@ nve4_validate_tic(struct nvc0_context *nvc0, unsigned s)
          BEGIN_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 1);
          PUSH_DATA (push, (tic->id << 4) | 1);
       }
-      nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
+      nvc0->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
       res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
       res->status |=  NOUVEAU_BUFFER_STATUS_GPU_READING;
@@ -641,14 +641,14 @@ nvc0_validate_tsc(struct nvc0_context *nvc0, int s)
       }
       nvc0->seamless_cube_map = tsc->seamless_cube_map;
       if (tsc->id < 0) {
-         tsc->id = nvc0_screen_tsc_alloc(nvc0->screen, tsc);
+         tsc->id = nvc0_context_tsc_alloc(nvc0, tsc);
 
-         nvc0_m2mf_push_linear(&nvc0->base, nvc0->screen->txc,
+         nvc0_m2mf_push_linear(&nvc0->base, nvc0->txc,
                                65536 + tsc->id * 32, NV_VRAM_DOMAIN(&nvc0->screen->base),
                                32, tsc->tsc);
          need_flush = true;
       }
-      nvc0->screen->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
+      nvc0->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
 
       commands[n++] = (tsc->id << 12) | (i << 4) | 1;
    }
@@ -683,15 +683,15 @@ nve4_validate_tsc(struct nvc0_context *nvc0, int s)
          continue;
       }
       if (tsc->id < 0) {
-         tsc->id = nvc0_screen_tsc_alloc(nvc0->screen, tsc);
+         tsc->id = nvc0_context_tsc_alloc(nvc0, tsc);
 
-         nve4_p2mf_push_linear(&nvc0->base, nvc0->screen->txc,
+         nve4_p2mf_push_linear(&nvc0->base, nvc0->txc,
                                65536 + tsc->id * 32,
                                NV_VRAM_DOMAIN(&nvc0->screen->base),
                                32, tsc->tsc);
          need_flush = true;
       }
-      nvc0->screen->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
+      nvc0->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
 
       nvc0->tex_handles[s][i] &= ~NVE4_TSC_ENTRY_INVALID;
       nvc0->tex_handles[s][i] |= tsc->id << 20;
@@ -736,7 +736,6 @@ void
 nve4_set_tex_handles(struct nvc0_context *nvc0)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
    unsigned s;
 
    if (nvc0->screen->base.class_3d < NVE4_3D_CLASS)
@@ -748,8 +747,8 @@ nve4_set_tex_handles(struct nvc0_context *nvc0)
          continue;
       BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
       PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-      PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
-      PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
       do {
          int i = ffs(dirty) - 1;
          dirty &= ~(1 << i);
@@ -779,23 +778,23 @@ nve4_create_texture_handle(struct pipe_context *pipe,
    struct nv50_tsc_entry *tsc = pipe->create_sampler_state(pipe, sampler);
    struct pipe_sampler_view *v = NULL;
 
-   tsc->id = nvc0_screen_tsc_alloc(nvc0->screen, tsc);
+   tsc->id = nvc0_context_tsc_alloc(nvc0, tsc);
    if (tsc->id < 0)
       goto fail;
 
    if (tic->id < 0) {
-      tic->id = nvc0_screen_tic_alloc(nvc0->screen, tic);
+      tic->id = nvc0_context_tic_alloc(nvc0, tic);
       if (tic->id < 0)
          goto fail;
 
-      nve4_p2mf_push_linear(&nvc0->base, nvc0->screen->txc, tic->id * 32,
+      nve4_p2mf_push_linear(&nvc0->base, nvc0->txc, tic->id * 32,
                             NV_VRAM_DOMAIN(&nvc0->screen->base), 32,
                             tic->tic);
 
       IMMED_NVC0(push, NVC0_3D(TIC_FLUSH), 0);
    }
 
-   nve4_p2mf_push_linear(&nvc0->base, nvc0->screen->txc,
+   nve4_p2mf_push_linear(&nvc0->base, nvc0->txc,
                          65536 + tsc->id * 32,
                          NV_VRAM_DOMAIN(&nvc0->screen->base),
                          32, tsc->tsc);
@@ -809,8 +808,8 @@ nve4_create_texture_handle(struct pipe_context *pipe,
    pipe_sampler_view_reference(&v, view);
    p_atomic_inc(&tic->bindless);
 
-   nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
-   nvc0->screen->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
+   nvc0->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
+   nvc0->tsc.lock[tsc->id / 32] |= 1 << (tsc->id % 32);
 
    return 0x100000000ULL | (tsc->id << 20) | tic->id;
 
@@ -835,18 +834,18 @@ nve4_delete_texture_handle(struct pipe_context *pipe, uint64_t handle)
    struct nvc0_context *nvc0 = nvc0_context(pipe);
    uint32_t tic = handle & NVE4_TIC_ENTRY_INVALID;
    uint32_t tsc = (handle & NVE4_TSC_ENTRY_INVALID) >> 20;
-   struct nv50_tic_entry *entry = nvc0->screen->tic.entries[tic];
+   struct nv50_tic_entry *entry = nvc0->tic.entries[tic];
 
    if (entry) {
       struct pipe_sampler_view *view = &entry->pipe;
       assert(entry->bindless);
       p_atomic_dec(&entry->bindless);
       if (!view_bound(nvc0, view))
-         nvc0_screen_tic_unlock(nvc0->screen, entry);
+         nvc0_context_tic_unlock(nvc0, entry);
       pipe_sampler_view_reference(&view, NULL);
    }
 
-   pipe->delete_sampler_state(pipe, nvc0->screen->tsc.entries[tsc]);
+   pipe->delete_sampler_state(pipe, nvc0->tsc.entries[tsc]);
 }
 
 static void
@@ -857,7 +856,7 @@ nve4_make_texture_handle_resident(struct pipe_context *pipe,
    if (resident) {
       struct nvc0_resident *res = calloc(1, sizeof(struct nvc0_resident));
       struct nv50_tic_entry *tic =
-         nvc0->screen->tic.entries[handle & NVE4_TIC_ENTRY_INVALID];
+         nvc0->tic.entries[handle & NVE4_TIC_ENTRY_INVALID];
       assert(tic);
       assert(tic->bindless);
 
@@ -933,7 +932,6 @@ nve4_set_surface_info(struct nouveau_pushbuf *push,
                       const struct pipe_image_view *view,
                       struct nvc0_context *nvc0)
 {
-   struct nvc0_screen *screen = nvc0->screen;
    struct nv04_resource *res;
    uint64_t address;
    uint32_t *const info = push->cur;
@@ -951,7 +949,7 @@ nve4_set_surface_info(struct nouveau_pushbuf *push,
       info[0] = 0xbadf0000;
       info[1] = 0x80004000;
       info[12] = nve4_suldp_lib_offset[PIPE_FORMAT_R32G32B32A32_UINT] +
-         screen->lib_code->start;
+         nvc0->lib_code->start;
       return;
    }
    res = nv04_resource(view->resource);
@@ -1108,7 +1106,6 @@ void
 nvc0_validate_suf(struct nvc0_context *nvc0, int s)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
 
    for (int i = 0; i < NVC0_MAX_IMAGES; ++i) {
       struct pipe_image_view *view = &nvc0->images[s][i];
@@ -1192,8 +1189,8 @@ nvc0_validate_suf(struct nvc0_context *nvc0, int s)
       else
          BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
       PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-      PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
-      PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
       if (s == 5)
          BEGIN_1IC0(push, NVC0_CP(CB_POS), 1 + 16);
       else
@@ -1221,7 +1218,6 @@ gm107_validate_surfaces(struct nvc0_context *nvc0,
 {
    struct nv04_resource *res = nv04_resource(view->resource);
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
    struct nv50_tic_entry *tic;
 
    tic = nv50_tic_entry(nvc0->images_tic[stage][slot]);
@@ -1230,10 +1226,10 @@ gm107_validate_surfaces(struct nvc0_context *nvc0,
    nvc0_update_tic(nvc0, tic, res);
 
    if (tic->id < 0) {
-      tic->id = nvc0_screen_tic_alloc(nvc0->screen, tic);
+      tic->id = nvc0_context_tic_alloc(nvc0, tic);
 
       /* upload the texture view */
-      nve4_p2mf_push_linear(&nvc0->base, nvc0->screen->txc, tic->id * 32,
+      nve4_p2mf_push_linear(&nvc0->base, nvc0->txc, tic->id * 32,
                             NV_VRAM_DOMAIN(&nvc0->screen->base), 32, tic->tic);
 
       BEGIN_NVC0(push, NVC0_3D(TIC_FLUSH), 1);
@@ -1243,7 +1239,7 @@ gm107_validate_surfaces(struct nvc0_context *nvc0,
       BEGIN_NVC0(push, NVC0_3D(TEX_CACHE_CTL), 1);
       PUSH_DATA (push, (tic->id << 4) | 1);
    }
-   nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
+   nvc0->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
    res->status &= ~NOUVEAU_BUFFER_STATUS_GPU_WRITING;
    res->status |= NOUVEAU_BUFFER_STATUS_GPU_READING;
@@ -1253,8 +1249,8 @@ gm107_validate_surfaces(struct nvc0_context *nvc0,
    /* upload the texture handle */
    BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
    PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-   PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(stage));
-   PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(stage));
+   PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(stage));
+   PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(stage));
    BEGIN_NVC0(push, NVC0_3D(CB_POS), 2);
    PUSH_DATA (push, NVC0_CB_AUX_TEX_INFO(slot + 32));
    PUSH_DATA (push, tic->id);
@@ -1264,7 +1260,6 @@ static inline void
 nve4_update_surface_bindings(struct nvc0_context *nvc0)
 {
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
    int i, j, s;
 
    for (s = 0; s < 5; s++) {
@@ -1276,8 +1271,8 @@ nve4_update_surface_bindings(struct nvc0_context *nvc0)
 
          BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
          PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-         PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
-         PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+         PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+         PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
          BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 16);
          PUSH_DATA (push, NVC0_CB_AUX_SU_INFO(i));
 
@@ -1318,24 +1313,23 @@ nve4_create_image_handle(struct pipe_context *pipe,
 {
    struct nvc0_context *nvc0 = nvc0_context(pipe);
    struct nouveau_pushbuf *push = nvc0->base.pushbuf;
-   struct nvc0_screen *screen = nvc0->screen;
-   int i = screen->img.next, s;
+   int i = nvc0->img.next, s;
 
-   while (screen->img.entries[i]) {
+   while (nvc0->img.entries[i]) {
       i = (i + 1) & (NVE4_IMG_MAX_HANDLES - 1);
-      if (i == screen->img.next)
+      if (i == nvc0->img.next)
          return 0;
    }
 
-   screen->img.next = (i + 1) & (NVE4_IMG_MAX_HANDLES - 1);
-   screen->img.entries[i] = calloc(1, sizeof(struct pipe_image_view));
-   *screen->img.entries[i] = *view;
+   nvc0->img.next = (i + 1) & (NVE4_IMG_MAX_HANDLES - 1);
+   nvc0->img.entries[i] = calloc(1, sizeof(struct pipe_image_view));
+   *nvc0->img.entries[i] = *view;
 
    for (s = 0; s < 6; s++) {
       BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
       PUSH_DATA (push, NVC0_CB_AUX_SIZE);
-      PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
-      PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATAh(push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
+      PUSH_DATA (push, nvc0->uniform_bo->offset + NVC0_CB_AUX_INFO(s));
       BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + 16);
       PUSH_DATA (push, NVC0_CB_AUX_BINDLESS_INFO(i));
       nve4_set_surface_info(push, view, nvc0);
@@ -1348,11 +1342,10 @@ static void
 nve4_delete_image_handle(struct pipe_context *pipe, uint64_t handle)
 {
    struct nvc0_context *nvc0 = nvc0_context(pipe);
-   struct nvc0_screen *screen = nvc0->screen;
    int i = handle & (NVE4_IMG_MAX_HANDLES - 1);
 
-   free(screen->img.entries[i]);
-   screen->img.entries[i] = NULL;
+   free(nvc0->img.entries[i]);
+   nvc0->img.entries[i] = NULL;
 }
 
 static void
@@ -1360,12 +1353,11 @@ nve4_make_image_handle_resident(struct pipe_context *pipe, uint64_t handle,
                                 unsigned access, bool resident)
 {
    struct nvc0_context *nvc0 = nvc0_context(pipe);
-   struct nvc0_screen *screen = nvc0->screen;
 
    if (resident) {
       struct nvc0_resident *res = calloc(1, sizeof(struct nvc0_resident));
       struct pipe_image_view *view =
-         screen->img.entries[handle & (NVE4_IMG_MAX_HANDLES - 1)];
+         nvc0->img.entries[handle & (NVE4_IMG_MAX_HANDLES - 1)];
       assert(view);
 
       if (view->resource->target == PIPE_BUFFER &&
@@ -1403,17 +1395,17 @@ gm107_create_image_handle(struct pipe_context *pipe,
       goto fail;
 
    tic->bindless = 1;
-   tic->id = nvc0_screen_tic_alloc(nvc0->screen, tic);
+   tic->id = nvc0_context_tic_alloc(nvc0, tic);
    if (tic->id < 0)
       goto fail;
 
-   nve4_p2mf_push_linear(&nvc0->base, nvc0->screen->txc, tic->id * 32,
+   nve4_p2mf_push_linear(&nvc0->base, nvc0->txc, tic->id * 32,
                          NV_VRAM_DOMAIN(&nvc0->screen->base), 32,
                          tic->tic);
 
    IMMED_NVC0(push, NVC0_3D(TIC_FLUSH), 0);
 
-   nvc0->screen->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
+   nvc0->tic.lock[tic->id / 32] |= 1 << (tic->id % 32);
 
    return 0x100000000ULL | tic->id;
 
@@ -1427,12 +1419,12 @@ gm107_delete_image_handle(struct pipe_context *pipe, uint64_t handle)
 {
    struct nvc0_context *nvc0 = nvc0_context(pipe);
    int tic = handle & NVE4_TIC_ENTRY_INVALID;
-   struct nv50_tic_entry *entry = nvc0->screen->tic.entries[tic];
+   struct nv50_tic_entry *entry = nvc0->tic.entries[tic];
    struct pipe_sampler_view *view = &entry->pipe;
    assert(entry->bindless == 1);
    assert(!view_bound(nvc0, view));
    entry->bindless = 0;
-   nvc0_screen_tic_unlock(nvc0->screen, entry);
+   nvc0_context_tic_unlock(nvc0, entry);
    pipe_sampler_view_reference(&view, NULL);
 }
 
@@ -1445,7 +1437,7 @@ gm107_make_image_handle_resident(struct pipe_context *pipe, uint64_t handle,
    if (resident) {
       struct nvc0_resident *res = calloc(1, sizeof(struct nvc0_resident));
       struct nv50_tic_entry *tic =
-         nvc0->screen->tic.entries[handle & NVE4_TIC_ENTRY_INVALID];
+         nvc0->tic.entries[handle & NVE4_TIC_ENTRY_INVALID];
       assert(tic);
       assert(tic->bindless);
 

@@ -83,7 +83,7 @@ nv30_clear(struct pipe_context *pipe, unsigned buffers,
    }
 
    /*XXX: wtf? fixes clears sometimes not clearing on nv3x... */
-   if (nv30->screen->eng3d->oclass < NV40_3D_CLASS) {
+   if (nv30->eng3d->oclass < NV40_3D_CLASS) {
       BEGIN_NV04(push, NV30_3D(CLEAR_DEPTH_VALUE), 3);
       PUSH_DATA (push, zeta);
       PUSH_DATA (push, colr);
@@ -108,7 +108,7 @@ nv30_clear_render_target(struct pipe_context *pipe, struct pipe_surface *ps,
    struct nv30_surface *sf = nv30_surface(ps);
    struct nv30_miptree *mt = nv30_miptree(ps->texture);
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    struct nouveau_pushbuf_refn refn;
    uint32_t rt_format;
 
@@ -168,7 +168,7 @@ nv30_clear_depth_stencil(struct pipe_context *pipe, struct pipe_surface *ps,
    struct nv30_surface *sf = nv30_surface(ps);
    struct nv30_miptree *mt = nv30_miptree(ps->texture);
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    struct nouveau_pushbuf_refn refn;
    uint32_t rt_format, mode = 0;
 

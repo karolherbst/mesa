@@ -240,7 +240,7 @@ static bool
 nv50_validate_tic(struct nv50_context *nv50, int s)
 {
    struct nouveau_pushbuf *push = nv50->base.pushbuf;
-   struct nouveau_bo *txc = nv50->screen->txc;
+   struct nouveau_bo *txc = nv50->txc;
    unsigned i;
    bool need_flush = false;
 
@@ -364,7 +364,7 @@ nv50_validate_tsc(struct nv50_context *nv50, int s)
       if (tsc->id < 0) {
          tsc->id = nv50_screen_tsc_alloc(nv50->screen, tsc);
 
-         nv50_sifc_linear_u8(&nv50->base, nv50->screen->txc,
+         nv50_sifc_linear_u8(&nv50->base, nv50->txc,
                              65536 + tsc->id * 32,
                              NOUVEAU_BO_VRAM, 32, tsc->tsc);
          need_flush = true;

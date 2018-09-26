@@ -49,7 +49,7 @@ nvc0_hw_query_allocate(struct nvc0_context *nvc0, struct nvc0_query *q,
          if (hq->state == NVC0_HW_QUERY_STATE_READY)
             nouveau_mm_free(hq->mm);
          else
-            nouveau_fence_work(screen->base.fence.current,
+            nouveau_fence_work(nvc0->base.fence.current,
                                nouveau_mm_free_work, hq->mm);
       }
    }
@@ -284,7 +284,7 @@ nvc0_hw_end_query(struct nvc0_context *nvc0, struct nvc0_query *q)
       break;
    }
    if (hq->is64bit)
-      nouveau_fence_ref(nvc0->screen->base.fence.current, &hq->fence);
+      nouveau_fence_ref(nvc0->base.fence.current, &hq->fence);
 }
 
 static boolean
@@ -396,7 +396,7 @@ nvc0_hw_get_query_result_resource(struct nvc0_context *nvc0,
       util_range_add(&buf->valid_buffer_range, offset,
                      offset + (result_type >= PIPE_QUERY_TYPE_I64 ? 8 : 4));
 
-      nvc0_resource_validate(buf, NOUVEAU_BO_WR);
+      nvc0_resource_validate(buf, &nvc0->base, NOUVEAU_BO_WR);
 
       return;
    }
@@ -482,7 +482,7 @@ nvc0_hw_get_query_result_resource(struct nvc0_context *nvc0,
       PUSH_DATA(push, 0);
    } else if (hq->is64bit) {
       PUSH_DATA(push, hq->fence->sequence);
-      nouveau_pushbuf_data(push, nvc0->screen->fence.bo, 0,
+      nouveau_pushbuf_data(push, nvc0->fence.bo, 0,
                            4 | NVC0_IB_ENTRY_1_NO_PREFETCH);
    } else {
       PUSH_DATA(push, hq->sequence);
@@ -495,7 +495,7 @@ nvc0_hw_get_query_result_resource(struct nvc0_context *nvc0,
    util_range_add(&buf->valid_buffer_range, offset,
                   offset + (result_type >= PIPE_QUERY_TYPE_I64 ? 8 : 4));
 
-   nvc0_resource_validate(buf, NOUVEAU_BO_WR);
+   nvc0_resource_validate(buf, &nvc0->base, NOUVEAU_BO_WR);
 }
 
 static const struct nvc0_query_funcs hw_query_funcs = {
@@ -633,8 +633,8 @@ nvc0_hw_query_fifo_wait(struct nvc0_context *nvc0, struct nvc0_query *q)
    PUSH_REFN (push, hq->bo, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
    BEGIN_NVC0(push, SUBC_3D(NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH), 4);
    if (hq->is64bit) {
-      PUSH_DATAh(push, nvc0->screen->fence.bo->offset);
-      PUSH_DATA (push, nvc0->screen->fence.bo->offset);
+      PUSH_DATAh(push, nvc0->fence.bo->offset);
+      PUSH_DATA (push, nvc0->fence.bo->offset);
       PUSH_DATA (push, hq->fence->sequence);
    } else {
       PUSH_DATAh(push, hq->bo->offset + offset);

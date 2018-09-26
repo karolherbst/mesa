@@ -749,7 +749,7 @@ nvc0_hw_metric_get_driver_query_info(struct nvc0_screen *screen, unsigned id,
    int count = 0;
 
    if (screen->base.drm->version >= 0x01000101) {
-      if (screen->compute)
+//      if (screen->compute)
          count = nvc0_hw_metric_get_num_queries(screen);
    }
 
@@ -757,7 +757,7 @@ nvc0_hw_metric_get_driver_query_info(struct nvc0_screen *screen, unsigned id,
       return count;
 
    if (id < count) {
-      if (screen->compute) {
+//      if (screen->compute) {
          if (screen->base.class_3d <= GM200_3D_CLASS) {
             const struct nvc0_hw_metric_query_cfg **queries =
                nvc0_hw_metric_get_queries(screen);
@@ -770,7 +770,7 @@ nvc0_hw_metric_get_driver_query_info(struct nvc0_screen *screen, unsigned id,
             info->group_id = NVC0_HW_METRIC_QUERY_GROUP;
             return 1;
          }
-      }
+//      }
    }
    return 0;
 }

@@ -454,7 +454,7 @@ nvc0_sampler_state_delete(struct pipe_context *pipe, void *hwcso)
          if (nvc0_context(pipe)->samplers[s][i] == hwcso)
             nvc0_context(pipe)->samplers[s][i] = NULL;
 
-   nvc0_screen_tsc_free(nvc0_context(pipe)->screen, nv50_tsc_entry(hwcso));
+   nvc0_context_tsc_free(nvc0_context(pipe), nv50_tsc_entry(hwcso));
 
    FREE(hwcso);
 }
@@ -475,11 +475,11 @@ nvc0_stage_sampler_states_bind(struct nvc0_context *nvc0,
 
       nvc0->samplers[s][i] = nv50_tsc_entry(hwcso[i]);
       if (old)
-         nvc0_screen_tsc_unlock(nvc0->screen, old);
+         nvc0_context_tsc_unlock(nvc0, old);
    }
    for (; i < nvc0->num_samplers[s]; ++i) {
       if (nvc0->samplers[s][i]) {
-         nvc0_screen_tsc_unlock(nvc0->screen, nvc0->samplers[s][i]);
+         nvc0_context_tsc_unlock(nvc0, nvc0->samplers[s][i]);
          nvc0->samplers[s][i] = NULL;
       }
    }
@@ -511,7 +511,7 @@ nvc0_sampler_view_destroy(struct pipe_context *pipe,
 {
    pipe_resource_reference(&view->texture, NULL);
 
-   nvc0_screen_tic_free(nvc0_context(pipe)->screen, nv50_tic_entry(view));
+   nvc0_context_tic_free(nvc0_context(pipe), nv50_tic_entry(view));
 
    FREE(nv50_tic_entry(view));
 }
@@ -546,7 +546,7 @@ nvc0_stage_set_sampler_views(struct nvc0_context *nvc0, int s,
             nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_TEX(i));
          else
             nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_3D_TEX(s, i));
-         nvc0_screen_tic_unlock(nvc0->screen, old);
+         nvc0_context_tic_unlock(nvc0, old);
       }
 
       pipe_sampler_view_reference(&nvc0->textures[s][i], views[i]);
@@ -559,7 +559,7 @@ nvc0_stage_set_sampler_views(struct nvc0_context *nvc0, int s,
             nouveau_bufctx_reset(nvc0->bufctx_cp, NVC0_BIND_CP_TEX(i));
          else
             nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_3D_TEX(s, i));
-         nvc0_screen_tic_unlock(nvc0->screen, old);
+         nvc0_context_tic_unlock(nvc0, old);
          pipe_sampler_view_reference(&nvc0->textures[s][i], NULL);
       }
    }
@@ -974,7 +974,7 @@ nvc0_set_vertex_buffers(struct pipe_context *pipe,
 
        if (vb[i].is_user_buffer) {
           nvc0->vbo_user |= 1 << dst_index;
-          if (!vb[i].stride && nvc0->screen->eng3d->oclass < GM107_3D_CLASS)
+          if (!vb[i].stride && nvc0->eng3d->oclass < GM107_3D_CLASS)
              nvc0->constant_vbos |= 1 << dst_index;
           else
              nvc0->constant_vbos &= ~(1 << dst_index);
@@ -1195,7 +1195,7 @@ nvc0_bind_images_range(struct nvc0_context *nvc0, const unsigned s,
             if (nvc0->images_tic[s][i]) {
                struct nv50_tic_entry *old =
                   nv50_tic_entry(nvc0->images_tic[s][i]);
-               nvc0_screen_tic_unlock(nvc0->screen, old);
+               nvc0_context_tic_unlock(nvc0, old);
                pipe_sampler_view_reference(&nvc0->images_tic[s][i], NULL);
             }
 
@@ -1215,7 +1215,7 @@ nvc0_bind_images_range(struct nvc0_context *nvc0, const unsigned s,
          if (nvc0->screen->base.class_3d >= GM107_3D_CLASS) {
             struct nv50_tic_entry *old = nv50_tic_entry(nvc0->images_tic[s][i]);
             if (old) {
-               nvc0_screen_tic_unlock(nvc0->screen, old);
+               nvc0_context_tic_unlock(nvc0, old);
                pipe_sampler_view_reference(&nvc0->images_tic[s][i], NULL);
             }
          }

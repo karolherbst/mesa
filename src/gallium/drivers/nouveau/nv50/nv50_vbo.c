@@ -755,11 +755,11 @@ nva0_draw_stream_output(struct nv50_context *nv50,
 static void
 nv50_draw_vbo_kick_notify(struct nouveau_pushbuf *chan)
 {
-   struct nv50_screen *screen = chan->user_priv;
+   struct nv50_context *nv50 = chan->user_priv;
 
-   nouveau_fence_update(&screen->base, true);
+   nouveau_fence_update(&nv50->base, true);
 
-   nv50_bufctx_fence(screen->cur_ctx->bufctx_3d, true);
+   nv50_bufctx_fence(nv50->bufctx_3d, &nv50->base, true);
 }
 
 void

@@ -55,7 +55,7 @@ void
 nv30_vertprog_validate(struct nv30_context *nv30)
 {
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    struct nv30_vertprog *vp = nv30->vertprog.program;
    struct nv30_fragprog *fp = nv30->fragprog.program;
    bool upload_code = false;
@@ -86,7 +86,7 @@ nv30_vertprog_validate(struct nv30_context *nv30)
    }
 
    if (!vp->exec) {
-      struct nouveau_heap *heap = nv30->screen->vp_exec_heap;
+      struct nouveau_heap *heap = nv30->vp_exec_heap;
       struct nv30_shader_reloc *reloc = vp->branch_relocs.data;
       unsigned nr_reloc = vp->branch_relocs.size / sizeof(*reloc);
       uint32_t *inst, target;
@@ -129,7 +129,7 @@ nv30_vertprog_validate(struct nv30_context *nv30)
    }
 
    if (vp->nr_consts && !vp->data) {
-      struct nouveau_heap *heap = nv30->screen->vp_data_heap;
+      struct nouveau_heap *heap = nv30->vp_data_heap;
       struct nv30_shader_reloc *reloc = vp->const_relocs.data;
       unsigned nr_reloc = vp->const_relocs.size / sizeof(*reloc);
       uint32_t *inst, target;

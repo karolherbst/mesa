@@ -197,7 +197,7 @@ nv50_screen_get_driver_query_group_info(struct pipe_screen *pscreen,
    struct nv50_screen *screen = nv50_screen(pscreen);
    int count = 0;
 
-   if (screen->compute)
+   if (screen->compute_oclass)
       if (screen->base.class_3d >= NV84_3D_CLASS)
          count += 2;
 
@@ -205,7 +205,7 @@ nv50_screen_get_driver_query_group_info(struct pipe_screen *pscreen,
       return count;
 
    if (id == NV50_HW_SM_QUERY_GROUP) {
-      if (screen->compute) {
+      if (screen->compute_oclass) {
          if (screen->base.class_3d >= NV84_3D_CLASS) {
             info->name = "MP counters";
 
@@ -220,7 +220,7 @@ nv50_screen_get_driver_query_group_info(struct pipe_screen *pscreen,
       }
    } else
    if (id == NV50_HW_METRIC_QUERY_GROUP) {
-      if (screen->compute) {
+      if (screen->compute_oclass) {
          if (screen->base.class_3d >= NV84_3D_CLASS) {
             info->name = "Performance metrics";
             info->max_active_queries = 2; /* A metric uses at least 2 queries */

@@ -38,7 +38,7 @@ nv30_validate_fb(struct nv30_context *nv30)
    struct pipe_screen *pscreen = &nv30->screen->base.base;
    struct pipe_framebuffer_state *fb = &nv30->framebuffer;
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
-   struct nouveau_object *eng3d = nv30->screen->eng3d;
+   struct nouveau_object *eng3d = nv30->eng3d;
    uint32_t rt_format;
    int h = fb->height;
    int w = fb->width;
@@ -463,7 +463,6 @@ nv30_state_context_switch(struct nv30_context *nv30)
 bool
 nv30_state_validate(struct nv30_context *nv30, uint32_t mask, bool hwtnl)
 {
-   struct nouveau_screen *screen = &nv30->screen->base;
    struct nouveau_pushbuf *push = nv30->base.pushbuf;
    struct nouveau_bufctx *bctx = nv30->bufctx;
    struct nouveau_bufref *bref;
@@ -507,7 +506,7 @@ nv30_state_validate(struct nv30_context *nv30, uint32_t mask, bool hwtnl)
    /*XXX*/
    BEGIN_NV04(push, NV30_3D(VTX_CACHE_INVALIDATE_1710), 1);
    PUSH_DATA (push, 0);
-   if (nv30->screen->eng3d->oclass >= NV40_3D_CLASS) {
+   if (nv30->eng3d->oclass >= NV40_3D_CLASS) {
       BEGIN_NV04(push, NV40_3D(TEX_CACHE_CTL), 1);
       PUSH_DATA (push, 2);
       BEGIN_NV04(push, NV40_3D(TEX_CACHE_CTL), 1);
@@ -523,13 +522,13 @@ nv30_state_validate(struct nv30_context *nv30, uint32_t mask, bool hwtnl)
    LIST_FOR_EACH_ENTRY(bref, &bctx->current, thead) {
       struct nv04_resource *res = bref->priv;
       if (res && res->mm) {
-         nouveau_fence_ref(screen->fence.current, &res->fence);
+         nouveau_fence_ref(nv30->base.fence.current, &res->fence);
 
          if (bref->flags & NOUVEAU_BO_RD)
             res->status |= NOUVEAU_BUFFER_STATUS_GPU_READING;
 
          if (bref->flags & NOUVEAU_BO_WR) {
-            nouveau_fence_ref(screen->fence.current, &res->fence_wr);
+            nouveau_fence_ref(nv30->base.fence.current, &res->fence_wr);
             res->status |= NOUVEAU_BUFFER_STATUS_GPU_WRITING;
          }
       }
