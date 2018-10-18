@@ -72,7 +72,6 @@ NVC0LegalizeSSA::handleDIV(Instruction *i)
    default:
       return;
    }
-
    call = bld.mkFlow(OP_CALL, NULL, CC_ALWAYS, NULL);
    bld.mkMovFromReg(i->getDef(0), i->op == OP_DIV ? 0 : 1);
    bld.mkClobber(FILE_GPR, (i->op == OP_DIV) ? 0xe : 0xd, 2);
