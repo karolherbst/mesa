@@ -867,6 +867,7 @@ public:
    inline bool isPseudo() const { return op < OP_MOV; }
    bool isDead() const;
    bool isNop() const;
+   inline bool isCvt() const;
    bool isCommutationLegal(const Instruction *) const; // must be adjacent !
    bool isActionEqual(const Instruction *) const;
    bool isResultEqual(const Instruction *) const;

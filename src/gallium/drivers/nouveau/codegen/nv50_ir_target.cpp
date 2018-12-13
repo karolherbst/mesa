@@ -393,6 +393,8 @@ Program::emitBinary(struct nv50_ir_prog_info *info)
          for (Instruction *i = fn->bbArray[b]->getEntry(); i; i = i->next) {
             emit->emitInstruction(i);
             info->bin.instructions++;
+            if (i->isCvt())
+               info->bin.cvt_instructions++;
             if ((typeSizeof(i->sType) == 8 || typeSizeof(i->dType) == 8) &&
                 (isFloatType(i->sType) || isFloatType(i->dType)))
                info->io.fp64 = true;

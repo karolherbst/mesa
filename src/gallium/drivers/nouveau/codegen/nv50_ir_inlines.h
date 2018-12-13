@@ -419,4 +419,21 @@ LValue *Function::getLValue(int id)
    return reinterpret_cast<LValue *>(allLValues.get(id));
 }
 
+bool Instruction::isCvt() const
+{
+   switch (op) {
+   case OP_ABS:
+   case OP_CEIL:
+   case OP_FLOOR:
+   case OP_NEG:
+   case OP_TRUNC:
+   case OP_SAT:
+      return true;
+   case OP_CVT:
+      return def(0).getFile() != FILE_PREDICATE && src(0).getFile() != FILE_PREDICATE;
+   default:
+      return false;
+   }
+}
+
 #endif // __NV50_IR_INLINES_H__
