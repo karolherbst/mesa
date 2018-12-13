@@ -528,6 +528,8 @@ The integer capabilities:
   OpenMAX should use a compute-based blit instead of pipe_context::blit.
 * ``PIPE_CAP_FRAGMENT_SHADER_INTERLOCK``: True if fragment shader interlock
   functionality is supported.
+* ``PIPE_CAP_SVM_SUPPORT``: Bitfield specifiying the drivers SVM capabilities.
+  See CL_DEVICE_SVM_CAPABILITIES for more information.
 
 .. _pipe_capf:
 

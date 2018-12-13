@@ -352,6 +352,7 @@ u_pipe_screen_get_param_defaults(struct pipe_screen *pscreen,
       return 8;
 
    case PIPE_CAP_COMPUTE_GRID_INFO_LAST_BLOCK:
+   case PIPE_CAP_SVM_SUPPORT:
       return 0;
 
    case PIPE_CAP_COMPUTE_SHADER_DERIVATIVES:
