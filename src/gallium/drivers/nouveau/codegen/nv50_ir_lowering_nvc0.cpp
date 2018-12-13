@@ -719,6 +719,56 @@ NVC0LegalizePostRA::propagateJoin(BasicBlock *bb)
    bb->remove(bb->getEntry());
 }
 
+// replaces instructions which would end up as f2f or i2i with faster
+// alternatives:
+//  - abs(a)     -> add(0, abs a)
+//  - neg(a)     -> add(0, neg a)
+//  - neg(abs a) -> add(0, neg abs a)
+//  - sat(a)     -> sat add(0, a)
+void
+NVC0LegalizePostRA::replaceCvt(Instruction *cvt)
+{
+   if (typeSizeof(cvt->sType) != 4)
+      return;
+   if (cvt->sType != cvt->dType)
+      return;
+   // we could make it work, but in this case we have optimizations disabled
+   // and we don't really care either way.
+   if (cvt->src(0).getFile() == FILE_IMMEDIATE)
+      return;
+
+   Modifier mod;
+
+   switch (cvt->op) {
+   case OP_ABS:
+      if (cvt->src(0).mod)
+         return;
+      if (!isFloatType(cvt->sType))
+         return;
+      mod = NV50_IR_MOD_ABS;
+      break;
+   case OP_NEG:
+      if (cvt->src(0).mod && (cvt->src(0).mod.neg() || !isFloatType(cvt->sType)))
+         return;
+      mod = cvt->src(0).mod ? NV50_IR_MOD_NEG_ABS : NV50_IR_MOD_NEG;
+      break;
+   case OP_SAT:
+      if (!isFloatType(cvt->sType) && cvt->src(0).mod.abs())
+         return;
+      mod = cvt->src(0).mod;
+      cvt->saturate = true;
+      break;
+   default:
+      return;
+   }
+
+   cvt->op = OP_ADD;
+   cvt->moveSources(0, 1);
+   cvt->setSrc(0, rZero);
+   cvt->src(0).mod = 0;
+   cvt->src(1).mod = mod;
+}
+
 bool
 NVC0LegalizePostRA::visit(BasicBlock *bb)
 {
@@ -757,6 +807,9 @@ NVC0LegalizePostRA::visit(BasicBlock *bb)
             if (hi)
                next = hi;
          }
+
+         if (i->isCvt())
+            replaceCvt(i);
 
          if (i->op != OP_MOV && i->op != OP_PFETCH)
             replaceZero(i);
