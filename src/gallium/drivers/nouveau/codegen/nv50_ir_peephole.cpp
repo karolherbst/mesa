@@ -239,7 +239,7 @@ LoadPropagation::checkSwapSrc01(Instruction *insn)
       insn->asCmp()->setCond = reverseCondCode(insn->asCmp()->setCond);
    else
    if (insn->op == OP_SLCT)
-      insn->asCmp()->setCond = inverseCondCode(insn->asCmp()->setCond);
+      insn->asCmp()->setCond = inverseCondCode(insn->asCmp()->setCond, insn->sType);
    else
    if (insn->op == OP_SUB) {
       insn->src(0).mod = insn->src(0).mod ^ Modifier(NV50_IR_MOD_NEG);
@@ -1337,8 +1337,8 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
       switch (ccZ) {
       case CC_LT: cc = CC_FL; break; // bool < 0 -- this is never true
       case CC_GE: cc = CC_TR; break; // bool >= 0 -- this is always true
-      case CC_EQ: cc = inverseCondCode(cc); break; // bool == 0 -- !bool
-      case CC_LE: cc = inverseCondCode(cc); break; // bool <= 0 -- !bool
+      case CC_EQ: cc = inverseCondCode(cc, i->dType); break; // bool == 0 -- !bool
+      case CC_LE: cc = inverseCondCode(cc, i->dType); break; // bool <= 0 -- !bool
       case CC_GT: break; // bool > 0 -- bool
       case CC_NE: break; // bool != 0 -- bool
       default:
@@ -1389,7 +1389,7 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          if (i->src(t).mod != Modifier(0)) {
             assert(i->src(t).mod == Modifier(NV50_IR_MOD_NOT));
             i->src(t).mod = Modifier(0);
-            cmp->setCond = inverseCondCode(cmp->setCond);
+            cmp->setCond = inverseCondCode(cmp->setCond, cmp->dType);
          }
          i->op = OP_MOV;
          i->setSrc(s, NULL);
@@ -3436,7 +3436,7 @@ FlatteningPass::tryPredicateConditional(BasicBlock *bb)
    if (bL)
       predicateInstructions(bL, pred, bb->getExit()->cc);
    if (bR)
-      predicateInstructions(bR, pred, inverseCondCode(bb->getExit()->cc));
+      predicateInstructions(bR, pred, inverseCondCodePred(bb->getExit()->cc));
 
    if (bb->joinAt) {
       bb->remove(bb->joinAt);
