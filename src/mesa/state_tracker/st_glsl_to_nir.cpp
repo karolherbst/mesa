@@ -667,6 +667,9 @@ st_nir_link_shaders(nir_shader **producer, nir_shader **consumer, bool scalar)
    st_nir_opts(*producer, scalar);
    st_nir_opts(*consumer, scalar);
 
+   /* nir_link_opt_varyings relies on no early returns within the producer */
+   NIR_PASS_V(*producer, nir_lower_returns);
+
    if (nir_link_opt_varyings(*producer, *consumer))
       st_nir_opts(*consumer, scalar);
 
