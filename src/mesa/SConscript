@@ -120,6 +120,13 @@ env.CodeGenerate(
     command = python_cmd + ' $SCRIPT -f $SOURCE > $TARGET'
     )
 
+env.CodeGenerate(
+    target = 'main/glformats_info.c',
+    script = 'main/glformats_info_c.py',
+    source = 'main/glformats_info_c.py',
+    command = python_cmd + ' $SCRIPT $SOURCE > $TARGET'
+    )
+
 #
 # Libraries
 #
