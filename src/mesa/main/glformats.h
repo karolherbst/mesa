@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
+#include "formats.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -161,6 +162,12 @@ _mesa_is_es3_color_renderable(const struct gl_context *ctx,
 extern bool
 _mesa_is_es3_texture_filterable(const struct gl_context *ctx,
                                 GLenum internal_format);
+
+extern bool
+_mesa_gl_formats_differ_in_component_sizes(GLenum a, GLenum b);
+
+extern bool
+_mesa_gl_formats_differ_in_component_sizes_mesa(GLenum a, mesa_format b);
 
 #ifdef __cplusplus
 }

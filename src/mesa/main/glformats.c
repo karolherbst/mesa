@@ -27,6 +27,7 @@
 
 #include "context.h"
 #include "glformats.h"
+#include "glformats_info.h"
 #include "formats.h"
 #include "texcompress.h"
 #include "enums.h"
@@ -3947,4 +3948,64 @@ _mesa_is_es3_texture_filterable(const struct gl_context *ctx,
    default:
       return false;
    }
+}
+
+bool
+_mesa_gl_formats_differ_in_component_sizes(GLenum a, GLenum b)
+{
+   const struct mesa_gl_format_info *info_a =
+      _mesa_gl_format_get_info_for_format(a);
+   const struct mesa_gl_format_info *info_b =
+      _mesa_gl_format_get_info_for_format(b);
+
+   assert(info_a && info_b);
+   if (!info_a || !info_b)
+      return false;
+
+   uint8_t a_r_bits = info_a->bits[0];
+   uint8_t a_g_bits = info_a->bits[1];
+   uint8_t a_b_bits = info_a->bits[2];
+   uint8_t a_a_bits = info_a->bits[3];
+   uint8_t a_s_bits = info_a->bits[4];
+
+   uint8_t b_r_bits = info_b->bits[0];
+   uint8_t b_g_bits = info_b->bits[1];
+   uint8_t b_b_bits = info_b->bits[2];
+   uint8_t b_a_bits = info_b->bits[3];
+   uint8_t b_s_bits = info_b->bits[4];
+
+   return (a_r_bits && b_r_bits && a_r_bits != b_r_bits) ||
+          (a_g_bits && b_g_bits && a_g_bits != b_g_bits) ||
+          (a_b_bits && b_b_bits && a_b_bits != b_b_bits) ||
+          (a_a_bits && b_a_bits && a_a_bits != b_a_bits) ||
+          (a_s_bits && b_s_bits && a_s_bits != b_s_bits);
+}
+
+bool
+_mesa_gl_formats_differ_in_component_sizes_mesa(GLenum a, mesa_format b)
+{
+   const struct mesa_gl_format_info *info_a =
+      _mesa_gl_format_get_info_for_format(a);
+
+   assert(info_a);
+   if (!info_a)
+      return false;
+
+   uint8_t a_r_bits = info_a->bits[0];
+   uint8_t a_g_bits = info_a->bits[1];
+   uint8_t a_b_bits = info_a->bits[2];
+   uint8_t a_a_bits = info_a->bits[3];
+   uint8_t a_s_bits = info_a->bits[4];
+
+   uint8_t b_r_bits = _mesa_get_format_bits(b, GL_RED_BITS);
+   uint8_t b_g_bits = _mesa_get_format_bits(b, GL_GREEN_BITS);
+   uint8_t b_b_bits = _mesa_get_format_bits(b, GL_BLUE_BITS);
+   uint8_t b_a_bits = _mesa_get_format_bits(b, GL_ALPHA_BITS);
+   uint8_t b_s_bits = b == MESA_FORMAT_R9G9B9E5_FLOAT ? 5 : 0;
+
+   return (a_r_bits && b_r_bits && a_r_bits != b_r_bits) ||
+          (a_g_bits && b_g_bits && a_g_bits != b_g_bits) ||
+          (a_b_bits && b_b_bits && a_b_bits != b_b_bits) ||
+          (a_a_bits && b_a_bits && a_a_bits != b_a_bits) ||
+          (a_s_bits && b_s_bits && a_s_bits != b_s_bits);
 }

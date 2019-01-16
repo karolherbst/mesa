@@ -4132,29 +4132,6 @@ copytexsubimage_by_slice(struct gl_context *ctx,
 }
 
 
-static GLboolean
-formats_differ_in_component_sizes(mesa_format f1, mesa_format f2)
-{
-   GLint f1_r_bits = _mesa_get_format_bits(f1, GL_RED_BITS);
-   GLint f1_g_bits = _mesa_get_format_bits(f1, GL_GREEN_BITS);
-   GLint f1_b_bits = _mesa_get_format_bits(f1, GL_BLUE_BITS);
-   GLint f1_a_bits = _mesa_get_format_bits(f1, GL_ALPHA_BITS);
-
-   GLint f2_r_bits = _mesa_get_format_bits(f2, GL_RED_BITS);
-   GLint f2_g_bits = _mesa_get_format_bits(f2, GL_GREEN_BITS);
-   GLint f2_b_bits = _mesa_get_format_bits(f2, GL_BLUE_BITS);
-   GLint f2_a_bits = _mesa_get_format_bits(f2, GL_ALPHA_BITS);
-
-   if ((f1_r_bits && f2_r_bits && f1_r_bits != f2_r_bits)
-       || (f1_g_bits && f2_g_bits && f1_g_bits != f2_g_bits)
-       || (f1_b_bits && f2_b_bits && f1_b_bits != f2_b_bits)
-       || (f1_a_bits && f2_a_bits && f1_a_bits != f2_a_bits))
-      return GL_TRUE;
-
-   return GL_FALSE;
-}
-
-
 /**
  * Check if the given texture format and size arguments match those
  * of the texture image.
@@ -4367,11 +4344,26 @@ copyteximage(struct gl_context *ctx, GLuint dims, struct gl_texture_object *texO
        *    format of the source buffer, and this is also the new texel array’s
        *    effective internal format.
        */
-      else if (formats_differ_in_component_sizes (texFormat, rb->Format)) {
+      else {
+         GLenum rb_internal_format = rb->InternalFormat;
+         bool valid = true;
+
+         if (!_mesa_is_enum_format_unsized(rb_internal_format) &&
+             _mesa_gl_formats_differ_in_component_sizes(internalFormat,
+                                                        rb_internal_format))
+            valid = false;
+
+         if (_mesa_is_enum_format_unsized(rb_internal_format) &&
+             _mesa_gl_formats_differ_in_component_sizes_mesa(internalFormat,
+                                                             rb->Format))
+            valid = false;
+
+         if (!valid) {
             _mesa_error(ctx, GL_INVALID_OPERATION,
                         "glCopyTexImage%uD(component size changed in"
                         " internal format)", dims);
             return;
+         }
       }
    }
 
