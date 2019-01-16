@@ -120,6 +120,8 @@ MAIN_FILES = \
 	main/getstring.c \
 	main/glformats.c \
 	main/glformats.h \
+	main/glformats_info.c \
+	main/glformats_info.h \
 	main/glspirv.c \
 	main/glspirv.h \
 	main/glthread.c \

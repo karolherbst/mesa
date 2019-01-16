@@ -671,6 +671,15 @@ get_hash_h = custom_target(
   capture : true,
 )
 
+main_glformats_info_c = custom_target(
+  'glformats_info.c',
+  input : files('main/glformats_info_c.py'),
+  output : 'glformats_info.c',
+  command : [prog_python, '@INPUT@'],
+  depend_files : files('main/glformats.py'),
+  capture: true,
+)
+
 foreach x : [['format_info.h', 'format_info.py'],
              ['format_pack.c', 'format_pack.py'],
              ['format_unpack.c', 'format_unpack.py']]
@@ -696,6 +705,7 @@ files_libmesa_common += [
   ir_expression_operation_h,
   main_remap_helper_h,
   sha1_h,
+  main_glformats_info_c,
 ] + main_marshal_generated_c
 files_libmesa_gallium += [
   ir_expression_operation_h,
