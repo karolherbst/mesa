@@ -214,6 +214,8 @@ private:
    void emitSUSTx();
    void emitSULDx();
    void emitSUREDx();
+
+   void emitMADSP();
 };
 
 /*******************************************************************************
@@ -1861,6 +1863,29 @@ CodeEmitterGM107::emitIMAD()
    emitX    (0x31);
    emitField(0x30, 1, isSignedType(insn->dType));
    emitCC   (0x2f);
+   emitGPR  (0x08, insn->src(0));
+   emitGPR  (0x00, insn->def(0));
+}
+
+void
+CodeEmitterGM107::emitMADSP()
+{
+   switch(insn->src(2).getFile()) {
+   case FILE_GPR:
+      switch (insn->src(1).getFile()) {
+      case FILE_GPR:
+         emitInsn(0x5ad40000);
+         emitGPR (0x14, insn->src(1));
+         break;
+      case FILE_MEMORY_CONST:
+         emitInsn(0x4a940000);
+         emitCBUF(0x22, -1, 0x14, 16, 2, insn->src(1));
+         break;
+      }
+      emitGPR (0x27, insn->src(2));
+      break;
+   }
+
    emitGPR  (0x08, insn->src(0));
    emitGPR  (0x00, insn->def(0));
 }
@@ -3683,6 +3708,9 @@ CodeEmitterGM107::emitInstruction(Instruction *i)
    case OP_SUREDB:
    case OP_SUREDP:
       emitSUREDx();
+      break;
+   case OP_MADSP:
+      emitMADSP();
       break;
    default:
       assert(!"invalid opcode");
