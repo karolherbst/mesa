@@ -1,4 +1,3 @@
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -17,8 +16,6 @@
 
 #include <nvif/class.h>
 #include <nvif/cl0080.h>
-
-#include <xf86drm.h>
 
 static struct util_hash_table *fd_tab = NULL;
 
@@ -60,22 +57,6 @@ static int compare_fd(void *key1, void *key2)
            stat1.st_ino != stat2.st_ino ||
            stat1.st_rdev != stat2.st_rdev;
 }
-
-static uint64_t
-reserve_vma(uint64_t reserved_size, bool low)
-{
-	void *reserved = mmap(NULL, reserved_size, PROT_NONE, MAP_PRIVATE | (low ? MAP_32BIT : 0) | MAP_ANONYMOUS, -1, 0);
-	if (reserved == MAP_FAILED)
-		return 0;
-	return (uint64_t)reserved;
-}
-
-struct drm_nouveau_svm_init {
-	__u64 unmanaged_addr;
-	__u64 unmanaged_size;
-};
-
-#define DRM_NOUVEAU_SVM_INIT           0x08
 
 PUBLIC struct pipe_screen *
 nouveau_drm_screen_create(int fd)
@@ -150,23 +131,6 @@ nouveau_drm_screen_create(int fd)
 		debug_printf("%s: unknown chipset nv%02x\n", __func__,
 			     dev->chipset);
 		goto err;
-	}
-
-	if (dev->chipset > 0x130) {
-		uint64_t reserved_size = 512 * 1024 * 1024;
-		uint64_t reserved_addr = reserve_vma(reserved_size, true);
-		assert(reserved_addr);
-		printf("unmanaged: %016"PRIx64" %016"PRIx64"\n", reserved_addr, reserved_size);
-
-		struct drm_nouveau_svm_init svm_args = {
-			.unmanaged_addr = reserved_addr,
-			.unmanaged_size = reserved_size,
-		};
-
-		ret = drmCommandWrite(drm->fd, DRM_NOUVEAU_SVM_INIT, &svm_args, sizeof(svm_args));
-
-		if (ret < 0)
-			return NULL;
 	}
 
 	screen = init(dev);
