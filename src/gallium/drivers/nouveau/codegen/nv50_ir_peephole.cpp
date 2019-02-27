@@ -193,7 +193,7 @@ LoadPropagation::checkSwapSrc01(Instruction *insn)
    const Target *targ = prog->getTarget();
    if (!targ->getOpInfo(insn).commutative) {
       if (insn->op != OP_SET && insn->op != OP_SLCT &&
-          insn->op != OP_SUB && insn->op != OP_XMAD)
+          insn->op != OP_XMAD)
          return;
       // XMAD is only commutative if both the CBCC and MRG flags are not set.
       if (insn->op == OP_XMAD &&
@@ -241,10 +241,6 @@ LoadPropagation::checkSwapSrc01(Instruction *insn)
    if (insn->op == OP_SLCT)
       insn->asCmp()->setCond = inverseCondCode(insn->asCmp()->setCond);
    else
-   if (insn->op == OP_SUB) {
-      insn->src(0).mod = insn->src(0).mod ^ Modifier(NV50_IR_MOD_NEG);
-      insn->src(1).mod = insn->src(1).mod ^ Modifier(NV50_IR_MOD_NEG);
-   } else
    if (insn->op == OP_XMAD) {
       // swap h1 flags
       uint16_t h1 = (insn->subOp >> 1 & NV50_IR_SUBOP_XMAD_H1(0)) |
@@ -328,14 +324,6 @@ IndirectPropagation::visit(BasicBlock *bb)
             i->setIndirect(s, 0, insn->getSrc(0));
             i->setSrc(s, cloneShallow(func, i->getSrc(s)));
             i->src(s).get()->reg.data.offset += imm.reg.data.u32;
-         } else if (insn->op == OP_SUB && !isFloatType(insn->dType)) {
-            if (insn->src(0).getFile() != targ->nativeFile(FILE_ADDRESS) ||
-                !insn->src(1).getImmediate(imm) ||
-                !targ->insnCanLoadOffset(i, s, -imm.reg.data.s32))
-               continue;
-            i->setIndirect(s, 0, insn->getSrc(0));
-            i->setSrc(s, cloneShallow(func, i->getSrc(s)));
-            i->src(s).get()->reg.data.offset -= imm.reg.data.u32;
          } else if (insn->op == OP_MOV) {
             if (!insn->src(0).getImmediate(imm) ||
                 !targ->insnCanLoadOffset(i, s, imm.reg.data.s32))
@@ -606,16 +594,6 @@ ConstantFolding::expr(Instruction *i,
       case TYPE_F64: res.data.f64 = a->data.f64 + b->data.f64; break;
       case TYPE_S32:
       case TYPE_U32: res.data.u32 = a->data.u32 + b->data.u32; break;
-      default:
-         return;
-      }
-      break;
-   case OP_SUB:
-      switch (i->dType) {
-      case TYPE_F32: res.data.f32 = a->data.f32 - b->data.f32; break;
-      case TYPE_F64: res.data.f64 = a->data.f64 - b->data.f64; break;
-      case TYPE_S32:
-      case TYPE_U32: res.data.u32 = a->data.u32 - b->data.u32; break;
       default:
          return;
       }
@@ -1154,11 +1132,6 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          }
       }
       break;
-   case OP_SUB:
-      if (imm0.isInteger(0) && s == 0 && typeSizeof(i->dType) == 8 &&
-          !isFloatType(i->dType))
-         break;
-      /* fallthrough */
    case OP_ADD:
       if (i->usesFlags())
          break;
@@ -1166,8 +1139,6 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          if (s == 0) {
             i->setSrc(0, i->getSrc(1));
             i->src(0).mod = i->src(1).mod;
-            if (i->op == OP_SUB)
-               i->src(0).mod = i->src(0).mod ^ Modifier(NV50_IR_MOD_NEG);
          }
          i->setSrc(1, NULL);
          i->op = i->src(0).mod.getOp();
@@ -1209,7 +1180,7 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          mul = bld.mkOp2(OP_MUL, TYPE_U32, tA, i->getSrc(0),
                          bld.loadImm(NULL, m));
          mul->subOp = NV50_IR_SUBOP_MUL_HIGH;
-         bld.mkOp2(OP_SUB, TYPE_U32, tB, i->getSrc(0), tA);
+         bld.mkSubMod(TYPE_U32, tB, i->getSrc(0), tA);
          tA = bld.getSSA();
          if (r)
             bld.mkOp2(OP_SHR, TYPE_U32, tA, tB, bld.mkImm(r));
@@ -1249,7 +1220,7 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          tA = bld.getSSA();
          bld.mkCmp(OP_SET, CC_LT, TYPE_S32, tA, TYPE_S32, i->getSrc(0), bld.mkImm(0));
          tD = (d < 0) ? bld.getSSA() : i->getDef(0)->asLValue();
-         newi = bld.mkOp2(OP_SUB, TYPE_U32, tD, tB, tA);
+         newi = bld.mkSubMod(TYPE_U32, tD, tB, tA);
          if (d < 0)
             bld.mkOp1(OP_NEG, TYPE_S32, i->getDef(0), tB);
 
@@ -1463,12 +1434,11 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          i->setSrc(0, si->getSrc(!muls));
          i->setSrc(1, bld.loadImm(NULL, imm1.reg.data.u32 << imm0.reg.data.u32));
          break;
-      case OP_SUB:
       case OP_ADD:
          int adds;
          if (isFloatType(si->dType))
             return false;
-         if (si->op != OP_SUB && si->src(0).getImmediate(imm1))
+         if (si->src(0).getImmediate(imm1))
             adds = 0;
          else if (si->src(1).getImmediate(imm1))
             adds = 1;
@@ -1684,12 +1654,6 @@ ModifierFolding::visit(BasicBlock *bb)
    for (i = bb->getEntry(); i; i = next) {
       next = i->next;
 
-      if (0 && i->op == OP_SUB) {
-         // turn "sub" into "add neg" (do we really want this ?)
-         i->op = OP_ADD;
-         i->src(0).mod = i->src(0).mod ^ Modifier(NV50_IR_MOD_NEG);
-      }
-
       for (int s = 0; s < 3 && i->srcExists(s); ++s) {
          mi = i->getSrc(s)->getInsn();
          if (!mi ||
@@ -1790,7 +1754,7 @@ AlgebraicOpt::handleABS(Instruction *abs)
    if (abs->dType != abs->sType || ty != abs->sType)
       return;
 
-   if ((sub->op != OP_ADD && sub->op != OP_SUB) ||
+   if ((sub->op != OP_ADD) ||
        sub->src(0).getFile() != FILE_GPR || sub->src(0).mod ||
        sub->src(1).getFile() != FILE_GPR || sub->src(1).mod)
          return;

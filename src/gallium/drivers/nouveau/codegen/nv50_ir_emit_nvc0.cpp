@@ -677,7 +677,7 @@ CodeEmitterNVC0::emitFADD(const Instruction *i)
 
          if (i->src(1).mod.abs())
             code[1] &= 0xfdffffff;
-         if ((i->op == OP_SUB) != static_cast<bool>(i->src(1).mod.neg()))
+         if (i->src(1).mod.neg())
             code[1] ^= 0x02000000;
       } else {
          emitForm_A(i, HEX64(50000000, 00000000));
@@ -687,12 +687,11 @@ CodeEmitterNVC0::emitFADD(const Instruction *i)
             code[1] |= 1 << 17;
 
          emitNegAbs12(i);
-         if (i->op == OP_SUB) code[0] ^= 1 << 8;
       }
       if (i->ftz)
          code[0] |= 1 << 5;
    } else {
-      assert(!i->saturate && i->op != OP_SUB &&
+      assert(!i->saturate &&
              !i->src(0).mod.abs() &&
              !i->src(1).mod.neg() && !i->src(1).mod.abs());
 
@@ -712,8 +711,6 @@ CodeEmitterNVC0::emitDADD(const Instruction *i)
    assert(!i->saturate);
    assert(!i->ftz);
    emitNegAbs12(i);
-   if (i->op == OP_SUB)
-      code[0] ^= 1 << 8;
 }
 
 void
@@ -727,8 +724,6 @@ CodeEmitterNVC0::emitUADD(const Instruction *i)
       addOp |= 0x200;
    if (i->src(1).mod.neg())
       addOp |= 0x100;
-   if (i->op == OP_SUB)
-      addOp ^= 0x100;
 
    assert(addOp != 0x300); // would be add-plus-one
 
@@ -2717,7 +2712,6 @@ CodeEmitterNVC0::emitInstruction(Instruction *insn)
       emitOUT(insn);
       break;
    case OP_ADD:
-   case OP_SUB:
       if (insn->dType == TYPE_F64)
          emitDADD(insn);
       else if (isFloatType(insn->dType))

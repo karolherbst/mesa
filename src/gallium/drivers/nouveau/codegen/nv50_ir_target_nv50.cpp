@@ -83,7 +83,6 @@ static const struct opProperties _initProps[] =
 {
    //           neg  abs  not  sat  c[]  s[], a[], imm
    { OP_ADD,    0x3, 0x0, 0x0, 0x8, 0x2, 0x1, 0x1, 0x2 },
-   { OP_SUB,    0x3, 0x0, 0x0, 0x8, 0x2, 0x1, 0x1, 0x2 },
    { OP_MUL,    0x3, 0x0, 0x0, 0x0, 0x2, 0x1, 0x1, 0x2 },
    { OP_MAX,    0x3, 0x3, 0x0, 0x0, 0x2, 0x1, 0x1, 0x0 },
    { OP_MIN,    0x3, 0x3, 0x0, 0x0, 0x2, 0x1, 0x1, 0x0 },
@@ -118,7 +117,7 @@ void TargetNV50::initOpInfo()
    };
    static const operation shortFormList[] =
    {
-      OP_MOV, OP_ADD, OP_SUB, OP_MUL, OP_MAD, OP_SAD, OP_RCP, OP_LINTERP,
+      OP_MOV, OP_ADD, OP_MUL, OP_MAD, OP_SAD, OP_RCP, OP_LINTERP,
       OP_PINTERP, OP_TEX, OP_TXF
    };
    static const operation noDestList[] =
@@ -472,10 +471,6 @@ TargetNV50::isModSupported(const Instruction *insn, int s, Modifier mod) const
       case OP_ADD:
          if (insn->src(s ? 0 : 1).mod.neg())
             return false;
-         break;
-      case OP_SUB:
-         if (s == 0)
-            return insn->src(1).mod.neg() ? false : true;
          break;
       case OP_SET:
          if (insn->sType != TYPE_F32)

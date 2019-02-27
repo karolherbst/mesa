@@ -87,6 +87,11 @@ public:
 
    Instruction *mkSplit(Value *half[2], uint8_t halfSize, Value *);
 
+   inline Instruction *mkSub(DataType, Value *, Value *, Value *);
+   inline LValue *mkSubv(DataType, Value *, Value *, Value *);
+   inline Instruction *mkSubMod(DataType, Value *, Value *, Value *);
+   inline LValue *mkSubModv(DataType, Value *, Value *, Value *);
+
    void mkClobber(DataFile file, uint32_t regMask, int regUnitLog2);
 
    ImmediateValue *mkImm(float);
@@ -321,6 +326,34 @@ BuildUtil::DataArray::insert(ValueMap &m, unsigned i, unsigned c, Value *v)
    return v;
 }
 
+Instruction *
+BuildUtil::mkSub(DataType ty, Value *dst, Value *src0, Value *src1)
+{
+   Value *neg = mkOp1v(OP_NEG, ty, getSSA(), src1);
+   return mkOp2(OP_ADD, ty, dst, src0, neg);
+}
+
+LValue *
+BuildUtil::mkSubv(DataType ty, Value *dst, Value *src0, Value *src1)
+{
+   mkSub(ty, dst, src0, src1);
+   return dst->asLValue();
+}
+
+Instruction *
+BuildUtil::mkSubMod(DataType ty, Value *dst, Value *src0, Value *src1)
+{
+   Instruction *sub = mkOp2(OP_ADD, ty, dst, src0, src1);
+   sub->src(1).mod = Modifier(NV50_IR_MOD_NEG);
+   return sub;
+}
+
+LValue *
+BuildUtil::mkSubModv(DataType ty, Value *dst, Value *src0, Value *src1)
+{
+   mkSubMod(ty, dst, src0, src1);
+   return dst->asLValue();
+}
 } // namespace nv50_ir
 
 #endif // __NV50_IR_BUILD_UTIL_H__

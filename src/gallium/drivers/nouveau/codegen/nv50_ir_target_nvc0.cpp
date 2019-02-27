@@ -100,7 +100,6 @@ static const struct opProperties _initProps[] =
 {
    //           neg  abs  not  sat  c[]  imm
    { OP_ADD,    0x3, 0x3, 0x0, 0x8, 0x2, 0x2 | 0x8 },
-   { OP_SUB,    0x3, 0x3, 0x0, 0x0, 0x2, 0x2 | 0x8 },
    { OP_MUL,    0x3, 0x0, 0x0, 0x8, 0x2, 0x2 | 0x8 },
    { OP_MAX,    0x3, 0x3, 0x0, 0x0, 0x2, 0x2 },
    { OP_MIN,    0x3, 0x3, 0x0, 0x0, 0x2, 0x2 },
@@ -497,10 +496,6 @@ TargetNVC0::isModSupported(const Instruction *insn, int s, Modifier mod) const
             return false;
          if (insn->src(s ? 0 : 1).mod.neg())
             return false;
-         break;
-      case OP_SUB:
-         if (s == 0)
-            return insn->src(1).mod.neg() ? false : true;
          break;
       case OP_SHLADD:
          if (s == 1)

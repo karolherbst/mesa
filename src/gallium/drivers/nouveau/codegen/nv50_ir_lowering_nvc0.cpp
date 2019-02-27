@@ -302,7 +302,7 @@ NVC0LegalizeSSA::handleSET(CmpInstruction *cmp)
 
    bld.mkSplit(src0, 4, cmp->getSrc(0));
    bld.mkSplit(src1, 4, cmp->getSrc(1));
-   bld.mkOp2(OP_SUB, hTy, NULL, src0[0], src1[0])
+   bld.mkSubMod(hTy, NULL, src0[0], src1[0])
       ->setFlagsDef(0, (carry = bld.getSSA(1, FILE_FLAGS)));
    cmp->setFlagsSrc(cmp->srcCount(), carry);
    cmp->setSrc(0, src0[1]);
@@ -2712,7 +2712,7 @@ NVC0LoweringPass::readTessCoord(LValue *dst, int c)
 
    if (c == 2) {
       bld.mkOp2(OP_ADD, TYPE_F32, dst, x, y);
-      bld.mkOp2(OP_SUB, TYPE_F32, dst, bld.loadImm(NULL, 1.0f), dst);
+      bld.mkSub(TYPE_F32, dst, bld.loadImm(NULL, 1.0f), dst);
    }
 }
 
@@ -2895,12 +2895,13 @@ NVC0LoweringPass::handleMOD(Instruction *i)
    if (!isFloatType(i->dType))
       return true;
    LValue *value = bld.getScratch(typeSizeof(i->dType));
+   LValue *neg = bld.getScratch(typeSizeof(i->dType));
    bld.mkOp1(OP_RCP, i->dType, value, i->getSrc(1));
    bld.mkOp2(OP_MUL, i->dType, value, i->getSrc(0), value);
    bld.mkOp1(OP_TRUNC, i->dType, value, value);
    bld.mkOp2(OP_MUL, i->dType, value, i->getSrc(1), value);
-   i->op = OP_SUB;
-   i->setSrc(1, value);
+   i->op = OP_ADD;
+   i->setSrc(1, bld.mkOp1v(OP_NEG, i->dType, neg, value));
    return true;
 }
 

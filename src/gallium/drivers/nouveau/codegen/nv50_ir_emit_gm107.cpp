@@ -1036,10 +1036,6 @@ CodeEmitterGM107::emitDADD()
    emitCC (0x2f);
    emitABS(0x2e, insn->src(0));
    emitNEG(0x2d, insn->src(1));
-
-   if (insn->op == OP_SUB)
-      code[1] ^= 0x00002000;
-
    emitGPR(0x08, insn->src(0));
    emitGPR(0x00, insn->def(0));
 }
@@ -1276,9 +1272,6 @@ CodeEmitterGM107::emitFADD()
       emitABS(0x2e, insn->src(0));
       emitNEG(0x2d, insn->src(1));
       emitFMZ(0x2c, 1);
-
-      if (insn->op == OP_SUB)
-         code[1] ^= 0x00002000;
    } else {
       emitInsn(0x08000000);
       emitABS(0x39, insn->src(1));
@@ -1288,9 +1281,6 @@ CodeEmitterGM107::emitFADD()
       emitNEG(0x35, insn->src(1));
       emitCC  (0x34);
       emitIMMD(0x14, 32, insn->src(1));
-
-      if (insn->op == OP_SUB)
-         code[1] ^= 0x00080000;
    }
 
    emitGPR(0x08, insn->src(0));
@@ -1772,9 +1762,6 @@ CodeEmitterGM107::emitIADD()
       emitCC  (0x34);
       emitIMMD(0x14, 32, insn->src(1));
    }
-
-   if (insn->op == OP_SUB)
-      code[1] ^= 0x00010000;
 
    emitGPR(0x08, insn->src(0));
    emitGPR(0x00, insn->def(0));
@@ -3438,7 +3425,6 @@ CodeEmitterGM107::emitInstruction(Instruction *i)
       emitSHFL();
       break;
    case OP_ADD:
-   case OP_SUB:
       if (isFloatType(insn->dType)) {
          if (insn->dType == TYPE_F64)
             emitDADD();

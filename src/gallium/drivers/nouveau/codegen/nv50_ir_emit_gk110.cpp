@@ -661,10 +661,7 @@ CodeEmitterGK110::emitFADD(const Instruction *i)
       assert(i->rnd == ROUND_N);
       assert(!i->saturate);
 
-      Modifier mod = i->src(1).mod ^
-         Modifier(i->op == OP_SUB ? NV50_IR_MOD_NEG : 0);
-
-      emitForm_L(i, 0x400, 0, mod);
+      emitForm_L(i, 0x400, 0, i->src(1).mod);
 
       FTZ_(3a);
       NEG_(3b, 0);
@@ -680,11 +677,9 @@ CodeEmitterGK110::emitFADD(const Instruction *i)
 
       if (code[0] & 0x1) {
          modNegAbsF32_3b(i, 1);
-         if (i->op == OP_SUB) code[1] ^= 1 << 27;
       } else {
          ABS_(34, 1);
          NEG_(30, 1);
-         if (i->op == OP_SUB) code[1] ^= 1 << 16;
       }
    }
 }
@@ -701,11 +696,9 @@ CodeEmitterGK110::emitDADD(const Instruction *i)
    NEG_(33, 0);
    if (code[0] & 0x1) {
       modNegAbsF32_3b(i, 1);
-      if (i->op == OP_SUB) code[1] ^= 1 << 27;
    } else {
       NEG_(30, 1);
       ABS_(34, 1);
-      if (i->op == OP_SUB) code[1] ^= 1 << 16;
    }
 }
 
@@ -713,9 +706,6 @@ void
 CodeEmitterGK110::emitUADD(const Instruction *i)
 {
    uint8_t addOp = (i->src(0).mod.neg() << 1) | i->src(1).mod.neg();
-
-   if (i->op == OP_SUB)
-      addOp ^= 1;
 
    assert(!i->src(0).mod.abs() && !i->src(1).mod.abs());
 
@@ -2541,7 +2531,6 @@ CodeEmitterGK110::emitInstruction(Instruction *insn)
       emitOUT(insn);
       break;
    case OP_ADD:
-   case OP_SUB:
       if (insn->dType == TYPE_F64)
          emitDADD(insn);
       else if (isFloatType(insn->dType))

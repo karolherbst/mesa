@@ -30,7 +30,7 @@ const uint8_t Target::operationSrcNr[] =
    0, 0,                   // NOP, PHI
    0, 0, 0, 0,             // UNION, SPLIT, MERGE, CONSTRAINT
    1, 1, 2,                // MOV, LOAD, STORE
-   2, 2, 2, 2, 2, 3, 3, 3, // ADD, SUB, MUL, DIV, MOD, MAD, FMA, SAD
+   2, 2, 2, 2, 3, 3, 3,    // ADD, MUL, DIV, MOD, MAD, FMA, SAD
    3, 3,                   // SHLADD, XMAD
    1, 1, 1,                // ABS, NEG, NOT
    2, 2, 2, 2, 2,          // AND, OR, XOR, SHL, SHR
@@ -71,8 +71,8 @@ const OpClass Target::operationClass[] =
    OPCLASS_MOVE,
    OPCLASS_LOAD,
    OPCLASS_STORE,
-   // ADD, SUB, MUL; DIV, MOD; MAD, FMA, SAD, SHLADD, XMAD
-   OPCLASS_ARITH, OPCLASS_ARITH, OPCLASS_ARITH,
+   // ADD, MUL; DIV, MOD; MAD, FMA, SAD, SHLADD, XMAD
+   OPCLASS_ARITH, OPCLASS_ARITH,
    OPCLASS_ARITH, OPCLASS_ARITH,
    OPCLASS_ARITH, OPCLASS_ARITH, OPCLASS_ARITH, OPCLASS_ARITH, OPCLASS_ARITH,
    // ABS, NEG; NOT, AND, OR, XOR; SHL, SHR

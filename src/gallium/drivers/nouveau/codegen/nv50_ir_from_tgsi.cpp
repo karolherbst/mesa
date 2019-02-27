@@ -3351,7 +3351,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
       src0 = fetchSrc(0, 0);
       val0 = mkOp1v(OP_FLOOR, TYPE_F32, getSSA(), src0);
       if (dst0[1])
-         mkOp2(OP_SUB, TYPE_F32, dst0[1], src0, val0);
+         mkSub(TYPE_F32, dst0[1], src0, val0);
       if (dst0[0])
          mkOp1(OP_EX2, TYPE_F32, dst0[0], val0);
       if (dst0[2])
@@ -3408,7 +3408,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          src1 = fetchSrc(1, c);
          src2 = fetchSrc(2, c);
          mkOp3(OP_MAD, TYPE_F32, dst0[c],
-               mkOp2v(OP_SUB, TYPE_F32, getSSA(), src1, src2), src0, src2)
+               mkSubv(TYPE_F32, getSSA(), src1, src2), src0, src2)
             ->dnz = info->io.mul_zero_wins;
       }
       break;
@@ -3424,9 +3424,9 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          mkCmp(OP_SET, CC_GT, srcTy, val0, srcTy, src0, zero);
          mkCmp(OP_SET, CC_LT, srcTy, val1, srcTy, src0, zero);
          if (srcTy == TYPE_F32)
-            mkOp2(OP_SUB, TYPE_F32, dst0[c], val0, val1);
+            mkSubv(TYPE_F32, dst0[c], val0, val1);
          else
-            mkOp2(OP_SUB, TYPE_S32, dst0[c], val1, val0);
+            mkSubv(TYPE_S32, dst0[c], val1, val0);
       }
       break;
    case TGSI_OPCODE_UCMP:
@@ -3449,7 +3449,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          src0 = fetchSrc(0, c);
          val0 = getScratch();
          mkOp1(OP_FLOOR, TYPE_F32, val0, src0);
-         mkOp2(OP_SUB, TYPE_F32, dst0[c], src0, val0);
+         mkSub(TYPE_F32, dst0[c], src0, val0);
       }
       break;
    case TGSI_OPCODE_ROUND:
@@ -4014,7 +4014,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          tmp[0] = fetchSrc(0, c);
          tmp[1] = fetchSrc(0, c + 1);
          mkOp2(OP_MERGE, TYPE_U64, src0, tmp[0], tmp[1]);
-         mkOp2(OP_SUB, dstTy, dst, zero, src0);
+         mkSub(dstTy, dst, zero, src0);
          mkSplit(&dst0[c], 4, dst);
          c++;
       }
@@ -4026,7 +4026,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          srcComp[0] = fetchSrc(0, c);
          srcComp[1] = fetchSrc(0, c + 1);
          mkOp2(OP_MERGE, TYPE_U64, src0, srcComp[0], srcComp[1]);
-         mkOp2(OP_SUB, dstTy, neg, zero, src0);
+         mkSub(dstTy, neg, zero, src0);
          mkSplit(negComp, 4, neg);
          mkCmp(OP_SLCT, CC_LT, TYPE_S32, dst0[c], TYPE_S32,
                negComp[0], srcComp[0], srcComp[1]);
@@ -4062,7 +4062,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          tmp[1] = fetchSrc(0, c + 1);
          mkOp2(OP_MERGE, TYPE_U64, src0, tmp[0], tmp[1]);
          mkOp1(OP_FLOOR, TYPE_F64, dst, src0);
-         mkOp2(OP_SUB, TYPE_F64, dst, src0, dst);
+         mkSub(TYPE_F64, dst, src0, dst);
          mkSplit(&dst0[c], 4, dst);
          c++;
       }
@@ -4204,7 +4204,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          // the end since it gets replaced with $r63.
          mkCmp(OP_SET, CC_GT, TYPE_F32, val0, TYPE_F64, src0, zero);
          mkCmp(OP_SET, CC_LT, TYPE_F32, val1, TYPE_F64, src0, zero);
-         mkOp2(OP_SUB, TYPE_F32, dstF32, val0, val1);
+         mkSub(TYPE_F32, dstF32, val0, val1);
          mkCvt(OP_CVT, TYPE_F64, dst, TYPE_F32, dstF32);
          mkSplit(&dst0[c], 4, dst);
          c++;
@@ -4222,7 +4222,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          val1 = getScratch();
          mkCmp(OP_SET, CC_GT, TYPE_U32, val0, TYPE_S64, src0, zero);
          mkCmp(OP_SET, CC_LT, TYPE_U32, val1, TYPE_S64, src0, zero);
-         mkOp2(OP_SUB, TYPE_S32, dst0[c], val1, val0);
+         mkSub(TYPE_S32, dst0[c], val1, val0);
          mkOp2(OP_SHR, TYPE_S32, dst0[c + 1], dst0[c], loadImm(0, 31));
          c++;
       }
@@ -4427,8 +4427,8 @@ Converter::run()
 
    switch (prog->getType()) {
    case Program::TYPE_TESSELLATION_CONTROL:
-      outBase = mkOp2v(
-         OP_SUB, TYPE_U32, getSSA(),
+      outBase = mkSubv(
+         TYPE_U32, getSSA(),
          mkOp1v(OP_RDSV, TYPE_U32, getSSA(), mkSysVal(SV_LANEID, 0)),
          mkOp1v(OP_RDSV, TYPE_U32, getSSA(), mkSysVal(SV_INVOCATION_ID, 0)));
       break;

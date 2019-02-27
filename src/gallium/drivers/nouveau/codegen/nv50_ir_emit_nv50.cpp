@@ -1024,7 +1024,7 @@ void
 CodeEmitterNV50::emitFADD(const Instruction *i)
 {
    const int neg0 = i->src(0).mod.neg();
-   const int neg1 = i->src(1).mod.neg() ^ ((i->op == OP_SUB) ? 1 : 0);
+   const int neg1 = i->src(1).mod.neg();
 
    code[0] = 0xb0000000;
 
@@ -1058,7 +1058,7 @@ void
 CodeEmitterNV50::emitDADD(const Instruction *i)
 {
    const int neg0 = i->src(0).mod.neg();
-   const int neg1 = i->src(1).mod.neg() ^ ((i->op == OP_SUB) ? 1 : 0);
+   const int neg1 = i->src(1).mod.neg();
 
    assert(!(i->src(0).mod | i->src(1).mod).abs());
    assert(!i->saturate);
@@ -1077,7 +1077,7 @@ void
 CodeEmitterNV50::emitUADD(const Instruction *i)
 {
    const int neg0 = i->src(0).mod.neg();
-   const int neg1 = i->src(1).mod.neg() ^ ((i->op == OP_SUB) ? 1 : 0);
+   const int neg1 = i->src(1).mod.neg();
 
    code[0] = 0x20008000;
 
@@ -1883,7 +1883,6 @@ CodeEmitterNV50::emitInstruction(Instruction *insn)
       emitINTERP(insn);
       break;
    case OP_ADD:
-   case OP_SUB:
       if (insn->dType == TYPE_F64)
          emitDADD(insn);
       else if (isFloatType(insn->dType))

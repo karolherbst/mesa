@@ -234,7 +234,6 @@ TargetGM107::getLatency(const Instruction *insn) const
    case OP_SHLADD:
    case OP_SHR:
    case OP_SLCT:
-   case OP_SUB:
    case OP_VOTE:
    case OP_XOR:
    case OP_XMAD:

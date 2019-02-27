@@ -520,7 +520,7 @@ NV50LegalizeSSA::handleDIV(Instruction *div)
    // get error of 1st result
    expandIntegerMUL(&bld,
       bld.mkOp2(OP_MUL, TYPE_U32, (t = bld.getSSA()), q0, b));
-   bld.mkOp2(OP_SUB, TYPE_U32, (aRf = bld.getSSA()), a, t);
+   bld.mkSubMod(TYPE_U32, (aRf = bld.getSSA()), a, t);
 
    bld.mkCvt(OP_CVT, TYPE_F32, (aR = bld.getSSA()), TYPE_U32, aRf);
 
@@ -532,15 +532,16 @@ NV50LegalizeSSA::handleDIV(Instruction *div)
    // correction: if modulus >= divisor, add 1
    expandIntegerMUL(&bld,
       bld.mkOp2(OP_MUL, TYPE_U32, (t = bld.getSSA()), q, b));
-   bld.mkOp2(OP_SUB, TYPE_U32, (m = bld.getSSA()), a, t);
+   bld.mkSubMod(TYPE_U32, (m = bld.getSSA()), a, t);
    bld.mkCmp(OP_SET, CC_GE, TYPE_U32, (s = bld.getSSA()), TYPE_U32, m, b);
    if (!isSignedType(ty)) {
-      div->op = OP_SUB;
+      div->op = OP_ADD;
       div->setSrc(0, q);
       div->setSrc(1, s);
+      div->src(1).mod = Modifier(NV50_IR_MOD_NEG);
    } else {
       t = q;
-      bld.mkOp2(OP_SUB, TYPE_U32, (q = bld.getSSA()), t, s);
+      bld.mkSubMod(TYPE_U32, (q = bld.getSSA()), t, s);
       s = bld.getSSA();
       t = bld.getSSA();
       // fix the sign
@@ -571,8 +572,9 @@ NV50LegalizeSSA::handleMOD(Instruction *mod)
    bld.setPosition(mod, false);
    expandIntegerMUL(&bld, bld.mkOp2(OP_MUL, TYPE_U32, m, q, mod->getSrc(1)));
 
-   mod->op = OP_SUB;
+   mod->op = OP_ADD;
    mod->setSrc(1, m);
+   mod->src(1).mod = Modifier(NV50_IR_MOD_NEG);
 }
 
 bool
