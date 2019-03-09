@@ -58,9 +58,9 @@ extern "C" {
 
 #define NIR_FALSE 0u
 #define NIR_TRUE (~0u)
-#define NIR_MAX_VEC_COMPONENTS 4
+#define NIR_MAX_VEC_COMPONENTS 16
 #define NIR_MAX_MATRIX_COLUMNS 4
-typedef uint8_t nir_component_mask_t;
+typedef uint16_t nir_component_mask_t;
 
 /** Defines a cast function
  *
@@ -882,6 +882,8 @@ nir_op_vec(unsigned components)
    case  2: return nir_op_vec2;
    case  3: return nir_op_vec3;
    case  4: return nir_op_vec4;
+   case  8: return nir_op_vec8;
+   case 16: return nir_op_vec16;
    default: unreachable("bad component count");
    }
 }

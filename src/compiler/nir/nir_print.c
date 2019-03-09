@@ -169,6 +169,12 @@ print_dest(nir_dest *dest, print_state *state)
       print_reg_dest(&dest->reg, state);
 }
 
+static const char *
+comp_mask_string(unsigned num_components)
+{
+   return (num_components > 4) ? "abcdefghijklmnop" : "xyzw";
+}
+
 static void
 print_alu_src(nir_alu_instr *instr, unsigned src, print_state *state)
 {
@@ -204,7 +210,7 @@ print_alu_src(nir_alu_instr *instr, unsigned src, print_state *state)
          if (!nir_alu_instr_channel_used(instr, src, i))
             continue;
 
-         fprintf(fp, "%c", "xyzw"[instr->src[src].swizzle[i]]);
+         fprintf(fp, "%c", comp_mask_string(live_channels)[instr->src[src].swizzle[i]]);
       }
    }
 
@@ -222,10 +228,11 @@ print_alu_dest(nir_alu_dest *dest, print_state *state)
 
    if (!dest->dest.is_ssa &&
        dest->write_mask != (1 << dest->dest.reg.reg->num_components) - 1) {
+      unsigned live_channels = dest->dest.reg.reg->num_components;
       fprintf(fp, ".");
       for (unsigned i = 0; i < NIR_MAX_VEC_COMPONENTS; i++)
          if ((dest->write_mask >> i) & 1)
-            fprintf(fp, "%c", "xyzw"[i]);
+            fprintf(fp, "%c", comp_mask_string(live_channels)[i]);
    }
 }
 
@@ -550,8 +557,8 @@ print_var_decl(nir_variable *var, print_state *state)
       switch (var->data.mode) {
       case nir_var_shader_in:
       case nir_var_shader_out:
-         if (num_components < 4 && num_components != 0) {
-            const char *xyzw = "xyzw";
+         if (num_components < 16 && num_components != 0) {
+            const char *xyzw = comp_mask_string(num_components);
             for (int i = 0; i < num_components; i++)
                components_local[i + 1] = xyzw[i + var->data.location_frac];
 
@@ -785,9 +792,9 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
          /* special case wrmask to show it as a writemask.. */
          unsigned wrmask = nir_intrinsic_write_mask(instr);
          fprintf(fp, " wrmask=");
-         for (unsigned i = 0; i < 4; i++)
+         for (unsigned i = 0; i < instr->num_components; i++)
             if ((wrmask >> i) & 1)
-               fprintf(fp, "%c", "xyzw"[i]);
+               fprintf(fp, "%c", comp_mask_string(instr->num_components)[i]);
       } else if (idx == NIR_INTRINSIC_REDUCTION_OP) {
          nir_op reduction_op = nir_intrinsic_reduction_op(instr);
          fprintf(fp, " reduction_op=%s", nir_op_infos[reduction_op].name);
