@@ -3472,6 +3472,45 @@ Converter::visit(nir_deref_instr *deref)
    return true;
 }
 
+static bool
+nv50_nir_move_load_input(nir_instr *instr)
+{
+   if (instr->type != nir_instr_type_intrinsic)
+      return false;
+
+   nir_intrinsic_instr *intrinsic = nir_instr_as_intrinsic(instr);
+   switch (intrinsic->intrinsic) {
+   case nir_intrinsic_load_input:
+   case nir_intrinsic_load_interpolated_input:
+   case nir_intrinsic_load_ubo:
+   case nir_intrinsic_load_uniform: {
+      const nir_dest *dest = &intrinsic->dest;
+      assert(dest->is_ssa);
+      return false;
+   }
+   default:
+      return false;
+   }
+}
+
+static bool
+nv50_nir_post_pass(nir_shader *nir)
+{
+   bool progress = false;
+
+   nir_foreach_function(function, nir) {
+      if (!function->impl)
+         continue;
+      nir_foreach_block(block, function->impl) {
+         nir_foreach_instr_reverse(instr, block) {
+            progress |= nv50_nir_move_load_input(instr);
+         }
+      }
+   }
+
+   return progress;
+}
+
 bool
 Converter::run()
 {
@@ -3507,6 +3546,9 @@ Converter::run()
    } while (progress);
 
    NIR_PASS_V(nir, nir_lower_bool_to_int32);
+
+   NIR_PASS_V(nir, nv50_nir_post_pass);
+
    NIR_PASS_V(nir, nir_lower_locals_to_regs);
    NIR_PASS_V(nir, nir_remove_dead_variables, nir_var_function_temp);
    NIR_PASS_V(nir, nir_convert_from_ssa, true);
