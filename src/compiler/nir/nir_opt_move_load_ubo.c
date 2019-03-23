@@ -38,10 +38,19 @@ move_load_ubo_source(nir_src *src, nir_block *block, nir_instr *before)
 
    nir_instr *src_instr = src->ssa->parent_instr;
 
-   if (src_instr->block == block &&
-       src_instr->type == nir_instr_type_intrinsic &&
-       nir_instr_as_intrinsic(src_instr)->intrinsic == nir_intrinsic_load_ubo) {
+   if (src_instr->block != block ||
+       src_instr->type != nir_instr_type_intrinsic)
+      return false;
 
+   nir_intrinsic_instr *intrinsic = nir_instr_as_intrinsic(src_instr);
+
+   switch (intrinsic->intrinsic) {
+   case nir_intrinsic_load_input:
+   case nir_intrinsic_load_interpolated_input:
+   case nir_intrinsic_load_per_vertex_input:
+   case nir_intrinsic_load_per_vertex_output:
+   case nir_intrinsic_load_ubo:
+   case nir_intrinsic_load_uniform:
       exec_node_remove(&src_instr->node);
 
       if (before)
@@ -50,8 +59,9 @@ move_load_ubo_source(nir_src *src, nir_block *block, nir_instr *before)
          exec_list_push_tail(&block->instr_list, &src_instr->node);
 
       return true;
+   default:
+      return false;
    }
-   return false;
 }
 
 static bool
