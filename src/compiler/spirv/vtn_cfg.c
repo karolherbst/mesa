@@ -479,11 +479,13 @@ vtn_get_branch_type(struct vtn_builder *b,
 }
 
 static void
-vtn_cfg_walk_blocks(struct vtn_builder *b, struct list_head *cf_list,
-                    struct vtn_block *start, struct vtn_case *switch_case,
-                    struct vtn_block *switch_break,
-                    struct vtn_block *loop_break, struct vtn_block *loop_cont,
-                    struct vtn_block *end)
+vtn_cfg_walk_blocks_structured(struct vtn_builder *b, struct list_head *cf_list,
+                               struct vtn_block *start,
+                               struct vtn_case *switch_case,
+                               struct vtn_block *switch_break,
+                               struct vtn_block *loop_break,
+                               struct vtn_block *loop_cont,
+                               struct vtn_block *end)
 {
    struct vtn_block *block = start;
    while (block != end) {
@@ -518,10 +520,10 @@ vtn_cfg_walk_blocks(struct vtn_builder *b, struct list_head *cf_list,
           * possible that the merge block for the loop is the start of
           * another case.
           */
-         vtn_cfg_walk_blocks(b, &loop->body, block, switch_case, NULL,
-                             new_loop_break, new_loop_cont, NULL );
-         vtn_cfg_walk_blocks(b, &loop->cont_body, new_loop_cont, NULL, NULL,
-                             new_loop_break, NULL, block);
+         vtn_cfg_walk_blocks_structured(b, &loop->body, block, switch_case, NULL,
+                                        new_loop_break, new_loop_cont, NULL );
+         vtn_cfg_walk_blocks_structured(b, &loop->cont_body, new_loop_cont, NULL, NULL,
+                                        new_loop_break, NULL, block);
 
          enum vtn_branch_type branch_type =
             vtn_get_branch_type(b, new_loop_break, switch_case, switch_break,
@@ -612,12 +614,12 @@ vtn_cfg_walk_blocks(struct vtn_builder *b, struct list_head *cf_list,
             struct vtn_block *merge_block =
                vtn_value(b, block->merge[1], vtn_value_type_block)->block;
 
-            vtn_cfg_walk_blocks(b, &if_stmt->then_body, then_block,
-                                switch_case, switch_break,
-                                loop_break, loop_cont, merge_block);
-            vtn_cfg_walk_blocks(b, &if_stmt->else_body, else_block,
-                                switch_case, switch_break,
-                                loop_break, loop_cont, merge_block);
+            vtn_cfg_walk_blocks_structured(b, &if_stmt->then_body, then_block,
+                                           switch_case, switch_break,
+                                           loop_break, loop_cont, merge_block);
+            vtn_cfg_walk_blocks_structured(b, &if_stmt->else_body, else_block,
+                                           switch_case, switch_break,
+                                           loop_break, loop_cont, merge_block);
 
             enum vtn_branch_type merge_type =
                vtn_get_branch_type(b, merge_block, switch_case, switch_break,
@@ -702,8 +704,9 @@ vtn_cfg_walk_blocks(struct vtn_builder *b, struct list_head *cf_list,
           */
          list_for_each_entry(struct vtn_case, cse, &swtch->cases, link) {
             vtn_assert(cse->start_block != break_block);
-            vtn_cfg_walk_blocks(b, &cse->body, cse->start_block, cse,
-                                break_block, loop_break, loop_cont, NULL);
+            vtn_cfg_walk_blocks_structured(b, &cse->body, cse->start_block, cse,
+                                           break_block, loop_break, loop_cont,
+                                           NULL);
          }
 
          /* Finally, we walk over all of the cases one more time and put
@@ -761,8 +764,8 @@ vtn_build_cfg(struct vtn_builder *b, const uint32_t *words, const uint32_t *end)
                            vtn_cfg_handle_prepass_instruction);
 
    foreach_list_typed(struct vtn_function, func, node, &b->functions) {
-      vtn_cfg_walk_blocks(b, &func->body, func->start_block,
-                          NULL, NULL, NULL, NULL, NULL);
+      vtn_cfg_walk_blocks_structured(b, &func->body, func->start_block,
+                                     NULL, NULL, NULL, NULL, NULL);
    }
 }
 
