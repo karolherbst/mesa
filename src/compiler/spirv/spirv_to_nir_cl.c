@@ -48,11 +48,16 @@ spirv_to_nir_cl(const uint32_t *words, size_t word_count,
 
    nir_shader *nir =
       spirv_to_nir(words, word_count, NULL, 0, MESA_SHADER_KERNEL,
-                   entry_point_name, &spirv_options, nir_options);
+                   entry_point_name, &spirv_options, nir_options, false);
 
    nir->info.cs.local_size_variable = true;
 
    nir_validate_shader(nir, "clover");
+
+   NIR_PASS_V(nir, nir_lower_goto_ifs);
+   NIR_PASS_V(nir, nir_opt_dead_cf);
+
+   nir_validate_shader(nir, "clover after structurizing");
 
    /* calculate input offsets */
    unsigned offset = 0;

@@ -312,13 +312,16 @@ block_add_normal_succs(nir_block *block)
          nir_block *first_else_block = nir_if_first_else_block(next_if);
 
          link_blocks(block, first_then_block, first_else_block);
-      } else {
+      } else if (next->type == nir_cf_node_loop) {
          nir_loop *next_loop = nir_cf_node_as_loop(next);
 
          nir_block *first_block = nir_loop_first_block(next_loop);
 
          link_blocks(block, first_block, NULL);
          insert_phi_undef(first_block, block);
+      } else {
+         nir_block *next_block = nir_cf_node_as_block(next);
+         link_blocks(block, next_block->successors[0], next_block->successors[1]);
       }
    }
 }

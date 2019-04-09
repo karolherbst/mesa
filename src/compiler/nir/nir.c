@@ -347,7 +347,7 @@ src_init(nir_src *src)
 }
 
 nir_if *
-nir_if_create(nir_shader *shader)
+nir_if_create_empty(nir_shader *shader)
 {
    nir_if *if_stmt = ralloc(shader, nir_if);
 
@@ -356,13 +356,22 @@ nir_if_create(nir_shader *shader)
    cf_init(&if_stmt->cf_node, nir_cf_node_if);
    src_init(&if_stmt->condition);
 
-   nir_block *then = nir_block_create(shader);
    exec_list_make_empty(&if_stmt->then_list);
+   exec_list_make_empty(&if_stmt->else_list);
+
+   return if_stmt;
+}
+
+nir_if *
+nir_if_create(nir_shader *shader)
+{
+   nir_if *if_stmt = nir_if_create_empty(shader);
+
+   nir_block *then = nir_block_create(shader);
    exec_list_push_tail(&if_stmt->then_list, &then->cf_node.node);
    then->cf_node.parent = &if_stmt->cf_node;
 
    nir_block *else_stmt = nir_block_create(shader);
-   exec_list_make_empty(&if_stmt->else_list);
    exec_list_push_tail(&if_stmt->else_list, &else_stmt->cf_node.node);
    else_stmt->cf_node.parent = &if_stmt->cf_node;
 
@@ -370,14 +379,22 @@ nir_if_create(nir_shader *shader)
 }
 
 nir_loop *
-nir_loop_create(nir_shader *shader)
+nir_loop_create_empty(nir_shader *shader)
 {
    nir_loop *loop = rzalloc(shader, nir_loop);
 
    cf_init(&loop->cf_node, nir_cf_node_loop);
+   exec_list_make_empty(&loop->body);
+
+   return loop;
+}
+
+nir_loop *
+nir_loop_create(nir_shader *shader)
+{
+   nir_loop *loop = nir_loop_create_empty(shader);
 
    nir_block *body = nir_block_create(shader);
-   exec_list_make_empty(&loop->body);
    exec_list_push_tail(&loop->body, &body->cf_node.node);
    body->cf_node.parent = &loop->cf_node;
 

@@ -2508,7 +2508,9 @@ nir_function_impl *nir_function_impl_create(nir_function *func);
 nir_function_impl *nir_function_impl_create_bare(nir_shader *shader);
 
 nir_block *nir_block_create(nir_shader *shader);
+nir_if *nir_if_create_empty(nir_shader *shader);
 nir_if *nir_if_create(nir_shader *shader);
+nir_loop *nir_loop_create_empty(nir_shader *shader);
 nir_loop *nir_loop_create(nir_shader *shader);
 
 nir_function_impl *nir_cf_node_get_function(nir_cf_node *node);
@@ -3527,6 +3529,8 @@ nir_lower_doubles_options nir_lower_doubles_op_to_options_mask(nir_op opcode);
 bool nir_lower_doubles(nir_shader *shader, const nir_shader *softfp64,
                        nir_lower_doubles_options options);
 bool nir_lower_pack(nir_shader *shader);
+
+bool nir_lower_goto_ifs(nir_shader *shader);
 
 bool nir_normalize_cubemap_coords(nir_shader *shader);
 

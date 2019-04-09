@@ -129,6 +129,8 @@ enum vtn_branch_type {
    vtn_branch_type_loop_continue,
    vtn_branch_type_discard,
    vtn_branch_type_return,
+   vtn_branch_type_goto,
+   vtn_branch_type_goto_if,
 };
 
 enum vtn_cf_node_type {
@@ -164,9 +166,11 @@ struct vtn_if {
 
    enum vtn_branch_type then_type;
    struct list_head then_body;
+   struct vtn_block *then_connect;
 
    enum vtn_branch_type else_type;
    struct list_head else_body;
+   struct vtn_block *else_connect;
 
    SpvSelectionControlMask control;
 };
@@ -222,6 +226,12 @@ struct vtn_block {
 
    /** Every block ends in a nop intrinsic so that we can find it again */
    nir_intrinsic_instr *end_nop;
+
+   /** attached nir_block */
+   struct nir_block *block;
+
+   /** cross connect to an already visitited block */
+   struct vtn_block *connect;
 };
 
 struct vtn_function {
@@ -246,8 +256,9 @@ typedef bool (*vtn_instruction_handler)(struct vtn_builder *, SpvOp,
                                         const uint32_t *, unsigned);
 
 void vtn_build_cfg(struct vtn_builder *b, const uint32_t *words,
-                   const uint32_t *end);
+                   const uint32_t *end, bool structured_cf);
 void vtn_function_emit(struct vtn_builder *b, struct vtn_function *func,
+                       bool structured_cf,
                        vtn_instruction_handler instruction_handler);
 void vtn_handle_function_call(struct vtn_builder *b, SpvOp opcode,
                               const uint32_t *w, unsigned count);

@@ -1109,7 +1109,8 @@ print_jump_instr(nir_jump_instr *instr, print_state *state)
 
    case nir_jump_goto_if:
       fprintf(fp, "goto block_%u if ",
-              instr->instr.block->successors[0]->index);
+              instr->instr.block->successors[0] ?
+              instr->instr.block->successors[0]->index : -1 );
       print_src(&instr->condition, state);
       break;
    }

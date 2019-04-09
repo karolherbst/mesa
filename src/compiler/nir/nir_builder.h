@@ -96,13 +96,19 @@ nir_builder_is_inside_cf(nir_builder *build, nir_cf_node *cf_node)
 }
 
 static inline nir_if *
-nir_push_if(nir_builder *build, nir_ssa_def *condition)
+nir_push_if_src(nir_builder *build, nir_src condition)
 {
    nir_if *nif = nir_if_create(build->shader);
-   nif->condition = nir_src_for_ssa(condition);
+   nif->condition = condition;
    nir_builder_cf_insert(build, &nif->cf_node);
    build->cursor = nir_before_cf_list(&nif->then_list);
    return nif;
+}
+
+static inline nir_if *
+nir_push_if(nir_builder *build, nir_ssa_def *condition)
+{
+   return nir_push_if_src(build, nir_src_for_ssa(condition));
 }
 
 static inline nir_if *
@@ -1206,6 +1212,14 @@ static inline void
 nir_jump(nir_builder *build, nir_jump_type jump_type)
 {
    nir_jump_instr *jump = nir_jump_instr_create(build->shader, jump_type);
+   nir_builder_instr_insert(build, &jump->instr);
+}
+
+static inline void
+nir_goto_if(nir_builder *build, nir_jump_type jump_type, nir_src cond)
+{
+   nir_jump_instr *jump = nir_jump_instr_create(build->shader, jump_type);
+   jump->condition = cond;
    nir_builder_instr_insert(build, &jump->instr);
 }
 
