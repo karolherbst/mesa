@@ -28,7 +28,12 @@
 
 #include "core/object.hpp"
 #include "core/format.hpp"
+#include "core/module.hpp"
+#include "util/lazy.hpp"
 #include "pipe-loader/pipe_loader.h"
+
+struct nir_shader;
+struct disk_cache;
 
 namespace clover {
    class platform;
@@ -41,6 +46,9 @@ namespace clover {
       ~device();
 
       device(const device &dev) = delete;
+
+      void load_clc();
+
       device &
       operator=(const device &dev) = delete;
 
@@ -101,6 +109,9 @@ namespace clover {
          return svm_support() & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM;
       }
 
+      module clc;
+      lazy<std::shared_ptr<struct nir_shader>> clc_nir;
+      struct disk_cache *clc_cache;
    private:
       pipe_screen *pipe;
       pipe_loader_device *ldev;
