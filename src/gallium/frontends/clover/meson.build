@@ -78,7 +78,9 @@ libclspirv = static_library(
   'clspirv',
   files('spirv/invocation.cpp', 'spirv/invocation.hpp'),
   include_directories : clover_incs,
-  cpp_args : [clover_opencl_cpp_args, clover_spirv_cpp_args],
+  cpp_args : [clover_opencl_cpp_args, clover_spirv_cpp_args,
+          '-DLIBCLC_LIBEXECDIR="@0@/"'.format(dep_clc.get_pkgconfig_variable('libexecdir')),
+  ],
   gnu_symbol_visibility : 'hidden',
   dependencies : [dep_spirv_tools],
 )
@@ -88,7 +90,9 @@ libclnir = static_library(
   files('nir/invocation.cpp', 'nir/invocation.hpp', 'nir/nir_lower_libclc.c', 'nir/nir_lower_libclc.h'),
   include_directories : [clover_incs, inc_mesa],
   dependencies : idep_nir,
-  cpp_args : [clover_opencl_cpp_args, clover_spirv_cpp_args],
+  cpp_args : [clover_opencl_cpp_args, clover_spirv_cpp_args,
+        '-DLIBCLC_LIBEXECDIR="@0@/"'.format(dep_clc.get_pkgconfig_variable('libexecdir')),
+  ],
   gnu_symbol_visibility : 'hidden',
 )
 
