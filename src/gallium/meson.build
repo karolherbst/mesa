@@ -150,10 +150,6 @@ else
   driver_lima = declare_dependency()
 endif
 if with_gallium_opencl
-  # TODO: this isn't really clover specific, but ATM clover is the only
-  # consumer
-  subdir('targets/pipe-loader')
-
   subdir('state_trackers/clover')
   subdir('targets/opencl')
 endif

@@ -21,9 +21,14 @@
 foreach t : ['compute', 'tri', 'quad-tex']
   executable(
     t,
-    '@0@.c'.format(t),
-    include_directories : inc_common,
-    link_with : [libmesa_util, libgallium, libpipe_loader_dynamic],
+    ['@0@.c'.format(t), 'target.c'],
+    include_directories : [
+      inc_common, inc_util,
+    ],
+    link_with : [
+      libmesa_util, libgallium, libpipe_loader_static,
+      libgalliumvl, libws_null, libwsw, libswdri, libswkmsdri,
+    ],
     install : false,
   )
 endforeach

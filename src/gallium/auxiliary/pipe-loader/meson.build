@@ -50,21 +50,3 @@ libpipe_loader_static = static_library(
   dependencies : [dep_libdrm],
   build_by_default : false,
 )
-
-libpipe_loader_dynamic = static_library(
-  'pipe_loader_dynamic',
-  [files_pipe_loader, xmlpool_options_h],
-  include_directories : [
-    inc_util, inc_loader, inc_gallium, inc_include, inc_src, inc_gallium_aux,
-    inc_gallium_winsys,
-  ],
-  c_args : [
-    c_vis_args, libpipe_loader_defines,
-    '-DPIPE_SEARCH_DIR="@0@"'.format(
-      join_paths(get_option('prefix'), get_option('libdir'), 'gallium-pipe')
-    )
-  ],
-  link_with : [libloader, libxmlconfig],
-  dependencies : [dep_libdrm],
-  build_by_default : false,
-)
