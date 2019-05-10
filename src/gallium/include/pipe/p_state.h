@@ -894,6 +894,7 @@ struct pipe_compute_state
    unsigned req_local_mem; /**< Required size of the LOCAL resource. */
    unsigned req_private_mem; /**< Required size of the PRIVATE resource. */
    unsigned req_input_mem; /**< Required size of the INPUT resource. */
+   const char *entry_point; /**< name of the entry point. */
 };
 
 /**

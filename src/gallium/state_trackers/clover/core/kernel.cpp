@@ -230,6 +230,7 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
       cs.prog = &(msec.data[0]);
       cs.req_local_mem = mem_local;
       cs.req_input_mem = input.size();
+      cs.entry_point = kern.name().c_str();
       st = q->pipe->create_compute_state(q->pipe, &cs);
       if (!st) {
          unbind(); // Cleanup
