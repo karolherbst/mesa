@@ -241,4 +241,6 @@ nvc0_screen_tsc_free(struct nvc0_screen *screen, struct nv50_tsc_entry *tsc)
    }
 }
 
+extern const struct nir_shader_compiler_options nvc0_nir_options;
+
 #endif

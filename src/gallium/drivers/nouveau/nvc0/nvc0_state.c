@@ -28,6 +28,7 @@
 
 #include "tgsi/tgsi_parse.h"
 #include "compiler/nir/nir.h"
+#include "compiler/spirv/nir_spirv.h"
 
 #include "nvc0/nvc0_stateobj.h"
 #include "nvc0/nvc0_context.h"
@@ -737,6 +738,15 @@ nvc0_cp_state_create(struct pipe_context *pipe,
    case PIPE_SHADER_IR_NIR:
       prog->pipe.ir.nir = (nir_shader *)cso->prog;
       break;
+   case PIPE_SHADER_IR_SPIRV: {
+      const struct pipe_binary_program_header *hdr =
+         (const struct pipe_binary_program_header*)cso->prog;
+      prog->pipe.type = PIPE_SHADER_IR_NIR;
+      prog->pipe.ir.nir = spirv_to_nir_cl((uint32_t*)hdr->blob, hdr->num_bytes / 4,
+                                          cso->entry_point,
+                                          &nvc0_nir_options);
+      break;
+   }
    default:
       assert(!"unsupported IR!");
       return NULL;
