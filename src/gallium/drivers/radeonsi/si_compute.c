@@ -233,11 +233,9 @@ static void *si_create_compute_state(
 					    program, si_create_compute_state_async);
 	} else {
 		const struct pipe_llvm_program_header *header;
-		const char *code;
 		header = cso->prog;
-		code = cso->prog + sizeof(struct pipe_llvm_program_header);
 
-		ac_elf_read(code, header->num_bytes, &program->shader.binary);
+		ac_elf_read(header->blob, header->num_bytes, &program->shader.binary);
 		if (program->use_code_object_v2) {
 			const amd_kernel_code_t *code_object =
 				si_compute_get_code_object(program, 0);
