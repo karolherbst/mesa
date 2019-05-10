@@ -222,6 +222,7 @@ files_libnir = files(
   '../spirv/spirv.h',
   '../spirv/spirv_info.h',
   '../spirv/spirv_to_nir.c',
+  '../spirv/spirv_to_nir_cl.c',
   '../spirv/vtn_alu.c',
   '../spirv/vtn_amd.c',
   '../spirv/vtn_cfg.c',
