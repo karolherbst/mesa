@@ -232,7 +232,7 @@ static void *si_create_compute_state(
 					    &program->compiler_ctx_state,
 					    program, si_create_compute_state_async);
 	} else {
-		const struct pipe_llvm_program_header *header;
+		const struct pipe_binary_program_header *header;
 		header = cso->prog;
 
 		ac_elf_read(header->blob, header->num_bytes, &program->shader.binary);
