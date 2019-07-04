@@ -586,7 +586,7 @@ nve4_compute_setup_launch_desc(struct nvc0_context *nvc0,
 
    nve4_cp_launch_desc_init_default(desc);
 
-   desc->entry = nvc0_program_symbol_offset(cp, info->pc);
+   desc->entry = cp->code_base;
 
    desc->griddim_x = info->grid[0];
    desc->griddim_y = info->grid[1];
@@ -631,7 +631,7 @@ gp100_compute_setup_launch_desc(struct nvc0_context *nvc0,
 
    gp100_cp_launch_desc_init_default(desc);
 
-   desc->entry = nvc0_program_symbol_offset(cp, info->pc);
+   desc->entry = cp->code_base;
 
    desc->griddim_x = info->grid[0];
    desc->griddim_y = info->grid[1];

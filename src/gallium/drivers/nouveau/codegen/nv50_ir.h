@@ -1295,8 +1295,6 @@ public:
    const Target *getTarget() const { return target; }
 
 private:
-   void emitSymbolTable(struct nv50_ir_prog_info *);
-
    Type progType;
    Target *target;
 
