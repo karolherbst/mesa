@@ -566,12 +566,12 @@ nvc0_program_dump(struct nvc0_program *prog)
 }
 #endif
 
-bool
-nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
-                       struct pipe_debug_callback *debug)
+static bool
+nvc0_program_compile(struct nvc0_program *prog, uint16_t chipset,
+                     struct pipe_debug_callback *debug,
+                     struct nv50_ir_prog_info_out *info_out)
 {
    struct nv50_ir_prog_info *info;
-   struct nv50_ir_prog_info_out info_out;
    int ret;
 
    info = CALLOC_STRUCT(nv50_ir_prog_info);
@@ -631,14 +631,37 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
    info->assignSlots = nvc0_program_assign_varying_slots;
 
    /* these fields might be overwritten by the compiler */
-   info_out.bin.smemSize = prog->cp.smem_size;
-   info_out.io.genUserClip = prog->vp.num_ucps;
+   info_out->bin.smemSize = prog->cp.smem_size;
+   info_out->io.genUserClip = prog->vp.num_ucps;
 
-   ret = nv50_ir_generate_code(info, &info_out);
+   ret = nv50_ir_generate_code(info, info_out);
    if (ret) {
       NOUVEAU_ERR("shader translation failed: %i\n", ret);
       goto out;
    }
+
+#ifndef NDEBUG
+   if (debug_get_option("NV50_PROG_CHIPSET", NULL) && info->dbgFlags)
+      nvc0_program_dump(prog);
+#endif
+
+out:
+   if (info->bin.sourceRep == PIPE_SHADER_IR_NIR)
+      ralloc_free((void *)info->bin.source);
+   FREE(info);
+   return !ret;
+}
+
+bool
+nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
+                       struct pipe_debug_callback *debug)
+{
+   struct nv50_ir_prog_info_out info_out;
+   int ret;
+
+   ret = nvc0_program_compile(prog, chipset, debug, &info_out);
+   if (ret)
+      return false;
 
    prog->code = info_out.bin.code;
    prog->code_size = info_out.bin.codeSize;
@@ -679,7 +702,7 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
       break;
    }
    if (ret)
-      goto out;
+      return false;
 
    if (info_out.bin.tlsSpace) {
       assert(info_out.bin.tlsSpace < (1 << 24));
@@ -713,15 +736,6 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
                       prog->num_gprs, info_out.bin.instructions,
                       info_out.bin.codeSize);
 
-#ifndef NDEBUG
-   if (debug_get_option("NV50_PROG_CHIPSET", NULL) && info->dbgFlags)
-      nvc0_program_dump(prog);
-#endif
-
-out:
-   if (info->bin.sourceRep == PIPE_SHADER_IR_NIR)
-      ralloc_free((void *)info->bin.source);
-   FREE(info);
    return !ret;
 }
 
