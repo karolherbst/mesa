@@ -77,10 +77,11 @@ libclspirv = static_library(
 
 libclnir = static_library(
   'clnir',
-  [files('nir/invocation.cpp', 'nir/invocation.hpp'), nir_opcodes_h],
+  files('nir/invocation.cpp', 'nir/invocation.hpp'),
   include_directories : [clover_incs, inc_mesa],
   cpp_args : [clover_spirv_cpp_args, cpp_vis_args],
   link_with : [libnir],
+  dependencies : [idep_nir_headers],
   override_options : clover_cpp_std,
 )
 
