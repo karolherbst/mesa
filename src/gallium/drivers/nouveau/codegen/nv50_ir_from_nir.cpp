@@ -1617,7 +1617,7 @@ Converter::visit(nir_function *function)
          return false;
    }
 
-   bb->cfg.attach(&exit->cfg, Graph::Edge::TREE);
+   bb->cfg.attach(&exit->cfg, Graph::EdgeType::TREE);
    setPosition(exit, true);
 
    if ((prog->getType() == Program::TYPE_VERTEX ||
@@ -1677,8 +1677,8 @@ Converter::visit(nir_if *nif)
    BasicBlock *ifBB = convert(nir_if_first_then_block(nif));
    BasicBlock *elseBB = convert(nir_if_first_else_block(nif));
 
-   bb->cfg.attach(&ifBB->cfg, Graph::Edge::TREE);
-   bb->cfg.attach(&elseBB->cfg, Graph::Edge::TREE);
+   bb->cfg.attach(&ifBB->cfg, Graph::EdgeType::TREE);
+   bb->cfg.attach(&elseBB->cfg, Graph::EdgeType::TREE);
 
    // we only insert joinats, if both nodes end up at the end of the if again.
    // the reason for this to not happens are breaks/continues/ret/... which
@@ -1699,7 +1699,7 @@ Converter::visit(nir_if *nif)
         bb->getExit()->asFlow()->op == OP_JOIN) {
       BasicBlock *tailBB = convert(lastThen->successors[0]);
       mkFlow(OP_BRA, tailBB, CC_ALWAYS, NULL);
-      bb->cfg.attach(&tailBB->cfg, Graph::Edge::FORWARD);
+      bb->cfg.attach(&tailBB->cfg, Graph::EdgeType::FORWARD);
    }
 
    foreach_list_typed(nir_cf_node, node, node, &nif->else_list) {
@@ -1712,7 +1712,7 @@ Converter::visit(nir_if *nif)
         bb->getExit()->asFlow()->op == OP_JOIN) {
       BasicBlock *tailBB = convert(lastElse->successors[0]);
       mkFlow(OP_BRA, tailBB, CC_ALWAYS, NULL);
-      bb->cfg.attach(&tailBB->cfg, Graph::Edge::FORWARD);
+      bb->cfg.attach(&tailBB->cfg, Graph::EdgeType::FORWARD);
    }
 
    if (lastThen->successors[0] == lastElse->successors[0]) {
@@ -1732,7 +1732,7 @@ Converter::visit(nir_loop *loop)
    BasicBlock *loopBB = convert(nir_loop_first_block(loop));
    BasicBlock *tailBB =
       convert(nir_cf_node_as_block(nir_cf_node_next(&loop->cf_node)));
-   bb->cfg.attach(&loopBB->cfg, Graph::Edge::TREE);
+   bb->cfg.attach(&loopBB->cfg, Graph::EdgeType::TREE);
 
    mkFlow(OP_PREBREAK, tailBB, CC_ALWAYS, NULL);
    setPosition(loopBB, false);
@@ -1746,12 +1746,12 @@ Converter::visit(nir_loop *loop)
    if (bb->cfg.incidentCount() != 0) {
       if (!insn || !insn->asFlow()) {
          mkFlow(OP_CONT, loopBB, CC_ALWAYS, NULL);
-         bb->cfg.attach(&loopBB->cfg, Graph::Edge::BACK);
+         bb->cfg.attach(&loopBB->cfg, Graph::EdgeType::BACK);
       } else if (insn && insn->op == OP_BRA && !insn->getPredicate() &&
                  tailBB->cfg.incidentCount() == 0) {
          // RA doesn't like having blocks around with no incident edge,
          // so we create a fake one to make it happy
-         bb->cfg.attach(&tailBB->cfg, Graph::Edge::TREE);
+         bb->cfg.attach(&tailBB->cfg, Graph::EdgeType::TREE);
       }
    }
 
@@ -2688,7 +2688,7 @@ Converter::visit(nir_jump_instr *insn)
    case nir_jump_return:
       // TODO: this only works in the main function
       mkFlow(OP_BRA, exit, CC_ALWAYS, NULL);
-      bb->cfg.attach(&exit->cfg, Graph::Edge::CROSS);
+      bb->cfg.attach(&exit->cfg, Graph::EdgeType::CROSS);
       break;
    case nir_jump_break:
    case nir_jump_continue: {
@@ -2697,7 +2697,7 @@ Converter::visit(nir_jump_instr *insn)
       assert(!block->successors[1]);
       BasicBlock *target = convert(block->successors[0]);
       mkFlow(isBreak ? OP_BREAK : OP_CONT, target, CC_ALWAYS, NULL);
-      bb->cfg.attach(&target->cfg, isBreak ? Graph::Edge::CROSS : Graph::Edge::BACK);
+      bb->cfg.attach(&target->cfg, isBreak ? Graph::EdgeType::CROSS : Graph::EdgeType::BACK);
       break;
    }
    default:

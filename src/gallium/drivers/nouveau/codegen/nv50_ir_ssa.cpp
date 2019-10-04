@@ -173,7 +173,7 @@ void DominatorTree::build()
          nv = &BasicBlock::get(vert[v])->dom;
          if (nw->getGraph() && !nv->getGraph()) {
             ++p;
-            nw->attach(nv, Graph::Edge::TREE);
+            nw->attach(nv, Graph::EdgeType::TREE);
          }
       }
    } while (p);

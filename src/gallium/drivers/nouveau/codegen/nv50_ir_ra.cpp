@@ -357,8 +357,8 @@ RegAlloc::PhiMovesPass::needNewElseBlock(BasicBlock *b, BasicBlock *p)
 
    int n = 0;
    for (Graph::EdgeIterator ei = p->cfg.outgoing(); !ei.end(); ei.next())
-      if (ei.getType() == Graph::Edge::TREE ||
-          ei.getType() == Graph::Edge::FORWARD)
+      if (ei.getType() == Graph::EdgeType::TREE ||
+          ei.getType() == Graph::EdgeType::FORWARD)
          ++n;
    return (n == 2);
 }
@@ -418,8 +418,8 @@ RegAlloc::PhiMovesPass::splitEdges(BasicBlock *bb)
       stack.pop();
 
       pb->cfg.detach(&bb->cfg);
-      pb->cfg.attach(&pn->cfg, Graph::Edge::TREE);
-      pn->cfg.attach(&bb->cfg, Graph::Edge::FORWARD);
+      pb->cfg.attach(&pn->cfg, Graph::EdgeType::TREE);
+      pn->cfg.attach(&bb->cfg, Graph::EdgeType::FORWARD);
 
       assert(pb->getExit()->op != OP_CALL);
       if (pb->getExit()->asFlow()->target.bb == bb)
@@ -624,7 +624,7 @@ RegAlloc::BuildIntervalsPass::collectLiveValues(BasicBlock *bb)
       // trickery to save a loop of OR'ing liveSets
       // aliasing works fine with BitSet::setOr
       for (Graph::EdgeIterator ei = bb->cfg.outgoing(); !ei.end(); ei.next()) {
-         if (ei.getType() == Graph::Edge::DUMMY)
+         if (ei.getType() == Graph::EdgeType::DUMMY)
             continue;
          if (bbA) {
             bb->liveSet.setOr(&bbA->liveSet, &bbB->liveSet);
@@ -1154,7 +1154,7 @@ GCRA::RIG_Node::addInterference(RIG_Node *node)
    this->degree += relDegree[node->colors][colors];
    node->degree += relDegree[colors][node->colors];
 
-   this->attach(node, Graph::Edge::CROSS);
+   this->attach(node, Graph::EdgeType::CROSS);
 }
 
 void

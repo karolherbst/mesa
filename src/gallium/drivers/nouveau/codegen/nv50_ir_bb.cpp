@@ -323,7 +323,7 @@ BasicBlock::splitCommon(Instruction *insn, BasicBlock *bb, bool attach)
       bb->exit = insn;
    }
    if (attach)
-      this->cfg.attach(&bb->cfg, Graph::Edge::TREE);
+      this->cfg.attach(&bb->cfg, Graph::EdgeType::TREE);
 }
 
 BasicBlock *
@@ -369,7 +369,7 @@ BasicBlock::initiatesSimpleConditional() const
 {
    Graph::Node *out[2];
    int n;
-   Graph::Edge::Type eR;
+   Graph::EdgeType eR;
 
    if (cfg.outgoingCount() != 2) // -> if and -> else/endif
       return false;
@@ -380,7 +380,7 @@ BasicBlock::initiatesSimpleConditional() const
    eR = out[1]->outgoing().getType();
 
    // IF block is out edge to the right
-   if (eR == Graph::Edge::CROSS || eR == Graph::Edge::BACK)
+   if (eR == Graph::EdgeType::CROSS || eR == Graph::EdgeType::BACK)
       return 0x2;
 
    if (out[1]->outgoingCount() != 1) // 0 is IF { RET; }, >1 is more divergence
@@ -524,19 +524,19 @@ Function::printCFGraph(const char *filePath)
       for (Graph::EdgeIterator ei = bb->cfg.outgoing(); !ei.end(); ei.next()) {
          int idB = BasicBlock::get(ei.getNode())->getId();
          switch (ei.getType()) {
-         case Graph::Edge::TREE:
+         case Graph::EdgeType::TREE:
             fprintf(out, "\t%i -> %i;\n", idA, idB);
             break;
-         case Graph::Edge::FORWARD:
+         case Graph::EdgeType::FORWARD:
             fprintf(out, "\t%i -> %i [color=green];\n", idA, idB);
             break;
-         case Graph::Edge::CROSS:
+         case Graph::EdgeType::CROSS:
             fprintf(out, "\t%i -> %i [color=red];\n", idA, idB);
             break;
-         case Graph::Edge::BACK:
+         case Graph::EdgeType::BACK:
             fprintf(out, "\t%i -> %i;\n", idA, idB);
             break;
-         case Graph::Edge::DUMMY:
+         case Graph::EdgeType::DUMMY:
             fprintf(out, "\t%i -> %i [style=dotted];\n", idA, idB);
             break;
          default:

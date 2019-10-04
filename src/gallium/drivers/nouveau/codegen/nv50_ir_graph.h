@@ -37,33 +37,33 @@ class Graph
 public:
    class Node;
 
+   enum EdgeType
+   {
+      UNKNOWN,
+      TREE,
+      FORWARD,
+      BACK,
+      CROSS, // e.g. loop break
+      DUMMY
+   };
+
    class Edge
    {
    public:
-      enum Type
-      {
-         UNKNOWN,
-         TREE,
-         FORWARD,
-         BACK,
-         CROSS, // e.g. loop break
-         DUMMY
-      };
-
-      Edge(Node *dst, Node *src, Type kind);
+      Edge(Node *dst, Node *src, EdgeType kind);
       ~Edge() { unlink(); }
 
       inline Node *getOrigin() const { return origin; }
       inline Node *getTarget() const { return target; }
 
-      inline Type getType() const { return type; }
+      inline EdgeType getType() const { return type; }
       const char *typeStr() const;
 
    private:
       Node *origin;
       Node *target;
 
-      Type type;
+      EdgeType type;
       Edge *next[2]; // next edge outgoing/incident from/to origin/target
       Edge *prev[2];
 
@@ -93,7 +93,7 @@ public:
       inline Node *getNode() const { assert(e); return d ?
                                                    e->origin : e->target; }
       inline Edge *getEdge() const { return e; }
-      inline Edge::Type getType() { return e ? e->getType() : Edge::UNKNOWN; }
+      inline EdgeType getType() { return e ? e->getType() : EdgeType::UNKNOWN; }
 
    private:
       Graph::Edge *e;
@@ -108,7 +108,7 @@ public:
       Node(void *);
       ~Node() { cut(); }
 
-      void attach(Node *, Edge::Type);
+      void attach(Node *, EdgeType);
       bool detach(Node *);
       void cut();
 
@@ -218,7 +218,7 @@ int Graph::Node::incidentCountFwd() const
 {
    int n = 0;
    for (EdgeIterator ei = incident(); !ei.end(); ei.next())
-      if (ei.getType() != Edge::BACK)
+      if (ei.getType() != EdgeType::BACK)
          ++n;
    return n;
 }

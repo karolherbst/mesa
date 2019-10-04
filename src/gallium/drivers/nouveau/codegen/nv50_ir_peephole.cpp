@@ -3261,11 +3261,11 @@ FlatteningPass::removeFlow(Instruction *insn)
    FlowInstruction *term = insn ? insn->asFlow() : NULL;
    if (!term)
       return;
-   Graph::Edge::Type ty = term->bb->cfg.outgoing().getType();
+   Graph::EdgeType ty = term->bb->cfg.outgoing().getType();
 
    if (term->op == OP_BRA) {
       // TODO: this might get more difficult when we get arbitrary BRAs
-      if (ty == Graph::Edge::CROSS || ty == Graph::Edge::BACK)
+      if (ty == Graph::EdgeType::CROSS || ty == Graph::EdgeType::BACK)
          return;
    } else
    if (term->op != OP_JOIN)

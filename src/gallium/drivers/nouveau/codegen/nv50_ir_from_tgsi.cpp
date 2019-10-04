@@ -3586,7 +3586,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
    {
       BasicBlock *ifBB = new BasicBlock(func);
 
-      bb->cfg.attach(&ifBB->cfg, Graph::Edge::TREE);
+      bb->cfg.attach(&ifBB->cfg, Graph::EdgeType::TREE);
       condBBs.push(bb);
       joinBBs.push(bb);
 
@@ -3600,7 +3600,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
       BasicBlock *elseBB = new BasicBlock(func);
       BasicBlock *forkBB = reinterpret_cast<BasicBlock *>(condBBs.pop().u.p);
 
-      forkBB->cfg.attach(&elseBB->cfg, Graph::Edge::TREE);
+      forkBB->cfg.attach(&elseBB->cfg, Graph::EdgeType::TREE);
       condBBs.push(bb);
 
       forkBB->getExit()->asFlow()->target.bb = elseBB;
@@ -3621,11 +3621,11 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          if (prevBB->getExit()->op == OP_BRA && joinBBs.getSize() < 6)
             insertConvergenceOps(convBB, forkBB);
          mkFlow(OP_BRA, convBB, CC_ALWAYS, NULL);
-         bb->cfg.attach(&convBB->cfg, Graph::Edge::FORWARD);
+         bb->cfg.attach(&convBB->cfg, Graph::EdgeType::FORWARD);
       }
 
       if (prevBB->getExit()->op == OP_BRA) {
-         prevBB->cfg.attach(&convBB->cfg, Graph::Edge::FORWARD);
+         prevBB->cfg.attach(&convBB->cfg, Graph::EdgeType::FORWARD);
          prevBB->getExit()->asFlow()->target.bb = convBB;
       }
       setPosition(convBB, true);
@@ -3643,7 +3643,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
 
       mkFlow(OP_PREBREAK, lbrkBB, CC_ALWAYS, NULL);
 
-      bb->cfg.attach(&lbgnBB->cfg, Graph::Edge::TREE);
+      bb->cfg.attach(&lbgnBB->cfg, Graph::EdgeType::TREE);
       setPosition(lbgnBB, true);
       mkFlow(OP_PRECONT, lbgnBB, CC_ALWAYS, NULL);
    }
@@ -3654,7 +3654,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
 
       if (!bb->isTerminated()) {
          mkFlow(OP_CONT, loopBB, CC_ALWAYS, NULL);
-         bb->cfg.attach(&loopBB->cfg, Graph::Edge::BACK);
+         bb->cfg.attach(&loopBB->cfg, Graph::EdgeType::BACK);
       }
       setPosition(reinterpret_cast<BasicBlock *>(breakBBs.pop().u.p), true);
 
@@ -3662,7 +3662,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
       // will be no way to get to the break bb. However BGNLOOP will have
       // already made a PREBREAK to it, so it must be in the CFG.
       if (getBB()->cfg.incidentCount() == 0)
-         loopBB->cfg.attach(&getBB()->cfg, Graph::Edge::TREE);
+         loopBB->cfg.attach(&getBB()->cfg, Graph::EdgeType::TREE);
    }
       break;
    case TGSI_OPCODE_BRK:
@@ -3671,7 +3671,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          break;
       BasicBlock *brkBB = reinterpret_cast<BasicBlock *>(breakBBs.peek().u.p);
       mkFlow(OP_BREAK, brkBB, CC_ALWAYS, NULL);
-      bb->cfg.attach(&brkBB->cfg, Graph::Edge::CROSS);
+      bb->cfg.attach(&brkBB->cfg, Graph::EdgeType::CROSS);
    }
       break;
    case TGSI_OPCODE_CONT:
@@ -3681,7 +3681,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
       BasicBlock *contBB = reinterpret_cast<BasicBlock *>(loopBBs.peek().u.p);
       mkFlow(OP_CONT, contBB, CC_ALWAYS, NULL);
       contBB->explicitCont = true;
-      bb->cfg.attach(&contBB->cfg, Graph::Edge::BACK);
+      bb->cfg.attach(&contBB->cfg, Graph::EdgeType::BACK);
    }
       break;
    case TGSI_OPCODE_BGNSUB:
@@ -3692,7 +3692,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
 
       // multiple entrypoints possible, keep the graph connected
       if (prog->getType() == Program::TYPE_COMPUTE)
-         prog->main->call.attach(&s->f->call, Graph::Edge::TREE);
+         prog->main->call.attach(&s->f->call, Graph::EdgeType::TREE);
 
       sub.cur = s;
       s->f->setEntry(entry);
@@ -3710,7 +3710,7 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
    {
       Subroutine *s = getSubroutine(tgsi.getLabel());
       mkFlow(OP_CALL, s->f, CC_ALWAYS, NULL);
-      func->call.attach(&s->f->call, Graph::Edge::TREE);
+      func->call.attach(&s->f->call, Graph::EdgeType::TREE);
       return true;
    }
    case TGSI_OPCODE_RET:
@@ -3731,14 +3731,14 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          }
       }
       mkFlow(OP_RET, NULL, CC_ALWAYS, NULL)->fixed = 1;
-      bb->cfg.attach(&leave->cfg, Graph::Edge::CROSS);
+      bb->cfg.attach(&leave->cfg, Graph::EdgeType::CROSS);
    }
       break;
    case TGSI_OPCODE_END:
    {
       // attach and generate epilogue code
       BasicBlock *epilogue = BasicBlock::get(func->cfgExit);
-      bb->cfg.attach(&epilogue->cfg, Graph::Edge::TREE);
+      bb->cfg.attach(&epilogue->cfg, Graph::EdgeType::TREE);
       setPosition(epilogue, true);
       if (prog->getType() == Program::TYPE_FRAGMENT)
          exportOutputs();

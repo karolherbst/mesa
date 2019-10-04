@@ -4419,7 +4419,7 @@ SchedDataCalculatorGM107::visit(BasicBlock *bb)
 
    for (Graph::EdgeIterator ei = bb->cfg.incident(); !ei.end(); ei.next()) {
       // back branches will wait until all target dependencies are satisfied
-      if (ei.getType() == Graph::Edge::BACK) // sched would be uninitialized
+      if (ei.getType() == Graph::EdgeType::BACK) // sched would be uninitialized
          continue;
       BasicBlock *in = BasicBlock::get(ei.getNode());
       score->setMax(&scoreBoards.at(in->getId()));
@@ -4478,7 +4478,7 @@ SchedDataCalculatorGM107::visit(BasicBlock *bb)
    for (Graph::EdgeIterator ei = bb->cfg.outgoing(); !ei.end(); ei.next()) {
       BasicBlock *out = BasicBlock::get(ei.getNode());
 
-      if (ei.getType() != Graph::Edge::BACK) {
+      if (ei.getType() != Graph::EdgeType::BACK) {
          // Only test the first instruction of the outgoing block.
          next = out->getEntry();
          if (next) {

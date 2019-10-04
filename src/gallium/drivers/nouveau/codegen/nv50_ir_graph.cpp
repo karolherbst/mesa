@@ -92,7 +92,7 @@ Graph::Node::Node(void *priv) : data(priv),
    // nothing to do
 }
 
-void Graph::Node::attach(Node *node, Edge::Type kind)
+void Graph::Node::attach(Node *node, EdgeType kind)
 {
    Edge *edge = new Edge(this, node, kind);
 
@@ -122,7 +122,7 @@ void Graph::Node::attach(Node *node, Edge::Type kind)
    if (!graph)
       node->graph->insert(this);
 
-   if (kind == Edge::UNKNOWN)
+   if (kind == EdgeType::UNKNOWN)
       graph->classifyEdges();
 }
 
@@ -155,7 +155,7 @@ void Graph::Node::cut()
    }
 }
 
-Graph::Edge::Edge(Node *org, Node *tgt, Type kind)
+Graph::Edge::Edge(Node *org, Node *tgt, EdgeType kind)
 {
    target = tgt;
    origin = org;
@@ -184,7 +184,7 @@ Graph::Node::reachableBy(const Node *node, const Node *term) const
          continue;
 
       for (EdgeIterator ei = pos->outgoing(); !ei.end(); ei.next()) {
-         if (ei.getType() == Edge::BACK || ei.getType() == Edge::DUMMY)
+         if (ei.getType() == EdgeType::BACK || ei.getType() == EdgeType::DUMMY)
             continue;
          if (ei.getNode()->visit(seq))
             stack.push(ei.getNode());
@@ -299,15 +299,15 @@ private:
 
          for (Graph::EdgeIterator ei = node->outgoing(); !ei.end(); ei.next()) {
             switch (ei.getType()) {
-            case Graph::Edge::TREE:
-            case Graph::Edge::FORWARD:
-            case Graph::Edge::DUMMY:
+            case Graph::EdgeType::TREE:
+            case Graph::EdgeType::FORWARD:
+            case Graph::EdgeType::DUMMY:
                if (++(ei.getNode()->tag) == ei.getNode()->incidentCountFwd())
                   bb.push(ei.getNode());
                break;
-            case Graph::Edge::BACK:
+            case Graph::EdgeType::BACK:
                continue;
-            case Graph::Edge::CROSS:
+            case Graph::EdgeType::CROSS:
                if (++(ei.getNode()->tag) == 1)
                   cross.push(ei.getNode());
                break;
@@ -371,33 +371,33 @@ void Graph::classifyDFS(Node *curr, int& seq)
 
    for (edge = curr->out; edge; edge = edge->next[0]) {
       node = edge->target;
-      if (edge->type == Edge::DUMMY)
+      if (edge->type == EdgeType::DUMMY)
          continue;
 
       if (node->getSequence() == 0) {
-         edge->type = Edge::TREE;
+         edge->type = EdgeType::TREE;
          classifyDFS(node, seq);
       } else
       if (node->getSequence() > curr->getSequence()) {
-         edge->type = Edge::FORWARD;
+         edge->type = EdgeType::FORWARD;
       } else {
-         edge->type = node->tag ? Edge::BACK : Edge::CROSS;
+         edge->type = node->tag ? EdgeType::BACK : EdgeType::CROSS;
       }
    }
 
    for (edge = curr->in; edge; edge = edge->next[1]) {
       node = edge->origin;
-      if (edge->type == Edge::DUMMY)
+      if (edge->type == EdgeType::DUMMY)
          continue;
 
       if (node->getSequence() == 0) {
-         edge->type = Edge::TREE;
+         edge->type = EdgeType::TREE;
          classifyDFS(node, seq);
       } else
       if (node->getSequence() > curr->getSequence()) {
-         edge->type = Edge::FORWARD;
+         edge->type = EdgeType::FORWARD;
       } else {
-         edge->type = node->tag ? Edge::BACK : Edge::CROSS;
+         edge->type = node->tag ? EdgeType::BACK : EdgeType::CROSS;
       }
    }
 

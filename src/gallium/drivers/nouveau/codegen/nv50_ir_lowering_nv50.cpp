@@ -921,10 +921,10 @@ NV50LoweringPreSSA::handleTXL(TexInstruction *i)
       bld.setPosition(currBB, true);
       bld.mkQuadop(qop, pred, l, lod, lod)->flagsDef = 0;
       bld.mkFlow(OP_BRA, texiBB, CC_EQ, pred)->fixed = 1;
-      currBB->cfg.attach(&texiBB->cfg, Graph::Edge::FORWARD);
+      currBB->cfg.attach(&texiBB->cfg, Graph::EdgeType::FORWARD);
       if (l <= 2) {
          BasicBlock *laneBB = new BasicBlock(func);
-         currBB->cfg.attach(&laneBB->cfg, Graph::Edge::TREE);
+         currBB->cfg.attach(&laneBB->cfg, Graph::EdgeType::TREE);
          currBB = laneBB;
       }
    }

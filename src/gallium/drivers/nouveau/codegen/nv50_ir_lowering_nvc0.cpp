@@ -718,9 +718,9 @@ NVC0LegalizePostRA::tryReplaceContWithBra(BasicBlock *bb)
    if (bb->cfg.incidentCount() != 2 || bb->getEntry()->op != OP_PRECONT)
       return false;
    Graph::EdgeIterator ei = bb->cfg.incident();
-   if (ei.getType() != Graph::Edge::BACK)
+   if (ei.getType() != Graph::EdgeType::BACK)
       ei.next();
-   if (ei.getType() != Graph::Edge::BACK)
+   if (ei.getType() != Graph::EdgeType::BACK)
       return false;
    BasicBlock *contBB = BasicBlock::get(ei.getNode());
 
@@ -731,7 +731,7 @@ NVC0LegalizePostRA::tryReplaceContWithBra(BasicBlock *bb)
    bb->remove(bb->getEntry()); // delete PRECONT
 
    ei.next();
-   assert(ei.end() || ei.getType() != Graph::Edge::BACK);
+   assert(ei.end() || ei.getType() != Graph::EdgeType::BACK);
    return true;
 }
 
@@ -1452,7 +1452,7 @@ NVC0LoweringPass::handleSharedATOMNVE4(Instruction *atom)
                 TYPE_U32, bld.mkImm(0), bld.mkImm(1));
 
    bld.mkFlow(OP_BRA, tryLockBB, CC_ALWAYS, NULL);
-   currBB->cfg.attach(&tryLockBB->cfg, Graph::Edge::TREE);
+   currBB->cfg.attach(&tryLockBB->cfg, Graph::EdgeType::TREE);
 
    bld.setPosition(tryLockBB, true);
 
@@ -1464,8 +1464,8 @@ NVC0LoweringPass::handleSharedATOMNVE4(Instruction *atom)
 
    bld.mkFlow(OP_BRA, setAndUnlockBB, CC_P, ld->getDef(1));
    bld.mkFlow(OP_BRA, failLockBB, CC_ALWAYS, NULL);
-   tryLockBB->cfg.attach(&failLockBB->cfg, Graph::Edge::CROSS);
-   tryLockBB->cfg.attach(&setAndUnlockBB->cfg, Graph::Edge::TREE);
+   tryLockBB->cfg.attach(&failLockBB->cfg, Graph::EdgeType::CROSS);
+   tryLockBB->cfg.attach(&setAndUnlockBB->cfg, Graph::EdgeType::TREE);
 
    tryLockBB->cfg.detach(&joinBB->cfg);
    bld.remove(atom);
@@ -1520,14 +1520,14 @@ NVC0LoweringPass::handleSharedATOMNVE4(Instruction *atom)
    st->subOp = NV50_IR_SUBOP_STORE_UNLOCKED;
 
    bld.mkFlow(OP_BRA, failLockBB, CC_ALWAYS, NULL);
-   setAndUnlockBB->cfg.attach(&failLockBB->cfg, Graph::Edge::TREE);
+   setAndUnlockBB->cfg.attach(&failLockBB->cfg, Graph::EdgeType::TREE);
 
    // Lock until the store has not been performed.
    bld.setPosition(failLockBB, true);
    bld.mkFlow(OP_BRA, tryLockBB, CC_NOT_P, pred->getDef(0));
    bld.mkFlow(OP_BRA, joinBB, CC_ALWAYS, NULL);
-   failLockBB->cfg.attach(&tryLockBB->cfg, Graph::Edge::BACK);
-   failLockBB->cfg.attach(&joinBB->cfg, Graph::Edge::TREE);
+   failLockBB->cfg.attach(&tryLockBB->cfg, Graph::EdgeType::BACK);
+   failLockBB->cfg.attach(&joinBB->cfg, Graph::EdgeType::TREE);
 
    bld.setPosition(joinBB, false);
    bld.mkFlow(OP_JOIN, NULL, CC_ALWAYS, NULL)->fixed = 1;
@@ -1547,7 +1547,7 @@ NVC0LoweringPass::handleSharedATOM(Instruction *atom)
    currBB->joinAt = bld.mkFlow(OP_JOINAT, joinBB, CC_ALWAYS, NULL);
 
    bld.mkFlow(OP_BRA, tryLockAndSetBB, CC_ALWAYS, NULL);
-   currBB->cfg.attach(&tryLockAndSetBB->cfg, Graph::Edge::TREE);
+   currBB->cfg.attach(&tryLockAndSetBB->cfg, Graph::EdgeType::TREE);
 
    bld.setPosition(tryLockAndSetBB, true);
 
@@ -1617,8 +1617,8 @@ NVC0LoweringPass::handleSharedATOM(Instruction *atom)
 
    // Loop until the lock is acquired.
    bld.mkFlow(OP_BRA, tryLockAndSetBB, CC_NOT_P, ld->getDef(1));
-   tryLockAndSetBB->cfg.attach(&tryLockAndSetBB->cfg, Graph::Edge::BACK);
-   tryLockAndSetBB->cfg.attach(&joinBB->cfg, Graph::Edge::CROSS);
+   tryLockAndSetBB->cfg.attach(&tryLockAndSetBB->cfg, Graph::EdgeType::BACK);
+   tryLockAndSetBB->cfg.attach(&joinBB->cfg, Graph::EdgeType::CROSS);
    bld.mkFlow(OP_BRA, joinBB, CC_ALWAYS, NULL);
 
    bld.remove(atom);
