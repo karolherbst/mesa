@@ -187,15 +187,40 @@ blob_reserve_intptr(struct blob *blob)
 }
 
 bool
+blob_write_uint8(struct blob *blob, uint8_t value)
+{
+    align_blob(blob, sizeof(value));
+
+    return blob_write_bytes(blob, &value, sizeof(value));
+}
+
+#define ASSERT_ALIGNED(_offset, _align) \
+   assert(ALIGN((_offset), (_align)) == (_offset))
+
+bool
+blob_overwrite_uint8(struct blob *blob,
+                     size_t offset,
+                     uint8_t value)
+{
+    ASSERT_ALIGNED(offset, sizeof(value));
+    return blob_overwrite_bytes(blob, offset, &value, sizeof(value));
+}
+
+bool
+blob_write_uint16(struct blob *blob, uint16_t value)
+{
+    align_blob(blob, sizeof(value));
+
+    return blob_write_bytes(blob, &value, sizeof(value));
+}
+
+bool
 blob_write_uint32(struct blob *blob, uint32_t value)
 {
    align_blob(blob, sizeof(value));
 
    return blob_write_bytes(blob, &value, sizeof(value));
 }
-
-#define ASSERT_ALIGNED(_offset, _align) \
-   assert(ALIGN((_offset), (_align)) == (_offset))
 
 bool
 blob_overwrite_uint32 (struct blob *blob,
@@ -296,6 +321,42 @@ blob_skip_bytes(struct blob_reader *blob, size_t size)
 {
    if (ensure_can_read (blob, size))
       blob->current += size;
+}
+
+uint8_t
+blob_read_uint8(struct blob_reader *blob)
+{
+    uint8_t ret;
+    int size = sizeof(ret);
+
+    align_blob_reader(blob, size);
+
+    if (! ensure_can_read(blob, size))
+        return 0;
+
+    ret = *((uint8_t*) blob->current);
+
+    blob->current += size;
+
+    return ret;
+}
+
+uint16_t
+blob_read_uint16(struct blob_reader *blob)
+{
+    uint16_t ret;
+    int size = sizeof(ret);
+
+    align_blob_reader(blob, size);
+
+    if (! ensure_can_read(blob, size))
+        return 0;
+
+    ret = *((uint16_t*) blob->current);
+
+    blob->current += size;
+
+    return ret;
 }
 
 /* These next three read functions have identical form. If we add any beyond

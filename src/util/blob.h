@@ -172,6 +172,17 @@ blob_overwrite_bytes(struct blob *blob,
                      const void *bytes,
                      size_t to_write);
 
+bool
+blob_write_uint8(struct blob *blob, uint8_t value);
+
+bool
+blob_overwrite_uint8(struct blob *blob,
+                     size_t offset,
+                     uint8_t value);
+
+bool
+blob_write_uint16(struct blob *blob, uint16_t value);
+
 /**
  * Add a uint32_t to a blob.
  *
@@ -299,6 +310,12 @@ blob_copy_bytes(struct blob_reader *blob, void *dest, size_t size);
  */
 void
 blob_skip_bytes(struct blob_reader *blob, size_t size);
+
+uint8_t
+blob_read_uint8(struct blob_reader *blob);
+
+uint16_t
+blob_read_uint16(struct blob_reader *blob);
 
 /**
  * Read a uint32_t from the current location, (and update the current location
