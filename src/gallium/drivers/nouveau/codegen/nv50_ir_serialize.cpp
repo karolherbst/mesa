@@ -20,10 +20,10 @@ serialize_bin(struct blob *blob, struct nv50_ir_prog_info_out *info_out)
       blob_write_uint8(blob, true);
       //blob_overwrite_uint8(blob, blob->size, true);
       nv50_ir::RelocInfo *reloc = (nv50_ir::RelocInfo *)info_out->bin.relocData;
+      blob_write_uint32(blob, reloc->count);
       blob_write_uint32(blob, reloc->codePos);
       blob_write_uint32(blob, reloc->libPos);
       blob_write_uint32(blob, reloc->dataPos);
-      blob_write_uint32(blob, reloc->count);
       blob_write_bytes(blob, reloc->entry, sizeof(*reloc->entry) * reloc->count);
    }
    else {
@@ -96,12 +96,14 @@ deserialize_bin(struct blob_reader *reader, nv50_ir_prog_info_out *info_out)
    info_out->bin.relocData = NULL;
    if (blob_read_uint8(reader) == true) {
       printf("Deserializing RelocData\n\n\n");
-      nv50_ir::RelocInfo *reloc = (nv50_ir::RelocInfo *)
-                                                 malloc(sizeof(nv50_ir::RelocInfo));
+      uint32_t count = blob_read_uint32(reader);
+      nv50_ir::RelocInfo *reloc =
+         CALLOC_VARIANT_LENGTH_STRUCT(nv50_ir::RelocInfo,
+               count * sizeof(*reloc->entry));
       reloc->codePos = blob_read_uint32(reader);
       reloc->libPos = blob_read_uint32(reader);
       reloc->dataPos = blob_read_uint32(reader);
-      reloc->count = blob_read_uint32(reader);
+      reloc->count = count;
       blob_copy_bytes(reader, reloc->entry, sizeof(*reloc->entry) * reloc->count);
 
       info_out->bin.relocData = reloc;
