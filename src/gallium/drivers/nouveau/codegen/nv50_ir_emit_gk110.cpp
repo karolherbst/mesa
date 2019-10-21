@@ -2042,8 +2042,8 @@ CodeEmitterGK110::emitInterpMode(const Instruction *i)
    code[1] |= (i->ipa & 0xc) << (19 - 2);
 }
 
-static void
-interpApply(const FixupEntry *entry, uint32_t *code, const FixupData& data)
+void
+gk110_interpApply(const struct FixupEntry *entry, uint32_t *code, const FixupData& data)
 {
    int ipa = entry->ipa;
    int reg = entry->reg;
@@ -2078,10 +2078,10 @@ CodeEmitterGK110::emitINTERP(const Instruction *i)
 
    if (i->op == OP_PINTERP) {
       srcId(i->src(1), 23);
-      addInterp(i->ipa, SDATA(i->src(1)).id, interpApply);
+      addInterp(i->ipa, SDATA(i->src(1)).id, gk110_interpApply);
    } else {
       code[0] |= 0xff << 23;
-      addInterp(i->ipa, 0xff, interpApply);
+      addInterp(i->ipa, 0xff, gk110_interpApply);
    }
 
    srcId(i->src(0).getIndirect(0), 10);

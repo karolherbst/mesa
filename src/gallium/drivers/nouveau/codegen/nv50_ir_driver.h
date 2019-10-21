@@ -25,6 +25,7 @@
 
 #include "pipe/p_shader_tokens.h"
 
+#include "util/blob.h"
 #include "tgsi/tgsi_util.h"
 #include "tgsi/tgsi_parse.h"
 #include "tgsi/tgsi_scan.h"
@@ -241,8 +242,35 @@ extern void nv50_ir_get_target_library(uint32_t chipset,
                                        const uint32_t **code, uint32_t *size);
 
 
+#ifdef __cplusplus
+namespace nv50_ir {
+class FixupEntry;
+class FixupData;
+
+void
+gk110_interpApply(const nv50_ir::FixupEntry *entry, uint32_t *code, const nv50_ir::FixupData& data);
+
+void
+gm107_interpApply(const nv50_ir::FixupEntry *entry, uint32_t *code, const nv50_ir::FixupData& data);
+
+void
+nv50_interpApply(const nv50_ir::FixupEntry *entry, uint32_t *code, const nv50_ir::FixupData& data);
+
+void
+nvc0_interpApply(const nv50_ir::FixupEntry *entry, uint32_t *code, const nv50_ir::FixupData& data);
+
+}
+#endif
+
 extern void
 nv50_ir_info_out_print(struct nv50_ir_prog_info_out *);
+
+extern void
+nv50_ir_info_out_serialize(struct blob *,
+                           struct nv50_ir_prog_info_out *);
+
+extern void
+nv50_ir_info_out_deserialize(struct blob *, struct nv50_ir_prog_info_out *);
 
 #ifdef __cplusplus
 }
