@@ -240,6 +240,10 @@ nv50_ir_apply_fixups(void *fixupData, uint32_t *code,
 extern void nv50_ir_get_target_library(uint32_t chipset,
                                        const uint32_t **code, uint32_t *size);
 
+
+extern void
+nv50_ir_info_out_print(struct nv50_ir_prog_info_out *);
+
 #ifdef __cplusplus
 }
 #endif
