@@ -22,6 +22,7 @@
 
 #include "pipe/p_defines.h"
 
+#include "util/blob.h"
 #include "compiler/nir/nir.h"
 #include "tgsi/tgsi_ureg.h"
 
@@ -572,6 +573,8 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
 {
    struct nv50_ir_prog_info *info;
    struct nv50_ir_prog_info_out info_out = {};
+   struct nv50_ir_prog_info_out info_out_tmp;
+   struct blob blob;
    int ret;
 
    info = CALLOC_STRUCT(nv50_ir_prog_info);
@@ -639,6 +642,18 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
       NOUVEAU_ERR("shader translation failed: %i\n", ret);
       goto out;
    }
+
+   blob_init(&blob);
+   nv50_ir_info_out_print(&info_out);
+   nv50_ir_info_out_serialize(&blob, &info_out);
+   nv50_ir_info_out_deserialize(&blob, &info_out_tmp);
+
+   printf("after serialize:\n");
+   nv50_ir_info_out_print(&info_out_tmp);
+   printf("--------------------------------\n");
+
+   info_out = info_out_tmp;
+   blob_finish(&blob);
 
    prog->code = info_out.bin.code;
    prog->code_size = info_out.bin.codeSize;
