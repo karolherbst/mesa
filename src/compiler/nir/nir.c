@@ -62,6 +62,8 @@ nir_shader_create(void *mem_ctx,
    shader->num_uniforms = 0;
    shader->num_shared = 0;
 
+   shader->structured = stage != MESA_SHADER_KERNEL;
+
    return shader;
 }
 
@@ -474,6 +476,8 @@ nir_deref_instr_create(nir_shader *shader, nir_deref_type deref_type)
 nir_jump_instr *
 nir_jump_instr_create(nir_shader *shader, nir_jump_type type)
 {
+   bool is_goto = type == nir_jump_goto || type == nir_jump_goto_if;
+   assert(!(is_goto && shader->structured));
    nir_jump_instr *instr = ralloc(shader, nir_jump_instr);
    instr_init(&instr->instr, nir_instr_type_jump);
    src_init(&instr->condition);

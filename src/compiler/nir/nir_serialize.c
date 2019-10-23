@@ -2034,6 +2034,7 @@ nir_serialize(struct blob *blob, const nir_shader *nir, bool strip)
    blob_write_uint32(blob, nir->constant_data_size);
    if (nir->constant_data_size > 0)
       blob_write_bytes(blob, nir->constant_data, nir->constant_data_size);
+   blob_write_uint8(blob, nir->structured);
 
    *(uint32_t *)(blob->data + idx_size_offset) = ctx.next_idx;
 
@@ -2090,6 +2091,7 @@ nir_deserialize(void *mem_ctx,
       blob_copy_bytes(blob, ctx.nir->constant_data,
                       ctx.nir->constant_data_size);
    }
+   ctx.nir->structured = blob_read_uint8(blob);
 
    free(ctx.idx_table);
 

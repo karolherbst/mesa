@@ -968,7 +968,8 @@ validate_block(nir_block *block, validate_state *state)
          }
 
          case nir_cf_node_function:
-            validate_assert(state, block->successors[0] == state->impl->end_block);
+            if (state->shader->structured)
+               validate_assert(state, block->successors[0] == state->impl->end_block);
             validate_assert(state, block->successors[1] == NULL);
             break;
 
