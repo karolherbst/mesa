@@ -43,6 +43,8 @@ LoweringHelper::visit(Instruction *insn)
       return handleNEG(insn);
    case OP_SAT:
       return handleSAT(insn);
+   case OP_SET:
+      return handleSET(insn);
    case OP_SLCT:
       return handleSLCT(insn->asCmp());
    case OP_AND:
@@ -201,6 +203,23 @@ LoweringHelper::handleSAT(Instruction *insn)
    insn->op = OP_MIN;
    insn->setSrc(0, tmp);
    insn->setSrc(1, bld.loadImm(bld.getSSA(8), 1.0));
+   return true;
+}
+
+bool
+LoweringHelper::handleSET(Instruction *insn)
+{
+   DataType sTy = insn->sType;
+
+   if (typeSizeof(sTy) >= 2)
+      return true;
+
+   bld.setPosition(insn, false);
+   Value *op0 = bld.mkOp2v(OP_AND, TYPE_U32, bld.getSSA(4), insn->getSrc(0), bld.loadImm(bld.getSSA(4), 0xff));
+   Value *op1 = bld.mkOp2v(OP_AND, TYPE_U32, bld.getSSA(4), insn->getSrc(1), bld.loadImm(bld.getSSA(4), 0xff));
+   insn->setSrc(0, op0);
+   insn->setSrc(1, op1);
+   insn->sType = TYPE_U32;
    return true;
 }
 
