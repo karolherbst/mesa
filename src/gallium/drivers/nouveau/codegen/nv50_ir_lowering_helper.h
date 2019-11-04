@@ -43,6 +43,7 @@ public:
    bool handleMOV(Instruction *);
    bool handleNEG(Instruction *);
    bool handleSAT(Instruction *);
+   bool handleSET(Instruction *);
    bool handleSLCT(CmpInstruction *);
 
    bool handleLogOp(Instruction *);
