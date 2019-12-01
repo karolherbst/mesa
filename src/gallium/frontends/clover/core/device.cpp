@@ -252,7 +252,8 @@ device::svm_support() const {
       // we can emulate all lower levels if we support fine grain system
       return CL_DEVICE_SVM_FINE_GRAIN_SYSTEM |
              CL_DEVICE_SVM_COARSE_GRAIN_BUFFER |
-             CL_DEVICE_SVM_FINE_GRAIN_BUFFER;
+             CL_DEVICE_SVM_FINE_GRAIN_BUFFER |
+             CL_DEVICE_SVM_ATOMICS;
    return 0;
 }
 
