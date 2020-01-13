@@ -3253,6 +3253,7 @@ nvir_nir_shader_compiler_options(int chipset)
    op.optimize_sample_mask_in = false;
    op.lower_cs_local_index_from_id = true;
    op.lower_cs_local_id_from_index = false;
+   op.lower_cs_global_id_from_local = true;
    op.lower_device_index_to_zero = false; // TODO
    op.lower_wpos_pntc = false; // TODO
    op.lower_hadd = true; // TODO

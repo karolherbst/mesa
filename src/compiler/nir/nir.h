@@ -3115,6 +3115,7 @@ typedef struct nir_shader_compiler_options {
 
    bool lower_cs_local_index_from_id;
    bool lower_cs_local_id_from_index;
+   bool lower_cs_global_id_from_local;
 
    bool lower_device_index_to_zero;
 

@@ -2854,6 +2854,7 @@ const nir_shader_compiler_options v3d_nir_options = {
         .lower_bitfield_reverse = true,
         .lower_bit_count = true,
         .lower_cs_local_id_from_index = true,
+        .lower_cs_global_id_from_local = true,
         .lower_ffract = true,
         .lower_fmod = true,
         .lower_pack_unorm_2x16 = true,

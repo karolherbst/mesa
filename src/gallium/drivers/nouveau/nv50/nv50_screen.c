@@ -945,6 +945,7 @@ static const nir_shader_compiler_options nir_options = {
    .lower_extract_word = true,
    .lower_all_io_to_temps = false,
    .lower_cs_local_index_from_id = true,
+   .lower_cs_global_id_from_local = true,
    .lower_rotate = true,
    .lower_to_scalar = true,
    .use_interpolated_input_intrinsics = true,

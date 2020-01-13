@@ -50,7 +50,8 @@
    .lower_base_vertex = true,                                                 \
    .use_scoped_barrier = true,                                                \
    .support_8bit_alu = true,                                                  \
-   .support_16bit_alu = true
+   .support_16bit_alu = true,                                                 \
+   .lower_cs_global_id_from_local = true
 
 #define COMMON_SCALAR_OPTIONS                                                 \
    .lower_to_scalar = true,                                                   \

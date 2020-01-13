@@ -491,6 +491,7 @@ static const struct nir_shader_compiler_options nir_options = {
    .optimize_sample_mask_in = true,
    .max_unroll_iterations = 32,
    .use_interpolated_input_intrinsics = true,
+   .lower_cs_global_id_from_local = true,
 };
 
 static const void *si_get_compiler_options(struct pipe_screen *screen, enum pipe_shader_ir ir,
