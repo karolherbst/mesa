@@ -120,8 +120,15 @@ lower_ssbo_instr(nir_builder *b, nir_intrinsic_instr *intr)
             nir_ssbo_prop(b, load_ssbo_address, &index, 64),
             nir_u2u64(b, offset32));
 
-   /* Create the replacement intrinsic */
+   nir_ssa_def *bound = nir_iadd(b, offset32, nir_imm_int(b, intr->dest.ssa.bit_size * intr->dest.ssa.num_components));
+   nir_ssa_def *cond = nir_ult(b, bound, nir_ssbo_prop(b, get_buffer_size, &index, 32));
 
+   nir_ssa_def *resT, *resE;
+   nir_if *nif = nir_push_if(b, cond);
+   /* never ever flatten this if */
+   nif->control = nir_selection_control_dont_flatten;
+
+   /* Create the replacement intrinsic */
    nir_intrinsic_instr *global =
       nir_intrinsic_instr_create(b->shader, op);
 
@@ -135,6 +142,7 @@ lower_ssbo_instr(nir_builder *b, nir_intrinsic_instr *intr)
       nir_ssa_dest_init(&global->instr, &global->dest,
                         intr->dest.ssa.num_components,
                         intr->dest.ssa.bit_size, NULL);
+      resT = &global->dest.ssa;
 
       if (is_atomic) {
          nir_src_copy(&global->src[1], &intr->src[2], global);
@@ -142,9 +150,17 @@ lower_ssbo_instr(nir_builder *b, nir_intrinsic_instr *intr)
             nir_src_copy(&global->src[2], &intr->src[3], global);
       }
    }
-
    nir_builder_instr_insert(b, &global->instr);
-   return is_store ? NULL : &global->dest.ssa;
+   nir_push_else(b, nif);
+   if (!is_store)
+      resE = nir_imm_zero(b, resT->num_components, resT->bit_size);
+   nir_pop_if(b, nif);
+
+   if (is_store)
+      return NULL;
+
+   // insert OOB check
+   return nir_if_phi(b, resT, resE);
 }
 
 static bool
@@ -207,6 +223,7 @@ nir_lower_ssbo(nir_shader *shader)
             nir_instr_remove(instr);
          }
       }
+      nir_metadata_preserve(impl, nir_metadata_none);
    }
 
    return progress;
