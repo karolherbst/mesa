@@ -59,9 +59,13 @@ kernel::launch(command_queue &q,
 
    // The handles are created during exec_context::bind(), so we need make
    // sure to call exec_context::bind() before retrieving them.
-   std::vector<uint32_t *> g_handles = map([&](size_t h) {
-         return (uint32_t *)&exec.input[h];
-      }, exec.g_handles);
+   std::vector<uint64_t> g_handles = map([&](size_t h) -> uint64_t {
+      if (q.device().address_bits() == 32) {
+         return *(uint32_t *)&exec.input[h];
+      } else {
+         return *(uint64_t *)&exec.input[h];
+      }
+   }, exec.g_handles);
 
    q.pipe->bind_compute_state(q.pipe, st);
    q.pipe->bind_sampler_states(q.pipe, PIPE_SHADER_COMPUTE,
@@ -74,6 +78,14 @@ kernel::launch(command_queue &q,
                                  exec.resources.data());
    q.pipe->set_global_binding(q.pipe, 0, exec.g_buffers.size(),
                               exec.g_buffers.data(), g_handles.data());
+
+   for_each([&](size_t offset, uint64_t ptr) {
+      if (q.device().address_bits() == 32) {
+         *(uint32_t *)&exec.input[offset] = ptr;
+      } else {
+         *(uint64_t *)&exec.input[offset] = ptr;
+      }
+   }, exec.g_handles, g_handles);
 
    // Fill information for the launch_grid() call.
    info.work_dim = grid_size.size();
