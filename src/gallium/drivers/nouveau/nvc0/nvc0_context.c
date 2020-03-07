@@ -70,8 +70,10 @@ nvc0_svm_migrate(struct pipe_context *pipe, unsigned num_ptrs,
       args.header |= target << NOUVEAU_SVM_BIND_TARGET_SHIFT;
 
       /* This is best effort, so no garanty whatsoever */
-      drmCommandWrite(fd, DRM_NOUVEAU_SVM_BIND,
-                      &args, sizeof(args));
+      int ret = drmCommandWrite(fd, DRM_NOUVEAU_SVM_BIND,
+                                &args, sizeof(args));
+      if (ret)
+         NOUVEAU_ERR("migration failed\n");
    }
 }
 
