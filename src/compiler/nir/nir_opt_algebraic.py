@@ -2056,6 +2056,9 @@ late_optimizations = [
    (('ishr', a, 0), a),
    (('ishr', a, -32), a),
    (('ushr', a, 0), a),
+
+   (('flrp@32', a, b, c), ('fadd', ('fmul', ('fadd', b, ('fneg', a)), c), a), 'options->lower_flrp32'),
+   (('flrp@64', a, b, c), ('fadd', ('fmul', ('fadd', b, ('fneg', a)), c), a), 'options->lower_flrp64'),
 ]
 
 for op in ['fadd']:
