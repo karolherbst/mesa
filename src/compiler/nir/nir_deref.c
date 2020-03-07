@@ -236,7 +236,7 @@ nir_deref_instr_ptr_as_array_stride(nir_deref_instr *deref)
 {
    switch (deref->deref_type) {
    case nir_deref_type_array:
-      return glsl_get_explicit_stride(nir_deref_instr_parent(deref)->type);
+      return glsl_get_cl_size(nir_deref_instr_parent(deref)->type);
    case nir_deref_type_ptr_as_array:
       return nir_deref_instr_ptr_as_array_stride(nir_deref_instr_parent(deref));
    case nir_deref_type_cast:
