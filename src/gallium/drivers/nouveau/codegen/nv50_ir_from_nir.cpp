@@ -3143,6 +3143,8 @@ Converter::run()
 
    do {
       progress = false;
+      NIR_PASS(progress, nir, nir_lower_pack);
+      NIR_PASS(progress, nir, nir_lower_flrp, 0x70, true);
       NIR_PASS(progress, nir, nir_copy_prop);
       NIR_PASS(progress, nir, nir_opt_remove_phis);
       NIR_PASS(progress, nir, nir_opt_trivial_continues);
@@ -3154,6 +3156,8 @@ Converter::run()
       NIR_PASS(progress, nir, nir_opt_dead_cf);
    } while (progress);
 
+   NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);
+   NIR_PASS_V(nir, nir_opt_algebraic_late);
    NIR_PASS_V(nir, nir_lower_bool_to_int32);
    NIR_PASS_V(nir, nir_convert_from_ssa, true);
 
@@ -3258,6 +3262,8 @@ nvir_nir_shader_compiler_options(int chipset)
    op.lower_unpack_snorm_2x16 = true;
    op.lower_unpack_unorm_4x8 = true;
    op.lower_unpack_snorm_4x8 = true;
+   op.lower_pack_32_2x16_split = true;
+   op.lower_unpack_32_2x16_split = true;
    op.lower_pack_split = false;
    op.lower_extract_byte = (chipset < NVISA_GM107_CHIPSET);
    op.lower_extract_word = (chipset < NVISA_GM107_CHIPSET);
