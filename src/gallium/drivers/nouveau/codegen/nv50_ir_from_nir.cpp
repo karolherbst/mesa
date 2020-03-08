@@ -3103,6 +3103,26 @@ Converter::visit(nir_tex_instr *insn)
    return true;
 }
 
+static nir_lower_atomics_strategy
+nv50_ir_lower_atomics_callback(const nir_intrinsic_instr *intr)
+{
+   switch (intr->intrinsic) {
+   case nir_intrinsic_shared_atomic_add:
+   case nir_intrinsic_shared_atomic_and:
+   case nir_intrinsic_shared_atomic_imax:
+   case nir_intrinsic_shared_atomic_imin:
+   case nir_intrinsic_shared_atomic_umax:
+   case nir_intrinsic_shared_atomic_umin:
+   case nir_intrinsic_shared_atomic_or:
+   case nir_intrinsic_shared_atomic_xor:
+      if (nir_dest_bit_size(intr->dest) == 64)
+         return nir_lower_atomics_strategy_comp_swap_loop;
+      return nir_lower_atomics_strategy_none;
+   default:
+      return nir_lower_atomics_strategy_none;
+   }
+}
+
 bool
 Converter::run()
 {
@@ -3133,6 +3153,8 @@ Converter::run()
    NIR_PASS_V(nir, nir_lower_subgroups, &subgroup_options);
 
    NIR_PASS_V(nir, nir_lower_load_const_to_scalar);
+   NIR_PASS_V(nir, nir_lower_atomics, nv50_ir_lower_atomics_callback);
+
    NIR_PASS_V(nir, nir_lower_alu_to_scalar, NULL, NULL);
    NIR_PASS_V(nir, nir_lower_phis_to_scalar);
 

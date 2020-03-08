@@ -4775,6 +4775,21 @@ typedef struct nir_lower_bitmap_options {
 
 void nir_lower_bitmap(nir_shader *shader, const nir_lower_bitmap_options *options);
 
+typedef enum {
+   nir_lower_atomics_strategy_none,
+
+   /* Atomic operations get lowered to an load+op+cas loop */
+   nir_lower_atomics_strategy_comp_swap_loop,
+
+   /* Atomic operations get lowered to a spinlock loop doing load+op+store.
+    * This is only supported for shared memory as it will need to allocate a
+    * lock. This increases nir->num_shared.
+    */
+   nir_lower_atomics_strategy_spinlock_loop,
+} nir_lower_atomics_strategy;
+typedef nir_lower_atomics_strategy (*nir_lower_atomics_callback)(const nir_intrinsic_instr *instr);
+bool nir_lower_atomics(nir_shader *shader, nir_lower_atomics_callback callback);
+
 bool nir_lower_atomics_to_ssbo(nir_shader *shader);
 
 typedef enum  {
