@@ -3133,6 +3133,8 @@ Converter::run()
    NIR_PASS_V(nir, nir_lower_subgroups, &subgroup_options);
 
    NIR_PASS_V(nir, nir_lower_load_const_to_scalar);
+   NIR_PASS_V(nir, nir_lower_atomics);
+
    NIR_PASS_V(nir, nir_lower_alu_to_scalar, NULL, NULL);
    NIR_PASS_V(nir, nir_lower_phis_to_scalar);
 
