@@ -87,9 +87,6 @@ LoweringHelper::handleCVT(Instruction *insn)
    DataType dTy = insn->dType;
    DataType sTy = insn->sType;
 
-   if (typeSizeof(dTy) <= 4 && typeSizeof(sTy) <= 4)
-      return true;
-
    bld.setPosition(insn, false);
 
    if ((dTy == TYPE_S32 && sTy == TYPE_S64) ||
@@ -106,6 +103,13 @@ LoweringHelper::handleCVT(Instruction *insn)
    } else if (dTy == TYPE_U64 && sTy == TYPE_U32) {
       insn->op = OP_MERGE;
       insn->setSrc(1, bld.loadImm(bld.getSSA(), 0));
+   } else if (sTy == TYPE_F32 && dTy == TYPE_U8) {
+      Value *tmp = bld.getSSA(4);
+      bld.mkCvt(OP_CVT, TYPE_U32, tmp, TYPE_F32, insn->getSrc(0))->rnd = insn->rnd;
+      insn->setSrc(0, tmp);
+      insn->sType = TYPE_U32;
+      insn->saturate = true;
+      insn->rnd = ROUND_N;
    }
 
    return true;

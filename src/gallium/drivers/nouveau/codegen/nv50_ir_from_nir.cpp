@@ -396,6 +396,7 @@ Converter::getOperation(nir_op op)
    case nir_op_f2f64:
    case nir_op_f2i32:
    case nir_op_f2i64:
+   case nir_op_f2u8:
    case nir_op_f2u32:
    case nir_op_f2u64:
    case nir_op_i2f32:
@@ -404,6 +405,8 @@ Converter::getOperation(nir_op op)
    case nir_op_i2i64:
    case nir_op_u2f32:
    case nir_op_u2f64:
+   case nir_op_u2u8:
+   case nir_op_u2u16:
    case nir_op_u2u32:
    case nir_op_u2u64:
       return OP_CVT;
@@ -2548,10 +2551,13 @@ Converter::visit(nir_alu_instr *insn)
    // convert instructions
    case nir_op_f2f32:
    case nir_op_f2i32:
+   case nir_op_f2u8:
    case nir_op_f2u32:
    case nir_op_i2f32:
    case nir_op_i2i32:
    case nir_op_u2f32:
+   case nir_op_u2u8:
+   case nir_op_u2u16:
    case nir_op_u2u32:
    case nir_op_f2f64:
    case nir_op_f2i64:
@@ -2563,7 +2569,7 @@ Converter::visit(nir_alu_instr *insn)
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
       Instruction *i = mkOp1(getOperation(op), dType, newDefs[0], getSrc(&insn->src[0]));
-      if (op == nir_op_f2i32 || op == nir_op_f2i64 || op == nir_op_f2u32 || op == nir_op_f2u64)
+      if (op == nir_op_f2i32 || op == nir_op_f2i64 || op == nir_op_f2u8 || op == nir_op_f2u32 || op == nir_op_f2u64)
          i->rnd = ROUND_Z;
       i->sType = sTypes[0];
       break;
