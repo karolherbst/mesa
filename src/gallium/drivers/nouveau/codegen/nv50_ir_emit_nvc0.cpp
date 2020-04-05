@@ -3296,11 +3296,17 @@ SchedDataCalculator::visit(BasicBlock *bb)
             bbDelay = MAX2(bbDelay, calcDelay(next, c));
             c += getCycles(next, bbDelay);
          }
-         next = NULL;
       }
    }
-   if (bb->cfg.outgoingCount() != 1)
-      next = NULL;
+
+   int i;
+   Function *func = bb->getFunction();
+   for (i = 0; i < func->bbCount; ++i) {
+      if (func->bbArray[i] == bb)
+         break;
+   }
+
+   next = (i >= func->bbCount - 1) ? NULL : func->bbArray[i + 1]->getEntry();
    setDelay(insn, bbDelay, next);
    cycle += getCycles(insn, bbDelay);
 
