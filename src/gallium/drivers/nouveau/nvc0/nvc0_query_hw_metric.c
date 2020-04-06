@@ -392,6 +392,11 @@ static const struct nvc0_hw_metric_query_cfg *sm50_hw_metric_queries[] =
    &sm35_warp_nonpred_execution_efficiency,
 };
 
+/* ==== Compute capability 6.0 (GP100) ==== */
+static const struct nvc0_hw_metric_query_cfg *sm60_hw_metric_queries[] =
+{
+};
+
 #undef _SM
 
 static inline const struct nvc0_hw_metric_query_cfg **
@@ -400,6 +405,9 @@ nvc0_hw_metric_get_queries(struct nvc0_screen *screen)
    struct nouveau_device *dev = screen->base.device;
 
    switch (screen->base.class_3d) {
+   case GP102_3D_CLASS:
+   case GP100_3D_CLASS:
+      return sm60_hw_metric_queries;
    case GM200_3D_CLASS:
    case GM107_3D_CLASS:
       return sm50_hw_metric_queries;
@@ -422,6 +430,9 @@ nvc0_hw_metric_get_num_queries(struct nvc0_screen *screen)
    struct nouveau_device *dev = screen->base.device;
 
    switch (screen->base.class_3d) {
+   case GP102_3D_CLASS:
+   case GP100_3D_CLASS:
+      return ARRAY_SIZE(sm60_hw_metric_queries);
    case GM200_3D_CLASS:
    case GM107_3D_CLASS:
       return ARRAY_SIZE(sm50_hw_metric_queries);

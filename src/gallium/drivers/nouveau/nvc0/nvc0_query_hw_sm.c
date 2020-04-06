@@ -1737,6 +1737,10 @@ static const struct nvc0_hw_sm_query_cfg *sm52_hw_sm_queries[] =
    &sm52_warps_launched,
 };
 
+static const struct nvc0_hw_sm_query_cfg *sm60_hw_sm_queries[] =
+{
+};
+
 #undef _Q
 #undef _CA
 #undef _CB
@@ -2235,6 +2239,9 @@ nvc0_hw_sm_get_queries(struct nvc0_screen *screen)
    struct nouveau_device *dev = screen->base.device;
 
    switch (screen->base.class_3d) {
+   case GP102_3D_CLASS:
+   case GP100_3D_CLASS:
+      return sm60_hw_sm_queries;
    case GM200_3D_CLASS:
       return sm52_hw_sm_queries;
    case GM107_3D_CLASS:
@@ -2258,6 +2265,9 @@ nvc0_hw_sm_get_num_queries(struct nvc0_screen *screen)
    struct nouveau_device *dev = screen->base.device;
 
    switch (screen->base.class_3d) {
+   case GP102_3D_CLASS:
+   case GP100_3D_CLASS:
+      return ARRAY_SIZE(sm60_hw_sm_queries);
    case GM200_3D_CLASS:
       return ARRAY_SIZE(sm52_hw_sm_queries);
    case GM107_3D_CLASS:
