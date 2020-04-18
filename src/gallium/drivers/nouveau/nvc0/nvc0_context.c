@@ -158,7 +158,7 @@ nvc0_context_unreference_resources(struct nvc0_context *nvc0)
       for (i = 0; i < nvc0->num_textures[s]; ++i)
          pipe_sampler_view_reference(&nvc0->textures[s][i], NULL);
 
-      for (i = 0; i < NVC0_MAX_PIPE_CONSTBUFS; ++i)
+      for (i = 0; i < nvc0->screen->cb_count; ++i)
          if (!nvc0->constbuf[s][i].user)
             pipe_resource_reference(&nvc0->constbuf[s][i].u.buf, NULL);
 
@@ -300,7 +300,7 @@ nvc0_invalidate_resource_storage(struct nouveau_context *ctx,
       }
 
       for (s = 0; s < 6; ++s) {
-         for (i = 0; i < NVC0_MAX_PIPE_CONSTBUFS; ++i) {
+         for (i = 0; i < nvc0->screen->cb_count; ++i) {
             if (!(nvc0->constbuf_valid[s] & (1 << i)))
                continue;
             if (!nvc0->constbuf[s][i].user &&

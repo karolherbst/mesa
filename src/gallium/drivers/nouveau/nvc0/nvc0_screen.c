@@ -424,8 +424,8 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
                              enum pipe_shader_type shader,
                              enum pipe_shader_cap param)
 {
-   const struct nouveau_screen *screen = nouveau_screen(pscreen);
-   const uint16_t class_3d = screen->class_3d;
+   const struct nvc0_screen *screen = nvc0_screen(pscreen);
+   const uint16_t class_3d = screen->base.class_3d;
 
    switch (shader) {
    case PIPE_SHADER_VERTEX:
@@ -441,11 +441,11 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
 
    switch (param) {
    case PIPE_SHADER_CAP_PREFERRED_IR:
-      return screen->prefer_nir ? PIPE_SHADER_IR_NIR : PIPE_SHADER_IR_TGSI;
+      return screen->base.prefer_nir ? PIPE_SHADER_IR_NIR : PIPE_SHADER_IR_TGSI;
    case PIPE_SHADER_CAP_SUPPORTED_IRS: {
       uint32_t irs = 1 << PIPE_SHADER_IR_TGSI |
                      1 << PIPE_SHADER_IR_NIR;
-      if (screen->force_enable_cl)
+      if (screen->base.force_enable_cl)
          irs |= 1 << PIPE_SHADER_IR_NIR_SERIALIZED;
       return irs;
    }
@@ -463,7 +463,7 @@ nvc0_screen_get_shader_param(struct pipe_screen *pscreen,
    case PIPE_SHADER_CAP_MAX_CONST_BUFFER_SIZE:
       return NVC0_MAX_CONSTBUF_SIZE;
    case PIPE_SHADER_CAP_MAX_CONST_BUFFERS:
-      return NVC0_MAX_PIPE_CONSTBUFS;
+      return screen->cb_count;
    case PIPE_SHADER_CAP_INDIRECT_OUTPUT_ADDR:
       return shader != PIPE_SHADER_FRAGMENT;
    case PIPE_SHADER_CAP_INDIRECT_INPUT_ADDR:
@@ -1221,6 +1221,7 @@ nvc0_screen_create(struct nouveau_device *dev)
    if (ret)
       FAIL_SCREEN_INIT("Error allocating PGRAPH context for 3D: %d\n", ret);
    screen->base.class_3d = obj_class;
+   screen->cb_count = screen->base.class_3d >= GM107_3D_CLASS ? 17 : 15;
 
    BEGIN_NVC0(push, SUBC_3D(NV01_SUBCHAN_OBJECT), 1);
    PUSH_DATA (push, screen->eng3d->oclass);
@@ -1265,7 +1266,7 @@ nvc0_screen_create(struct nouveau_device *dev)
       IMMED_NVC0(push, NVC0_3D(TEX_MISC), 0);
    } else {
       BEGIN_NVC0(push, NVE4_3D(TEX_CB_INDEX), 1);
-      PUSH_DATA (push, 15);
+      PUSH_DATA (push, screen->cb_count);
    }
    BEGIN_NVC0(push, NVC0_3D(CALL_LIMIT_LOG), 1);
    PUSH_DATA (push, 8); /* 128 */
@@ -1470,7 +1471,7 @@ nvc0_screen_create(struct nouveau_device *dev)
 
       /* TIC and TSC entries for each unit (nve4+ only) */
       /* auxiliary constants (6 user clip planes, base instance id) */
-      nvc0_screen_bind_cb_3d(screen, NULL, i, 15, NVC0_CB_AUX_SIZE,
+      nvc0_screen_bind_cb_3d(screen, NULL, i, screen->cb_count, NVC0_CB_AUX_SIZE,
                              screen->uniform_bo->offset + NVC0_CB_AUX_INFO(i));
       if (screen->eng3d->oclass >= NVE4_3D_CLASS) {
          unsigned j;

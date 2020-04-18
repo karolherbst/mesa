@@ -717,7 +717,7 @@ nvc0_validate_driverconst(struct nvc0_context *nvc0)
    int i;
 
    for (i = 0; i < 5; ++i)
-      nvc0_screen_bind_cb_3d(screen, NULL, i, 15, NVC0_CB_AUX_SIZE,
+      nvc0_screen_bind_cb_3d(screen, NULL, i, screen->cb_count, NVC0_CB_AUX_SIZE,
                              screen->uniform_bo->offset + NVC0_CB_AUX_INFO(i));
 
    nvc0->dirty_cp |= NVC0_NEW_CP_DRIVERCONST;
@@ -884,7 +884,7 @@ nvc0_switch_pipe_context(struct nvc0_context *ctx_to)
    for (s = 0; s < 6; ++s) {
       ctx_to->samplers_dirty[s] = ~0;
       ctx_to->textures_dirty[s] = ~0;
-      ctx_to->constbuf_dirty[s] = (1 << NVC0_MAX_PIPE_CONSTBUFS) - 1;
+      ctx_to->constbuf_dirty[s] = (1 << ctx_to->screen->cb_count) - 1;
       ctx_to->buffers_dirty[s]  = ~0;
       ctx_to->images_dirty[s]   = ~0;
    }

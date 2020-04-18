@@ -16,8 +16,8 @@
 #define NVE4_IMG_MAX_HANDLES 512
 
 /* doesn't count driver-reserved slot */
-#define NVC0_MAX_PIPE_CONSTBUFS 15
-#define NVC0_MAX_CONST_BUFFERS  16
+#define NVC0_MAX_PIPE_CONSTBUFS 17
+#define NVC0_MAX_CONST_BUFFERS  18
 #define NVC0_MAX_CONSTBUF_SIZE  65536
 
 #define NVC0_MAX_SURFACE_SLOTS 16
@@ -80,6 +80,7 @@ struct nvc0_screen {
    struct nouveau_bo *txc; /* TIC (offset 0) and TSC (65536) */
    struct nouveau_bo *poly_cache;
 
+   uint8_t  cb_count;
    uint8_t gpc_count;
    uint16_t mp_count;
    uint16_t mp_count_compute; /* magic reg can make compute use fewer MPs */

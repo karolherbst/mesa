@@ -569,10 +569,11 @@ nvc0_program_dump(struct nvc0_program *prog)
 #endif
 
 bool
-nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
+nvc0_program_translate(struct nvc0_program *prog, struct nvc0_context *nvc0,
                        struct pipe_debug_callback *debug)
 {
    struct nv50_ir_prog_info *info;
+   uint16_t chipset = nvc0->screen->base.device->chipset;
    int ret;
 
    info = CALLOC_STRUCT(nv50_ir_prog_info);
@@ -607,8 +608,8 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
 
    info->bin.smemSize = prog->cp.smem_size;
    info->io.genUserClip = prog->vp.num_ucps;
-   info->io.auxCBSlot = 15;
-   info->io.msInfoCBSlot = 15;
+   info->io.auxCBSlot = nvc0->screen->cb_count;
+   info->io.msInfoCBSlot = nvc0->screen->cb_count;
    info->io.ucpBase = NVC0_CB_AUX_UCP_INFO;
    info->io.drawInfoBase = NVC0_CB_AUX_DRAW_INFO;
    info->io.msInfoBase = NVC0_CB_AUX_MS_INFO;

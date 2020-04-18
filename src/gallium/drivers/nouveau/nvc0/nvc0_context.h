@@ -79,28 +79,28 @@
 #define NVC0_BIND_3D_VTX_TMP       2
 #define NVC0_BIND_3D_IDX           3
 #define NVC0_BIND_3D_TEX(s, i)  (  4 + 32 * (s) + (i))
-#define NVC0_BIND_3D_CB(s, i)   (164 + 16 * (s) + (i))
-#define NVC0_BIND_3D_TFB         244
-#define NVC0_BIND_3D_SUF         245
-#define NVC0_BIND_3D_BUF         246
-#define NVC0_BIND_3D_SCREEN      247
-#define NVC0_BIND_3D_BINDLESS    248
-#define NVC0_BIND_3D_TLS         249
-#define NVC0_BIND_3D_TEXT        250
-#define NVC0_BIND_3D_COUNT       251
+#define NVC0_BIND_3D_CB(s, i)   (164 + NVC0_MAX_CONST_BUFFERS * (s) + (i))
+#define NVC0_BIND_3D_TFB         254
+#define NVC0_BIND_3D_SUF         255
+#define NVC0_BIND_3D_BUF         256
+#define NVC0_BIND_3D_SCREEN      257
+#define NVC0_BIND_3D_BINDLESS    258
+#define NVC0_BIND_3D_TLS         259
+#define NVC0_BIND_3D_TEXT        260
+#define NVC0_BIND_3D_COUNT       261
 
 /* compute bufctx (during launch_grid) */
 #define NVC0_BIND_CP_CB(i)     (  0 + (i))
-#define NVC0_BIND_CP_TEX(i)    ( 16 + (i))
-#define NVC0_BIND_CP_SUF         48
-#define NVC0_BIND_CP_GLOBAL      49
-#define NVC0_BIND_CP_DESC        50
-#define NVC0_BIND_CP_SCREEN      51
-#define NVC0_BIND_CP_QUERY       52
-#define NVC0_BIND_CP_BUF         53
-#define NVC0_BIND_CP_TEXT        54
-#define NVC0_BIND_CP_BINDLESS    55
-#define NVC0_BIND_CP_COUNT       56
+#define NVC0_BIND_CP_TEX(i)    ( 18 + (i))
+#define NVC0_BIND_CP_SUF         50
+#define NVC0_BIND_CP_GLOBAL      51
+#define NVC0_BIND_CP_DESC        52
+#define NVC0_BIND_CP_SCREEN      53
+#define NVC0_BIND_CP_QUERY       54
+#define NVC0_BIND_CP_BUF         55
+#define NVC0_BIND_CP_TEXT        56
+#define NVC0_BIND_CP_BINDLESS    57
+#define NVC0_BIND_CP_COUNT       58
 
 /* bufctx for other operations */
 #define NVC0_BIND_2D            0
@@ -205,9 +205,9 @@ struct nvc0_context {
    struct nvc0_program *tcp_empty;
 
    struct nvc0_constbuf constbuf[6][NVC0_MAX_PIPE_CONSTBUFS];
-   uint16_t constbuf_dirty[6];
-   uint16_t constbuf_valid[6];
-   uint16_t constbuf_coherent[6];
+   uint32_t constbuf_dirty[6];
+   uint32_t constbuf_valid[6];
+   uint32_t constbuf_coherent[6];
    bool cb_dirty;
 
    struct pipe_vertex_buffer vtxbuf[PIPE_MAX_ATTRIBS];
@@ -320,7 +320,7 @@ const void *nvc0_get_sample_locations(unsigned);
 extern struct draw_stage *nvc0_draw_render_stage(struct nvc0_context *);
 
 /* nvc0_program.c */
-bool nvc0_program_translate(struct nvc0_program *, uint16_t chipset,
+bool nvc0_program_translate(struct nvc0_program *, struct nvc0_context *,
                             struct pipe_debug_callback *);
 bool nvc0_program_upload(struct nvc0_context *, struct nvc0_program *);
 void nvc0_program_destroy(struct nvc0_context *, struct nvc0_program *);
