@@ -169,7 +169,7 @@
 /*@{*/
 #define MAX_PROGRAM_LOCAL_PARAMS       4096
 #define MAX_UNIFORMS                   4096
-#define MAX_UNIFORM_BUFFERS            15 /* + 1 default uniform buffer */
+#define MAX_UNIFORM_BUFFERS            17 /* + 1 default uniform buffer */
 #define MAX_SHADER_STORAGE_BUFFERS     16
 /* 6 is for vertex, hull, domain, geometry, fragment, and compute shader. */
 #define MAX_COMBINED_UNIFORM_BUFFERS   (MAX_UNIFORM_BUFFERS * 6)
