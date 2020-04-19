@@ -210,6 +210,35 @@ public:
       unsigned int terminator  : 1;
    };
 
+   class LoadTest
+   {
+   public:
+      static inline LoadTest imm(DataType ty, const ImmediateValue *imm)
+      {
+         return LoadTest(FILE_IMMEDIATE, ty, imm, 0, false);
+      }
+
+      static inline LoadTest mem(DataFile f, DataType ty, int32_t offset, bool indirect)
+      {
+         return LoadTest(f, ty, NULL, offset, indirect);
+      }
+
+      static inline LoadTest gpr(DataType ty)
+      {
+         return LoadTest(FILE_GPR, ty, NULL, 0, false);
+      }
+
+      const DataFile f;
+      const DataType ty;
+      const ImmediateValue *const iv;
+      const int32_t offset;
+      const bool indirect;
+   private:
+      inline LoadTest(DataFile f, DataType ty, const ImmediateValue *iv,
+                      int32_t offset, bool indirect)
+      : f(f), ty(ty), iv(iv), offset(offset), indirect(indirect) {};
+   };
+
    inline const OpInfo& getOpInfo(const Instruction *) const;
    inline const OpInfo& getOpInfo(const operation) const;
 
@@ -217,6 +246,8 @@ public:
 
    virtual bool insnCanLoad(const Instruction *insn, int s,
                             const Instruction *ld) const = 0;
+   virtual bool insnCanLoad(const Instruction *insn, int s,
+                            const LoadTest &t) const { return false; };
    virtual bool insnCanLoadOffset(const Instruction *insn, int s,
                                   int offset) const = 0;
    virtual bool isOpSupported(operation, DataType) const = 0;

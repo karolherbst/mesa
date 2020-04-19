@@ -156,6 +156,8 @@
 /* 512 64-byte blocks for bindless image handles */
 #define NVC0_CB_AUX_BINDLESS_INFO(i) 0x6b0 + (i) * 16 * 4
 #define NVC0_CB_AUX_BINDLESS_SIZE   (NVE4_IMG_MAX_HANDLES * 16 * 4)
+/* 1k immediate buffer */
+#define NVC0_CB_AUX_IMMEDIATE_INFO  0x9000
 /* 4 32-bits floats for the vertex runout, put at the end */
 #define NVC0_CB_AUX_RUNOUT_INFO     NVC0_CB_USR_SIZE + (NVC0_CB_AUX_SIZE * 6)
 

@@ -39,6 +39,8 @@
 
 #include "nv50/g80_texture.xml.h"
 
+#include "codegen/nv50_ir_driver.h"
+
 static bool
 nvc0_screen_is_format_supported(struct pipe_screen *pscreen,
                                 enum pipe_format format,
@@ -1304,6 +1306,20 @@ nvc0_screen_create(struct nouveau_device *dev)
    BEGIN_NVC0(push, NVC0_3D(VERTEX_RUNOUT_ADDRESS_HIGH), 2);
    PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_RUNOUT_INFO);
    PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_RUNOUT_INFO);
+
+   /* upload shader constants */
+   const uint8_t *imms;
+   uint16_t imms_size;
+   nv50_ir_get_imms_buffer(&imms, &imms_size);
+   for (unsigned i = 0; i < 6; ++i) {
+      BEGIN_NVC0(push, NVC0_3D(CB_SIZE), 3);
+      PUSH_DATA (push, NVC0_CB_AUX_SIZE);
+      PUSH_DATAh(push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(i));
+      PUSH_DATA (push, screen->uniform_bo->offset + NVC0_CB_AUX_INFO(i));
+      BEGIN_1IC0(push, NVC0_3D(CB_POS), 1 + imms_size);
+      PUSH_DATA (push, NVC0_CB_AUX_IMMEDIATE_INFO);
+      PUSH_DATAp(push, imms, imms_size);
+   }
 
    if (screen->base.drm->version >= 0x01000101) {
       ret = nouveau_getparam(dev, NOUVEAU_GETPARAM_GRAPH_UNITS, &value);

@@ -339,9 +339,30 @@ TargetNVC0::insnCanLoad(const Instruction *i, int s,
                         const Instruction *ld) const
 {
    DataFile sf = ld->src(0).getFile();
+   switch (sf) {
+   case FILE_GPR:
+      return insnCanLoad(i, s, LoadTest::gpr(ld->dType));
+   case FILE_MEMORY_CONST:
+   case FILE_MEMORY_GLOBAL:
+   case FILE_MEMORY_LOCAL:
+   case FILE_MEMORY_SHARED:
+      return insnCanLoad(i, s, LoadTest::mem(sf, ld->dType, ld->getSrc(0)->reg.data.offset, ld->src(0).isIndirect(0)));
+   case FILE_IMMEDIATE:
+      return insnCanLoad(i, s, LoadTest::imm(ld->dType, ld->getSrc(0)->asImm()));
+   default:
+      assert(false);
+      return false;
+   }
+}
+
+bool
+TargetNVC0::insnCanLoad(const Instruction *i, int s,
+                        const LoadTest &lt) const
+{
+   DataFile sf = lt.f;
 
    // immediate 0 can be represented by GPR $r63/$r255
-   if (sf == FILE_IMMEDIATE && ld->getSrc(0)->reg.data.u64 == 0)
+   if (sf == FILE_IMMEDIATE && lt.iv->reg.data.u64 == 0)
       return (!i->isPseudo() &&
               !i->asTex() &&
               i->op != OP_EXPORT && i->op != OP_STORE);
@@ -352,7 +373,7 @@ TargetNVC0::insnCanLoad(const Instruction *i, int s,
       return false;
 
    // indirect loads can only be done by OP_LOAD/VFETCH/INTERP on nvc0
-   if (ld->src(0).isIndirect(0))
+   if (lt.indirect)
       return false;
    // these are implemented using shf.r and shf.l which can't load consts
    if ((i->op == OP_SHL || i->op == OP_SHR) && typeSizeof(i->sType) == 8 &&
@@ -389,7 +410,7 @@ TargetNVC0::insnCanLoad(const Instruction *i, int s,
 
    // not all instructions support full 32 bit immediates
    if (sf == FILE_IMMEDIATE) {
-      Storage &reg = ld->getSrc(0)->asImm()->reg;
+      const Storage &reg = lt.iv->reg;
 
       if (opInfo[i->op].immdBits != 0xffffffff || typeSizeof(i->sType) > 4) {
          switch (i->sType) {

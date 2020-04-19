@@ -157,6 +157,8 @@ private:
    bool isCSpaceLoad(Instruction *);
    bool isImmdLoad(Instruction *);
    bool isAttribOrSharedLoad(Instruction *);
+
+   BuildUtil bld;
 };
 
 bool
@@ -276,8 +278,48 @@ LoadPropagation::visit(BasicBlock *bb)
 
          if (!ld || ld->fixed || (ld->op != OP_LOAD && ld->op != OP_MOV))
             continue;
-         if (!targ->insnCanLoad(i, s, ld))
-            continue;
+         if (!targ->insnCanLoad(i, s, ld)) {
+            if (ld->src(0).getFile() != FILE_IMMEDIATE)
+               continue;
+            if (prog->driver->io.immCBSlot == -1)
+               continue;
+
+            // check if we can load from c[] instead
+            uint32_t iv = ld->getSrc(0)->asImm()->reg.data.u32;
+            int tySize = std::min(4u, typeSizeof(ld->dType));
+            int offset;
+            bool neg = false;
+
+            // 0 can be loaded through $rz
+            if (!iv)
+               continue;
+
+            // no 64 bit values so far
+            if (tySize > 4)
+               continue;
+
+            // we allign all imms to at least 32 bit, so we are save
+            offset = prog->driver->io.immCBOffset;
+            if (!targ->insnCanLoad(i, s, Target::LoadTest::mem(FILE_MEMORY_CONST, ld->dType, offset, false)))
+               continue;
+
+            if (prog->imms.find(iv) != prog->imms.end())
+               offset = prog->imms.at(iv);
+            else if (isFloatType(i->sType) &&
+                     targ->isModSupported(i, s, NV50_IR_MOD_NEG) &&
+                     prog->imms.find(iv ^ 0x80000000) != prog->imms.end()) {
+               offset = prog->imms.at(iv ^ 0x80000000);
+               neg = true;
+            } else {
+               continue;
+            }
+
+            offset += prog->driver->io.immCBOffset;
+            bld.setPosition(i, false);
+            ld = bld.mkLoad(ld->dType, bld.getSSA(tySize), bld.mkSymbol(FILE_MEMORY_CONST, prog->driver->io.immCBSlot, ld->dType, offset), NULL);
+            if (neg)
+               i->src(s).mod = i->src(s).mod ^ Modifier(NV50_IR_MOD_NEG);
+         }
 
          // propagate !
          i->setSrc(s, ld->getSrc(0));

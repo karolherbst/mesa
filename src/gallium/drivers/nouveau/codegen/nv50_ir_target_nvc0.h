@@ -52,6 +52,8 @@ public:
 
    virtual bool insnCanLoad(const Instruction *insn, int s,
                             const Instruction *ld) const;
+   virtual bool insnCanLoad(const Instruction *insn, int s,
+                            const LoadTest &t) const;
    virtual bool insnCanLoadOffset(const Instruction *insn, int s,
                                   int offset) const;
    virtual bool isOpSupported(operation, DataType) const;
