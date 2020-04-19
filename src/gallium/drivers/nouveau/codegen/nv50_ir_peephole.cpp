@@ -157,6 +157,8 @@ private:
    bool isCSpaceLoad(Instruction *);
    bool isImmdLoad(Instruction *);
    bool isAttribOrSharedLoad(Instruction *);
+
+   BuildUtil bld;
 };
 
 bool
@@ -276,8 +278,49 @@ LoadPropagation::visit(BasicBlock *bb)
 
          if (!ld || ld->fixed || (ld->op != OP_LOAD && ld->op != OP_MOV))
             continue;
-         if (!targ->insnCanLoad(i, s, ld))
-            continue;
+         if (!targ->insnCanLoad(i, s, ld)) {
+            if (ld->src(0).getFile() != FILE_IMMEDIATE)
+               continue;
+            if (prog->driver->io.immCBSlot == -1)
+               continue;
+
+            // check if we can load from c[] instead
+            uint64_t iv = ld->getSrc(0)->asImm()->reg.data.u64;
+            int tySize = std::min(4u, typeSizeof(ld->dType));
+            int offset;
+
+            // 0 can be loaded through $rz
+            if (!iv)
+               continue;
+
+            // we allign all imms to at least 32 bit, so we are save
+            offset = prog->driver->io.immCBOffset;
+            if (!targ->insnCanLoad(i, s, Target::LoadTest::mem(FILE_MEMORY_CONST, ld->dType, offset, false)))
+               continue;
+
+            // if late sources can load immediates, prefer to do this
+            bool skip = false;
+            for (int s2 = s + 1; i->srcExists(s2); ++s2) {
+               Instruction *ld2 = i->getSrc(s2)->getInsn();
+               if (!ld2 || ld2->fixed || (ld2->op != OP_LOAD && ld2->op != OP_MOV))
+                  continue;
+               if (targ->insnCanLoad(i, s2, ld2)) {
+                  skip = true;
+                  break;
+               }
+            }
+            if (skip)
+               continue;
+
+            if (prog->imms.find(iv) != prog->imms.end())
+               offset = prog->imms.at(iv);
+            else
+               continue;
+
+            offset += prog->driver->io.immCBOffset;
+            bld.setPosition(i, false);
+            ld = bld.mkLoad(ld->dType, bld.getSSA(tySize), bld.mkSymbol(FILE_MEMORY_CONST, prog->driver->io.immCBSlot, ld->dType, offset), NULL);
+         }
 
          // propagate !
          i->setSrc(s, ld->getSrc(0));

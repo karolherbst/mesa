@@ -188,6 +188,8 @@ struct nv50_ir_prog_info
       uint8_t msInfoCBSlot;      /* cX[] used for multisample info */
       uint16_t msInfoBase;       /* base address for multisample info */
       uint16_t uboInfoBase;      /* base address for compute UBOs (gk104+) */
+      uint8_t immCBSlot;         /* immediate constant buffer slot */
+      uint16_t immCBOffset;      /* immediate constant buffer offset */
    } io;
 
    /* driver callback to assign input/output locations */
@@ -215,6 +217,8 @@ nv50_ir_apply_fixups(void *fixupData, uint32_t *code,
 /* obtain code that will be shared among programs */
 extern void nv50_ir_get_target_library(uint32_t chipset,
                                        const uint32_t **code, uint32_t *size);
+
+extern void nv50_ir_get_imms_buffer(const uint8_t **imms, uint16_t *size);
 
 #ifdef __cplusplus
 }

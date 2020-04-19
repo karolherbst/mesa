@@ -352,6 +352,7 @@ nv50_program_translate(struct nv50_program *prog, uint16_t chipset,
 
    info->bin.smemSize = prog->cp.smem_size;
    info->io.auxCBSlot = 15;
+   info->io.immCBSlot = -1;
    info->io.ucpBase = NV50_CB_AUX_UCP_OFFSET;
    info->io.genUserClip = prog->vp.clpd_nr;
    if (prog->fp.alphatest)

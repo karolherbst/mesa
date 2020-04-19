@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <deque>
 #include <list>
+#include <unordered_map>
 #include <vector>
 
 #include "codegen/unordered_set.h"
@@ -1334,6 +1335,8 @@ public:
 
    void releaseInstruction(Instruction *);
    void releaseValue(Value *);
+
+   static const std::unordered_map<uint32_t, uint16_t> imms;
 };
 
 // TODO: add const version

@@ -609,6 +609,7 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
    info->io.genUserClip = prog->vp.num_ucps;
    info->io.auxCBSlot = 15;
    info->io.msInfoCBSlot = 15;
+   info->io.immCBOffset = NVC0_CB_AUX_IMMEDIATE_INFO;
    info->io.ucpBase = NVC0_CB_AUX_UCP_INFO;
    info->io.drawInfoBase = NVC0_CB_AUX_DRAW_INFO;
    info->io.msInfoBase = NVC0_CB_AUX_MS_INFO;
@@ -627,8 +628,11 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
          info->io.uboInfoBase = NVC0_CB_AUX_UBO_INFO(0);
       }
       info->prop.cp.gridInfoBase = NVC0_CB_AUX_GRID_INFO(0);
+      info->io.immCBSlot = 7;
    } else {
       info->io.sampleInfoBase = NVC0_CB_AUX_SAMPLE_INFO;
+      // TODO: on maxwell we can use a seperate buffer
+      info->io.immCBSlot = 15;
    }
 
    info->assignSlots = nvc0_program_assign_varying_slots;
