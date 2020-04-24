@@ -103,8 +103,8 @@ private:
    uint32_t getSlotAddress(nir_intrinsic_instr *, uint8_t idx, uint8_t slot);
 
    void setInterpolate(nv50_ir_varying *,
-                       uint8_t,
-                       bool centroid,
+                       nir_variable::nir_variable_data *data,
+                       const glsl_type *type,
                        unsigned semantics);
 
    Instruction *loadFrom(DataFile, uint8_t, DataType, Value *def, uint32_t base,
@@ -876,16 +876,23 @@ vert_attrib_to_tgsi_semantic(gl_vert_attrib slot, unsigned *name, unsigned *inde
 
 void
 Converter::setInterpolate(nv50_ir_varying *var,
-                          uint8_t mode,
-                          bool centroid,
+                          nir_variable::nir_variable_data *data,
+                          const glsl_type *type,
                           unsigned semantic)
 {
+   enum glsl_base_type base_type =
+      glsl_get_base_type(glsl_without_array(type));
+
+   int mode = data->interpolation;
+
    switch (mode) {
    case INTERP_MODE_FLAT:
       var->flat = 1;
       break;
    case INTERP_MODE_NONE:
-      if (semantic == TGSI_SEMANTIC_COLOR)
+      if (glsl_base_type_is_integer(base_type))
+         var->flat = 1;
+      else if (semantic == TGSI_SEMANTIC_COLOR)
          var->sc = 1;
       else if (semantic == TGSI_SEMANTIC_POSITION)
          var->linear = 1;
@@ -896,7 +903,7 @@ Converter::setInterpolate(nv50_ir_varying *var,
    case INTERP_MODE_SMOOTH:
       break;
    }
-   var->centroid = centroid;
+//   var->centroid = centroid;
 }
 
 static uint16_t
@@ -998,8 +1005,7 @@ bool Converter::assignSlots() {
          tgsi_get_gl_varying_semantic((gl_varying_slot)slot, true,
                                       &name, &index);
          for (uint16_t i = 0; i < slots; ++i) {
-            setInterpolate(&info->in[vary + i], var->data.interpolation,
-                           var->data.centroid | var->data.sample, name);
+            setInterpolate(&info->in[vary + i], &var->data, type, name);
          }
          break;
       case Program::TYPE_GEOMETRY:
