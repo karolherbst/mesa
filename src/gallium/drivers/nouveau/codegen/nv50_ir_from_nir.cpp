@@ -1067,7 +1067,11 @@ bool Converter::assignSlots() {
          case TGSI_SEMANTIC_COLOR:
             if (!var->data.fb_fetch_output)
                info->prop.fp.numColourResults++;
-            info->prop.fp.separateFragData = true;
+
+            if (nir->info.outputs_written & BITFIELD64_BIT(slot) &&
+                slot == FRAG_RESULT_COLOR)
+               info->prop.fp.separateFragData = true;
+
             // sometimes we get FRAG_RESULT_DATAX with data.index 0
             // sometimes we get FRAG_RESULT_DATA0 with data.index X
             index = index == 0 ? var->data.index : index;
