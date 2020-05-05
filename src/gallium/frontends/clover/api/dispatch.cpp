@@ -162,7 +162,7 @@ namespace clover {
       clSetKernelExecInfo,
       NULL, // clGetKernelSubGroupInfoKHR
       NULL, // clCloneKernel
-      NULL, // clCreateProgramWithIL
+      clCreateProgramWithIL,
       clEnqueueSVMMigrateMem,
       NULL, // clGetDeviceAndHostTimer
       NULL, // clGetHostTimer
