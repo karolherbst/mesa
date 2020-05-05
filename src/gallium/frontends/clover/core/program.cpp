@@ -26,25 +26,31 @@
 using namespace clover;
 
 program::program(clover::context &ctx, const std::string &source) :
-   has_source(true), context(ctx), _devices(ctx.devices()), _source(source),
-   _kernel_ref_counter(0) {
+   has_source(true), has_il(false), context(ctx), _devices(ctx.devices()),
+   _source(source), _kernel_ref_counter(0), _il(), _il_type(il_type::none) {
 }
 
 program::program(clover::context &ctx,
                  const ref_vector<device> &devs,
                  const std::vector<module> &binaries) :
-   has_source(false), context(ctx),
-   _devices(devs), _kernel_ref_counter(0) {
+   has_source(false), has_il(false), context(ctx), _devices(devs),
+   _kernel_ref_counter(0), _il(), _il_type(il_type::none) {
    for_each([&](device &dev, const module &bin) {
          _builds[&dev] = { bin };
       },
       devs, binaries);
 }
 
+program::program(clover::context &ctx, std::vector<char> &&il,
+                 enum il_type il_type) :
+   has_source(false), has_il(true), context(ctx), _devices(ctx.devices()),
+   _kernel_ref_counter(0), _il(std::move(il)), _il_type(il_type) {
+}
+
 void
 program::compile(const ref_vector<device> &devs, const std::string &opts,
                  const header_map &headers) {
-   if (has_source) {
+   if (has_source || has_il) {
       _devices = devs;
 
       for (auto &dev : devs) {
@@ -52,7 +58,7 @@ program::compile(const ref_vector<device> &devs, const std::string &opts,
 
          try {
             const module m =
-               compiler::compile_program(_source, headers, dev, opts, log);
+               compiler::compile_program(*this, headers, dev, opts, log);
             _builds[&dev] = { m, opts, log };
          } catch (...) {
             _builds[&dev] = { module(), opts, log };
@@ -81,6 +87,16 @@ program::link(const ref_vector<device> &devs, const std::string &opts,
          throw;
       }
    }
+}
+
+const std::vector<char> &
+program::il() const {
+   return _il;
+}
+
+enum program::il_type
+program::il_type() const {
+   return _il_type;
 }
 
 const std::string &
