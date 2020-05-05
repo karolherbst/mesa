@@ -334,6 +334,11 @@ device::supports_ir(enum pipe_shader_ir ir) const {
 
 std::string
 device::supported_extensions() const {
+#ifdef HAVE_CLOVER_SPIRV
+   const bool supports_il_program = supports_ir(PIPE_SHADER_IR_NIR_SERIALIZED);
+#else
+   const bool supports_il_program = false;
+#endif
    return
       "cl_khr_byte_addressable_store"
       " cl_khr_global_int32_base_atomics"
@@ -344,7 +349,8 @@ device::supported_extensions() const {
       + std::string(has_int64_atomics() ? " cl_khr_int64_extended_atomics" : "")
       + std::string(has_doubles() ? " cl_khr_fp64" : "")
       + std::string(has_halves() ? " cl_khr_fp16" : "")
-      + std::string(svm_support() ? " cl_arm_shared_virtual_memory" : "");
+      + std::string(svm_support() ? " cl_arm_shared_virtual_memory" : "")
+      + std::string(supports_il_program ? " cl_khr_il_program" : "");
 }
 
 std::string
