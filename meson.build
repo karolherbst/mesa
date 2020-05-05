@@ -794,23 +794,10 @@ if _opencl != 'disabled'
   dep_clc = dependency('libclc')
   with_gallium_opencl = true
   with_opencl_icd = _opencl == 'icd'
-
-  with_opencl_spirv = get_option('opencl-spirv')
-  if with_opencl_spirv
-    dep_spirv_tools = dependency('SPIRV-Tools', required : true, version : '>= 2018.0')
-    # LLVMSPIRVLib is available at https://github.com/KhronosGroup/SPIRV-LLVM-Translator
-    dep_llvmspirvlib = dependency('LLVMSPIRVLib', required : true, version : '>= 0.2.1')
-  else
-    dep_spirv_tools = null_dep
-    dep_llvmspirvlib = null_dep
-  endif
 else
   dep_clc = null_dep
-  dep_spirv_tools = null_dep
-  dep_llvmspirvlib = null_dep
   with_gallium_opencl = false
   with_opencl_icd = false
-  with_opencl_spirv = false
 endif
 
 gl_pkgconfig_c_flags = []
@@ -1460,6 +1447,21 @@ else
   _llvm_version = '>= 3.9.0'
 endif
 
+with_opencl_spirv = _opencl != 'disabled' and get_option('opencl-spirv')
+if with_opencl_spirv
+  _minimum_llvmspirvlib_version = '8.0.1.3' # this is the first version exposing new API used in clover.
+  _minimum_llvmspirvlib_version_array = _minimum_llvmspirvlib_version.split('.')
+  _minimum_llvmspirvlib_version_major = _minimum_llvmspirvlib_version_array[0]
+  _minimum_llvmspirvlib_version_minor = _minimum_llvmspirvlib_version_array[1]
+  llvm_spirvlib_base_llvm_version = '>= @0@.@1@'.format(_minimum_llvmspirvlib_version_major, _minimum_llvmspirvlib_version_minor)
+
+  # Ensure that the SPIRV-LLVM-Translator's LLVM version requirement is not
+  # incompatible with existing requirements.
+  if not llvm_spirvlib_base_llvm_version.version_compare(_llvm_version)
+    error('SPIRV-LLVM-Translator requirements on a minimum LLVM version (@0@) are not compatible with existing requirements (@1@).'.format(llvm_spirvlib_base_llvm_version, _llvm_version))
+  endif
+endif
+
 _shared_llvm = get_option('shared-llvm')
 if _shared_llvm == 'true'
   _shared_llvm = 'enabled'
@@ -1544,6 +1546,30 @@ elif with_amd_vk or with_gallium_radeonsi or with_gallium_swr
   error('The following drivers require LLVM: Radv, RadeonSI, SWR. One of these is enabled, but LLVM is disabled.')
 elif with_gallium_opencl
   error('The OpenCL "Clover" state tracker requires LLVM, but LLVM is disabled.')
+endif
+
+if with_opencl_spirv
+  chosen_llvm_version_array = dep_llvm.version().split('.')
+  chosen_llvm_version_major = chosen_llvm_version_array[0].to_int()
+  chosen_llvm_version_minor = chosen_llvm_version_array[1].to_int()
+
+  # Require an SPIRV-LLVM-Translator version compatible with the chosen LLVM
+  # one.
+  _llvmspirvlib_version = [
+    # This first version check is still needed as maybe LLVM 8.0 was picked but
+    # we do not want to accept SPIRV-LLVM-Translator 8.0.0.1 as that version does
+    # not have the required API and those are only available starting from
+    # 8.0.1.3.
+    '>= @0@'.format(_minimum_llvmspirvlib_version),
+    '>= @0@.@1@'.format(chosen_llvm_version_major, chosen_llvm_version_minor),
+    '< @0@.@1@'.format(chosen_llvm_version_major, chosen_llvm_version_minor + 1) ]
+
+  dep_spirv_tools = dependency('SPIRV-Tools', required : true, version : '>= 2018.0')
+  # LLVMSPIRVLib is available at https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+  dep_llvmspirvlib = dependency('LLVMSPIRVLib', required : true, version : _llvmspirvlib_version)
+else
+  dep_spirv_tools = null_dep
+  dep_llvmspirvlib = null_dep
 endif
 
 if (with_amd_vk or with_gallium_radeonsi or with_gallium_opencl or
