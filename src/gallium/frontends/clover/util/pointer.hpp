@@ -242,43 +242,6 @@ namespace clover {
       ref().release();
       return ref;
    }
-
-   ///
-   /// Class that implements the usual pointer interface but in fact
-   /// contains the object it seems to be pointing to.
-   ///
-   template<typename T>
-   class pseudo_ptr {
-   public:
-      pseudo_ptr(T x) : x(x) {
-      }
-
-      pseudo_ptr(const pseudo_ptr &p) : x(p.x) {
-      }
-
-      pseudo_ptr &
-      operator=(const pseudo_ptr &p) {
-         x = p.x;
-         return *this;
-      }
-
-      T &
-      operator*() {
-         return x;
-      }
-
-      T *
-      operator->() {
-         return &x;
-      }
-
-      explicit operator bool() const {
-         return true;
-      }
-
-   private:
-      T x;
-   };
 }
 
 #endif

@@ -47,7 +47,7 @@ namespace clover {
                F(typename std::iterator_traits<Is>::reference...)
             >::type reference;
          typedef typename std::remove_reference<reference>::type value_type;
-         typedef pseudo_ptr<value_type> pointer;
+         typedef value_type* pointer;
          typedef std::ptrdiff_t difference_type;
 
          iterator_adaptor() {
