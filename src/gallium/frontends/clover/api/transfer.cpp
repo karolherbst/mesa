@@ -801,15 +801,55 @@ clEnqueueUnmapMemObject(cl_command_queue d_q, cl_mem d_mem, void *ptr,
 }
 
 CLOVER_API cl_int
-clEnqueueMigrateMemObjects(cl_command_queue command_queue,
-                           cl_uint num_mem_objects,
-                           const cl_mem *mem_objects,
+clEnqueueMigrateMemObjects(cl_command_queue d_q,
+                           cl_uint num_mems,
+                           const cl_mem *d_mems,
                            cl_mem_migration_flags flags,
-                           cl_uint num_events_in_wait_list,
-                           const cl_event *event_wait_list,
-                           cl_event *event) {
-   CLOVER_NOT_SUPPORTED_UNTIL("1.2");
-   return CL_INVALID_VALUE;
+                           cl_uint num_deps,
+                           const cl_event *d_deps,
+                           cl_event *rd_ev) try {
+   auto &q = obj(d_q);
+   auto mems = objs<memory_obj>(d_mems, num_mems);
+   auto deps = objs<wait_list_tag>(d_deps, num_deps);
+
+   validate_common(q, deps);
+
+   if (any_of([&](const memory_obj &m) {
+         return m.context() != q.context();
+         }, mems)) {
+      throw error(CL_INVALID_CONTEXT);
+   }
+
+   if (flags & ~(CL_MIGRATE_MEM_OBJECT_HOST |
+                 CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED))
+      throw error(CL_INVALID_VALUE);
+
+   auto hev = create<hard_event>(
+      q, CL_COMMAND_MIGRATE_MEM_OBJECTS, deps,
+      [=, &q](event &) {
+         for (auto &mem: mems) {
+            if (flags & CL_MIGRATE_MEM_OBJECT_HOST) {
+               if ((flags & CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED)) {
+                  mem.del_resource(q);
+               }
+
+               // for flags == CL_MIGRATE_MEM_OBJECT_HOST only to be
+               // efficient we would need cl*ReadBuffer* to implements
+               // reading on host memory.
+
+            } else {
+               bool transfer_data =
+                  !(flags & CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED);
+               mem.resource(q, transfer_data);
+            }
+         }
+      });
+
+   ret_object(rd_ev, hev);
+   return CL_SUCCESS;;
+
+} catch (error &e) {
+   return e.get();
 }
 
 cl_int
