@@ -82,13 +82,20 @@ root_buffer::root_buffer(clover::context &ctx, cl_mem_flags flags,
 }
 
 resource &
-root_buffer::resource(command_queue &q) {
+root_buffer::resource(command_queue &q, bool transfer_data) {
+   const void *data_ptr = NULL;
+
+   if (transfer_data
+         && flags() & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) {
+      data_ptr = !data.empty() ? data.data() : host_ptr();
+   }
+
    // Create a new resource if there's none for this device yet.
    if (!resources.count(&q.device())) {
       auto r = (!resources.empty() ?
                 new root_resource(q.device(), *this,
                                   *resources.begin()->second) :
-                new root_resource(q.device(), *this, q, data));
+                new root_resource(q.device(), *this, q, data_ptr));
 
       resources.insert(std::make_pair(&q.device(),
                                       std::unique_ptr<root_resource>(r)));
@@ -96,6 +103,11 @@ root_buffer::resource(command_queue &q) {
    }
 
    return *resources.find(&q.device())->second;
+}
+
+void
+root_buffer::del_resource(command_queue &q) {
+   resources.erase(&q.device());
 }
 
 sub_buffer::sub_buffer(root_buffer &parent, cl_mem_flags flags,
@@ -106,7 +118,7 @@ sub_buffer::sub_buffer(root_buffer &parent, cl_mem_flags flags,
 }
 
 resource &
-sub_buffer::resource(command_queue &q) {
+sub_buffer::resource(command_queue &q, bool transfer_data) {
    // Create a new resource if there's none for this device yet.
    if (!resources.count(&q.device())) {
       auto r = new sub_resource(parent().resource(q), {{ offset() }});
@@ -116,6 +128,11 @@ sub_buffer::resource(command_queue &q) {
    }
 
    return *resources.find(&q.device())->second;
+}
+
+void
+sub_buffer::del_resource(command_queue &q) {
+   resources.erase(&q.device());
 }
 
 size_t
@@ -134,13 +151,15 @@ image::image(clover::context &ctx, cl_mem_flags flags,
 }
 
 resource &
-image::resource(command_queue &q) {
+image::resource(command_queue &q, bool transfer_data) {
+   const void *data_ptr = transfer_data ? data.data() : NULL;
+
    // Create a new resource if there's none for this device yet.
    if (!resources.count(&q.device())) {
       auto r = (!resources.empty() ?
                 new root_resource(q.device(), *this,
                                   *resources.begin()->second) :
-                new root_resource(q.device(), *this, q, data));
+                new root_resource(q.device(), *this, q, data_ptr));
 
       resources.insert(std::make_pair(&q.device(),
                                       std::unique_ptr<root_resource>(r)));
@@ -148,6 +167,11 @@ image::resource(command_queue &q) {
    }
 
    return *resources.find(&q.device())->second;
+}
+
+void
+image::del_resource(command_queue &q) {
+   resources.erase(&q.device());
 }
 
 cl_image_format
