@@ -22,6 +22,7 @@
  */
 
 #include "vtn_private.h"
+#include "spirv_info.h"
 #include "nir/nir_vla.h"
 
 static struct vtn_block *
@@ -803,6 +804,9 @@ vtn_build_cfg(struct vtn_builder *b, const uint32_t *words, const uint32_t *end)
    vtn_foreach_instruction(b, words, end,
                            vtn_cfg_handle_prepass_instruction);
 
+   if (b->shader->info.stage == MESA_SHADER_KERNEL)
+      return;
+
    vtn_foreach_cf_node(func_node, &b->functions) {
       struct vtn_function *func = vtn_cf_node_as_function(func_node);
 
@@ -1172,6 +1176,205 @@ vtn_emit_cf_list_structured(struct vtn_builder *b, struct list_head *cf_list,
    }
 }
 
+static struct nir_block *
+vtn_new_unstructured_block(struct vtn_builder *b, struct vtn_function *func)
+{
+   struct nir_block *n = nir_block_create(b->shader);
+   exec_list_push_tail(&func->impl->body, &n->cf_node.node);
+   n->cf_node.parent = &func->impl->cf_node;
+   return n;
+}
+
+static void
+vtn_emit_cf_func_unstructured(struct vtn_builder *b, struct vtn_function *func,
+                              vtn_instruction_handler handler)
+{
+   struct set *s = _mesa_pointer_set_create(b->shader);
+
+   struct vtn_block *block = func->start_block;
+   block->block = nir_start_block(func->impl);
+
+   while (block || s->entries) {
+      if (!block) {
+         struct set_entry *entry = _mesa_set_random_entry(s, NULL);
+         block = (struct vtn_block*)entry->key;
+         _mesa_set_remove(s, entry);
+
+         vtn_assert(block->block);
+         b->nb.cursor = nir_after_block(block->block);
+      }
+
+      vtn_assert(block->block);
+
+      const uint32_t *block_start = block->label;
+      const uint32_t *block_end = block->branch;
+
+      block_start = vtn_foreach_instruction(b, block_start, block_end,
+                                            vtn_handle_phis_first_pass);
+      vtn_foreach_instruction(b, block_start, block_end, handler);
+      block->end_nop = nir_intrinsic_instr_create(b->nb.shader,
+                                                  nir_intrinsic_nop);
+      nir_builder_instr_insert(&b->nb, &block->end_nop->instr);
+
+      SpvOp op = *block_end & SpvOpCodeMask;
+      switch (op) {
+      case SpvOpBranch: {
+         struct vtn_block *branch_block = vtn_block(b, block->branch[1]);
+
+         if (!branch_block->block) {
+            branch_block->block = vtn_new_unstructured_block(b, func);
+            block = branch_block;
+         } else {
+            block = NULL;
+         }
+
+         nir_goto(&b->nb, branch_block->block);
+         break;
+      }
+
+      case SpvOpBranchConditional: {
+         nir_ssa_def *cond = vtn_ssa_value(b, block->branch[1])->def;
+         struct vtn_block *then_block = vtn_block(b, block->branch[2]);
+         struct vtn_block *else_block = vtn_block(b, block->branch[3]);
+
+         block = NULL;
+         if (!then_block->block) {
+            block = then_block;
+            then_block->block = vtn_new_unstructured_block(b, func);
+         }
+
+         if (!else_block->block) {
+            else_block->block = vtn_new_unstructured_block(b, func);
+            if (block == then_block) {
+               /* push back for later */
+               _mesa_set_add(s, else_block);
+            } else {
+               block = else_block;
+            }
+         }
+
+         nir_goto_if(&b->nb, then_block->block, nir_src_for_ssa(cond), else_block->block);
+         break;
+      }
+
+      case SpvOpSwitch: {
+         struct vtn_value *sel_vtn = vtn_untyped_value(b, block->branch[1]);
+         vtn_fail_if(!sel_vtn->type || sel_vtn->type->base_type != vtn_base_type_scalar,
+                      "Selector of OpSwitch must have a type of OpTypeInt");
+
+         nir_alu_type sel_type =
+            nir_get_nir_type_for_glsl_type(sel_vtn->type->type);
+         vtn_fail_if(nir_alu_type_get_base_type(sel_type) != nir_type_int &&
+                     nir_alu_type_get_base_type(sel_type) != nir_type_uint,
+                     "Selector of OpSwitch must have a type of OpTypeInt");
+
+         /* First, we go through and record all of the cases. */
+         const uint32_t *branch_end =
+            block->branch + (block->branch[0] >> SpvWordCountShift);
+
+         const unsigned bitsize = nir_alu_type_get_type_size(sel_type);
+         struct vtn_block *def;
+         nir_ssa_def *sel = vtn_ssa_value(b, block->branch[1])->def;
+         struct hash_table *ht = _mesa_pointer_hash_table_create(b);
+
+         bool is_default = true;
+         for (const uint32_t *w = block->branch + 2; w < branch_end;) {
+            uint64_t literal = 0;
+            if (!is_default) {
+               if (bitsize <= 32) {
+                  literal = *(w++);
+               } else {
+                  assert(bitsize == 64);
+                  literal = vtn_u64_literal(w);
+                  w += 2;
+               }
+            }
+
+            struct vtn_block *case_block = vtn_block(b, *(w++));
+            struct hash_entry *case_entry = _mesa_hash_table_search(ht, case_block);
+
+            struct util_dynarray *literals;
+            if (case_entry) {
+               literals = case_entry->data;
+            } else {
+               literals = ralloc(b, struct util_dynarray);
+               util_dynarray_init(literals, b);
+            }
+
+            if (is_default) {
+               def = case_block;
+               is_default = false;
+            } else {
+               util_dynarray_append(literals, uint64_t, literal);
+            }
+
+            _mesa_hash_table_insert(ht, case_block, literals);
+         }
+
+         hash_table_foreach(ht, case_entry)
+         {
+            struct vtn_block *case_block = (struct vtn_block *)case_entry->key;
+
+            if (case_block == def)
+               continue;
+
+            nir_ssa_def *cond = nir_imm_false(&b->nb);
+            util_dynarray_foreach((struct util_dynarray*)case_entry->data, uint64_t, val) {
+               nir_ssa_def *imm = nir_imm_intN_t(&b->nb, *val, sel->bit_size);
+               cond = nir_ior(&b->nb, cond, nir_ieq(&b->nb, sel, imm));
+            }
+
+            /* block for the next check */
+            nir_block *e = vtn_new_unstructured_block(b, func);
+
+            /* block for the case */
+            if (!case_block->block) {
+               case_block->block = vtn_new_unstructured_block(b, func);
+
+               /* push back for later */
+               _mesa_set_add(s, case_block);
+            }
+
+            /* add branching */
+            nir_goto_if(&b->nb, case_block->block, nir_src_for_ssa(cond), e);
+            b->nb.cursor = nir_after_block(e);
+         }
+
+         _mesa_hash_table_destroy(ht, NULL);
+
+
+         /* the block might have been visited already */
+         if (!def->block) {
+            def->block = vtn_new_unstructured_block(b, func);
+            block = def;
+         } else {
+            block = NULL;
+         }
+
+         /* now that all cases are handled, branch into the default block */
+         nir_goto(&b->nb, def->block);
+         break;
+      }
+
+      case SpvOpReturn:
+      case SpvOpReturnValue: {
+         vtn_emit_ret_store(b, block);
+         nir_goto(&b->nb, b->func->impl->end_block);
+         block = NULL;
+         break;
+      }
+
+      default:
+         vtn_fail("Unhandled opcode %s", spirv_op_to_string(op));
+      }
+
+      if (block)
+         b->nb.cursor = nir_after_block(block->block);
+   }
+
+   _mesa_set_destroy(s, NULL);
+}
+
 void
 vtn_function_emit(struct vtn_builder *b, struct vtn_function *func,
                   vtn_instruction_handler instruction_handler)
@@ -1183,7 +1386,11 @@ vtn_function_emit(struct vtn_builder *b, struct vtn_function *func,
    b->has_loop_continue = false;
    b->phi_table = _mesa_pointer_hash_table_create(b);
 
-   vtn_emit_cf_list_structured(b, &func->body, NULL, NULL, instruction_handler);
+   if (b->shader->info.stage != MESA_SHADER_KERNEL)
+      vtn_emit_cf_list_structured(b, &func->body, NULL, NULL,
+                                  instruction_handler);
+   else
+      vtn_emit_cf_func_unstructured(b, func, instruction_handler);
 
    vtn_foreach_instruction(b, func->start_block->label, func->end,
                            vtn_handle_phi_second_pass);
