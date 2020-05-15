@@ -570,3 +570,13 @@ _mesa_pointer_set_create(void *mem_ctx)
    return _mesa_set_create(mem_ctx, _mesa_hash_pointer,
                            _mesa_key_pointer_equal);
 }
+
+bool
+_mesa_set_intersects(struct set *a, struct set *b)
+{
+   set_foreach(a, entry) {
+      if (_mesa_set_search_pre_hashed(b, entry->hash, entry->key))
+         return true;
+   }
+   return false;
+}
