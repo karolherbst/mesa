@@ -93,6 +93,7 @@ namespace clover {
       enum pipe_endian endianness() const;
       bool supports_ir(enum pipe_shader_ir ir) const;
       std::string supported_extensions() const;
+      std::string supported_il_versions() const;
 
       friend class command_queue;
       friend class root_resource;

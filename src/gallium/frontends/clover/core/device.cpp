@@ -26,6 +26,7 @@
 #include "core/platform.hpp"
 #include "pipe/p_screen.h"
 #include "pipe/p_state.h"
+#include "spirv/invocation.hpp"
 #include "util/bitscan.h"
 #include "util/u_debug.h"
 #include "spirv/invocation.hpp"
@@ -344,6 +345,14 @@ device::supported_extensions() const {
       + std::string(has_doubles() ? " cl_khr_fp64" : "")
       + std::string(has_halves() ? " cl_khr_fp16" : "")
       + std::string(svm_support() ? " cl_arm_shared_virtual_memory" : "");
+}
+
+std::string
+device::supported_il_versions() const {
+   return fold([](const std::string &a, const uint32_t spirv_version) {
+         return (a.empty() ? "" : a + " ") + "SPIR-V_" +
+            clover::spirv::version_to_string(spirv_version);
+      }, std::string(), clover::spirv::supported_versions());
 }
 
 const void *
