@@ -86,6 +86,8 @@ namespace clover {
       enum pipe_endian endianness() const;
       bool supports_ir(enum pipe_shader_ir ir) const;
       std::string supported_extensions() const;
+      // The returned vector is sorted in ascending order.
+      std::vector<uint32_t> supported_spirv_versions() const;
 
       friend class command_queue;
       friend class root_resource;

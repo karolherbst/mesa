@@ -337,6 +337,16 @@ device::supported_extensions() const {
       + std::string(svm_support() ? " cl_arm_shared_virtual_memory" : "");
 }
 
+std::vector<uint32_t>
+device::supported_spirv_versions() const {
+#ifdef HAVE_CLOVER_SPIRV
+   const bool supports_spirv = supports_ir(PIPE_SHADER_IR_NIR_SERIALIZED);
+   if (supports_spirv)
+      return std::vector<uint32_t>{0x10000u};
+#endif
+   return std::vector<uint32_t>();
+}
+
 const void *
 device::get_compiler_options(enum pipe_shader_ir ir) const {
    return pipe->get_compiler_options(pipe, ir, PIPE_SHADER_COMPUTE);

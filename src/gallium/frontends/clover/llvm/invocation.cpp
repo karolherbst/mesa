@@ -307,6 +307,20 @@ namespace {
 
       return act.takeModule();
    }
+
+#ifdef HAVE_CLOVER_SPIRV
+   SPIRV::TranslatorOpts
+   get_spirv_translator_options(const device &dev) {
+      const auto supported_versions = dev.supported_spirv_versions();
+      auto maximum_spirv_version
+         = static_cast<SPIRV::VersionNumber>(supported_versions.back());
+      if (maximum_spirv_version > SPIRV::VersionNumber::MaximumVersion) {
+         maximum_spirv_version = SPIRV::VersionNumber::MaximumVersion;
+      }
+
+      return SPIRV::TranslatorOpts(maximum_spirv_version);
+   }
+#endif
 }
 
 module
@@ -438,6 +452,8 @@ clover::llvm::compile_to_spirv(const std::string &source,
    if (has_flag(debug::llvm))
       debug::log(".ll", print_module_bitcode(*mod));
 
+   const auto spirv_options = get_spirv_translator_options(dev);
+
    std::string error_msg;
    if (!::llvm::regularizeLlvmForSpirv(mod.get(), error_msg)) {
       r_log += "Failed to regularize LLVM IR for SPIR-V: " + error_msg + ".\n";
@@ -445,7 +461,7 @@ clover::llvm::compile_to_spirv(const std::string &source,
    }
 
    std::ostringstream os;
-   if (!::llvm::writeSpirv(mod.get(), os, error_msg)) {
+   if (!::llvm::writeSpirv(mod.get(), spirv_options, os, error_msg)) {
       r_log += "Translation from LLVM IR to SPIR-V failed: " + error_msg + ".\n";
       throw error(CL_INVALID_VALUE);
    }
