@@ -715,6 +715,16 @@ clover::spirv::supported_extensions() {
    };
 }
 
+std::vector<uint32_t>
+clover::spirv::supported_versions() {
+#define SPV_MAKE_VERSION(major, minor) \
+   ((((major) & 0xFFu) << 16u) | (((minor) & 0xFFu) << 8u))
+
+   return { SPV_MAKE_VERSION(1u, 0u) };
+
+#undef SPV_MAKE_VERSION
+}
+
 #else
 bool
 clover::spirv::is_valid_spirv(const std::vector<char> &/*binary*/,
@@ -746,6 +756,11 @@ clover::spirv::print_module(const std::vector<char> &binary,
 
 std::unordered_set<std::string>
 clover::spirv::supported_extensions() {
+   return {};
+}
+
+std::vector<uint32_t>
+clover::spirv::supported_versions() {
    return {};
 }
 #endif
