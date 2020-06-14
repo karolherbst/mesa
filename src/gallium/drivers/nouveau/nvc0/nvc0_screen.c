@@ -400,6 +400,10 @@ nvc0_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
    case PIPE_CAP_SHADER_SAMPLES_IDENTICAL:
    case PIPE_CAP_VIEWPORT_TRANSFORM_LOWERED:
    case PIPE_CAP_PSIZ_CLAMPED:
+   case PIPE_CAP_MAP_UNSYNCHRONIZED_THREAD_SAFE:
+   case PIPE_CAP_GLSL_ZERO_INIT:
+   case PIPE_CAP_ALPHA_TO_COVERAGE_DITHER_CONTROL:
+   case PIPE_CAP_CLEAR_SCISSORED:
       return 0;
 
    case PIPE_CAP_VENDOR_ID:
