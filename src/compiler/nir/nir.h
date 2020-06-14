@@ -3168,6 +3168,7 @@ typedef struct nir_shader_compiler_options {
    bool support_16bit_alu;
 
    unsigned max_unroll_iterations;
+   bool unroll_flat_only;
 
    nir_lower_int64_options lower_int64_options;
    nir_lower_doubles_options lower_doubles_options;

@@ -766,6 +766,9 @@ check_unrolling_restrictions(nir_shader *shader, nir_loop *loop)
    if (trip_count > max_iter)
       return false;
 
+   if (shader->options->unroll_flat_only && exec_list_length(&loop->body) > 1)
+      return false;
+
    if (li->force_unroll && !li->guessed_trip_count)
       return true;
 
