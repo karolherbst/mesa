@@ -718,8 +718,23 @@ void Instruction::print() const
       if (perPatch)
          PRINT("patch ");
       if (asTex()) {
-         PRINT("%s %s$r%u $s%u ", asTex()->tex.target.getName(),
-               colour[TXT_MEM], asTex()->tex.r, asTex()->tex.s);
+         PRINT("%s %s$r", asTex()->tex.target.getName(), colour[TXT_MEM]);
+         if (asTex()->getIndirectR()) {
+            PRINT("[%u+", asTex()->tex.r);
+            pos += asTex()->getIndirectR()->print(&buf[pos], BUFSZ - pos, sType);
+            PRINT("%s]", colour[TXT_MEM]);
+         } else {
+            PRINT("%u", asTex()->tex.r);
+         }
+         PRINT(" $s");
+         if (asTex()->tex.sIndirectSrc >= 0) {
+            PRINT("[%u+", asTex()->tex.s);
+            pos += asTex()->getSrc(asTex()->tex.sIndirectSrc)->print(&buf[pos], BUFSZ - pos, sType);
+            PRINT("%s]", colour[TXT_MEM]);
+         } else {
+            PRINT("%u", asTex()->tex.s);
+         }
+         SPACE();
          if (op == OP_TXG)
             PRINT("%s ", gatherCompStr[asTex()->tex.gatherComp]);
          PRINT("%s %s", texMaskStr[asTex()->tex.mask], colour[TXT_INSN]);
