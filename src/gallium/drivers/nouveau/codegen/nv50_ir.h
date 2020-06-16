@@ -1216,8 +1216,6 @@ public:
 
    Instruction *joinAt; // for quick reference
 
-   bool explicitCont; // loop headers: true if loop contains continue stmts
-
 private:
    int id;
    DLList df;

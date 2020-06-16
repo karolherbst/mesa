@@ -81,8 +81,6 @@ BasicBlock::BasicBlock(Function *fn) : cfg(this), dom(this), func(fn)
    binPos = 0;
    binSize = 0;
 
-   explicitCont = false;
-
    func->add(this, this->id);
 }
 
