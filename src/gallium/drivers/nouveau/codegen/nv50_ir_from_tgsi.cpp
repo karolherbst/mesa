@@ -3644,7 +3644,6 @@ Converter::handleInstruction(const struct tgsi_full_instruction *insn)
          break;
       BasicBlock *contBB = reinterpret_cast<BasicBlock *>(loopBBs.peek().u.p);
       mkFlow(OP_CONT, contBB, CC_ALWAYS, NULL);
-      contBB->explicitCont = true;
       bb->cfg.attach(&contBB->cfg, Graph::Edge::BACK);
    }
       break;
