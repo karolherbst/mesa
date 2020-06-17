@@ -1665,6 +1665,7 @@ Converter::visit(nir_intrinsic_instr *insn)
             break;
          }
          case Program::TYPE_GEOMETRY:
+         case Program::TYPE_TESSELLATION_EVAL:
          case Program::TYPE_VERTEX: {
             if (info->io.genUserClip > 0 && idx == (uint32_t)clipVertexOutput) {
                mkMov(clipVtx[i], src);
