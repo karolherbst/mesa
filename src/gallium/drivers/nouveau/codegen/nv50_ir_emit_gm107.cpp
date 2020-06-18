@@ -3176,17 +3176,17 @@ CodeEmitterGM107::emitBAR()
       ImmediateValue *imm = insn->getSrc(0)->asImm();
       assert(imm);
       emitField(0x08, 8, imm->reg.data.u32);
-      emitField(0x2b, 1, 1);
+      emitField(0x2c, 1, 1);
    }
 
    // thread count
    if (insn->src(1).getFile() == FILE_GPR) {
       emitGPR(0x14, insn->src(1));
    } else {
-      ImmediateValue *imm = insn->getSrc(0)->asImm();
+      ImmediateValue *imm = insn->getSrc(1)->asImm();
       assert(imm);
       emitField(0x14, 12, imm->reg.data.u32);
-      emitField(0x2c, 1, 1);
+      emitField(0x2b, 1, 1);
    }
 
    if (insn->srcExists(2) && (insn->predSrc != 2)) {
