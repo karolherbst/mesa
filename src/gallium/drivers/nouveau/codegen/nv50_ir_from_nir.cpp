@@ -1396,7 +1396,6 @@ Converter::visit(nir_block *block)
    return true;
 }
 
-// TODO: add convergency
 bool
 Converter::visit(nir_if *nif)
 {
@@ -1406,11 +1405,14 @@ Converter::visit(nir_if *nif)
    nir_block *lastThen = nir_if_last_then_block(nif);
    nir_block *lastElse = nir_if_last_else_block(nif);
 
+   BasicBlock *headBB = bb;
    BasicBlock *ifBB = convert(nir_if_first_then_block(nif));
    BasicBlock *elseBB = convert(nir_if_first_else_block(nif));
 
    bb->cfg.attach(&ifBB->cfg, Graph::Edge::TREE);
    bb->cfg.attach(&elseBB->cfg, Graph::Edge::TREE);
+
+   bool insertJoins = lastThen->successors[0] == lastElse->successors[0];
    mkFlow(OP_BRA, elseBB, CC_EQ, src)->setType(sType);
 
    foreach_list_typed(nir_cf_node, node, node, &nif->then_list) {
@@ -1423,6 +1425,8 @@ Converter::visit(nir_if *nif)
       BasicBlock *tailBB = convert(lastThen->successors[0]);
       mkFlow(OP_BRA, tailBB, CC_ALWAYS, NULL);
       bb->cfg.attach(&tailBB->cfg, Graph::Edge::FORWARD);
+   } else {
+      insertJoins &= bb->getExit()->op == OP_BRA;
    }
 
    foreach_list_typed(nir_cf_node, node, node, &nif->else_list) {
@@ -1435,6 +1439,16 @@ Converter::visit(nir_if *nif)
       BasicBlock *tailBB = convert(lastElse->successors[0]);
       mkFlow(OP_BRA, tailBB, CC_ALWAYS, NULL);
       bb->cfg.attach(&tailBB->cfg, Graph::Edge::FORWARD);
+   } else {
+      insertJoins &= bb->getExit()->op == OP_BRA;
+   }
+
+   /* we made sure that all threads would converge at the same block */
+   if (insertJoins) {
+      setPosition(headBB->getExit(), false);
+      headBB->joinAt = mkFlow(OP_JOINAT, convert(lastThen->successors[0]), CC_ALWAYS, NULL);
+      convert(lastThen)->getExit()->op = OP_JOIN;
+      convert(lastElse)->getExit()->op = OP_JOIN;
    }
 
    return true;
