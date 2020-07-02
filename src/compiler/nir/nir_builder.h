@@ -1346,6 +1346,25 @@ nir_jump(nir_builder *build, nir_jump_type jump_type)
    nir_builder_instr_insert(build, &jump->instr);
 }
 
+static inline void
+nir_goto(nir_builder *build, struct nir_block *target)
+{
+   nir_jump_instr *jump = nir_jump_instr_create(build->shader, nir_jump_goto);
+   jump->target = target;
+   nir_builder_instr_insert(build, &jump->instr);
+}
+
+static inline void
+nir_goto_if(nir_builder *build, struct nir_block *target, nir_src cond,
+            struct nir_block *else_target)
+{
+   nir_jump_instr *jump = nir_jump_instr_create(build->shader, nir_jump_goto_if);
+   jump->condition = cond;
+   jump->target = target;
+   jump->else_target = else_target;
+   nir_builder_instr_insert(build, &jump->instr);
+}
+
 static inline nir_ssa_def *
 nir_compare_func(nir_builder *b, enum compare_func func,
                  nir_ssa_def *src0, nir_ssa_def *src1)

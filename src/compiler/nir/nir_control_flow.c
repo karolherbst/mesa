@@ -140,7 +140,7 @@ link_block_to_non_block(nir_block *block, nir_cf_node *node)
 
       unlink_block_successors(block);
       link_blocks(block, first_then_block, first_else_block);
-   } else {
+   } else if (node->type == nir_cf_node_loop) {
       /*
        * For similar reasons as the corresponding case in
        * link_non_block_to_block(), don't worry about if the loop header has
@@ -312,7 +312,7 @@ block_add_normal_succs(nir_block *block)
          nir_block *first_else_block = nir_if_first_else_block(next_if);
 
          link_blocks(block, first_then_block, first_else_block);
-      } else {
+      } else if (next->type == nir_cf_node_loop) {
          nir_loop *next_loop = nir_cf_node_as_loop(next);
 
          nir_block *first_block = nir_loop_first_block(next_loop);
@@ -490,6 +490,14 @@ nir_handle_add_jump(nir_block *block)
       link_blocks(block, first_block, NULL);
       break;
    }
+
+   case nir_jump_goto:
+      link_blocks(block, jump_instr->target, NULL);
+      break;
+
+   case nir_jump_goto_if:
+      link_blocks(block, jump_instr->else_target, jump_instr->target);
+      break;
 
    default:
       unreachable("Invalid jump type");
