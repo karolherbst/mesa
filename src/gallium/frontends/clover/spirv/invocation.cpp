@@ -434,6 +434,10 @@ namespace {
       const size_t length = source.size() / sizeof(uint32_t);
       size_t i = SPIRV_HEADER_WORD_SIZE; // Skip header
 
+      const std::unordered_set<std::string> spirv_extensions = {
+         "SPV_KHR_no_integer_wrap_decoration"
+      };
+
       while (i < length) {
          const auto desc_word = get<uint32_t>(source.data(), i);
          const auto opcode = static_cast<SpvOp>(desc_word & SpvOpCodeMask);
@@ -451,7 +455,8 @@ namespace {
          const std::string platform_extensions =
             dev.platform.supported_extensions();
          if (device_extensions.find(extension) == std::string::npos &&
-             platform_extensions.find(extension) == std::string::npos) {
+             platform_extensions.find(extension) == std::string::npos &&
+             spirv_extensions.count(extension) == 0) {
             r_log += "Extension '" + std::string(extension) +
                      "' is not supported.\n";
             return false;
