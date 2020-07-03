@@ -5596,11 +5596,13 @@ spirv_to_nir(const uint32_t *words, size_t word_count,
 
    /* structurize the CFG */
    if (b->shader->info.stage == MESA_SHADER_KERNEL) {
+      nir_validate_shader(b->shader, NULL);
       nir_lower_goto_ifs(b->shader);
       if (!b->shader->structured) {
          ralloc_free(b);
          return NULL;
       }
+      nir_validate_shader(b->shader, NULL);
    }
 
    entry_point->is_entrypoint = true;
