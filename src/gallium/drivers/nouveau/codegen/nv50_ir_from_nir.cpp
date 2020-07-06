@@ -3067,14 +3067,11 @@ Converter::handleDeref(nir_deref_instr *deref, Value * &indirect, const nir_vari
 CacheMode
 Converter::convert(enum gl_access_qualifier access)
 {
-   switch (access) {
-   case ACCESS_VOLATILE:
+   if (access & ACCESS_VOLATILE)
       return CACHE_CV;
-   case ACCESS_COHERENT:
+   if (access & ACCESS_COHERENT)
       return CACHE_CG;
-   default:
-      return CACHE_CA;
-   }
+   return CACHE_CA;
 }
 
 CacheMode
