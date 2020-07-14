@@ -313,6 +313,12 @@ CodeEmitterGV100::emitMOV()
          emitField(90,  1, 1);
          emitPRED (87, insn->src(0));
          break;
+      case FILE_BARRIER:
+      case FILE_THREAD_STATE:
+         emitInsn (0x355);
+         emitBTS  (24, insn->src(0));
+         emitGPR  (16, insn->def(0));
+         break;
       default:
          assert(!"bad src file");
          break;
@@ -328,6 +334,31 @@ CodeEmitterGV100::emitMOV()
       emitCond3(76, CC_NE);
       emitGPR  (24, insn->src(0));
       emitGPR  (32);
+      break;
+   case FILE_BARRIER:
+   case FILE_THREAD_STATE:
+      switch (insn->src(0).getFile()) {
+      case FILE_GPR:
+         emitInsn (0x356);
+         emitGPR  (32, insn->src(0));
+         emitBTS  (24, insn->def(0));
+         break;
+      case FILE_BARRIER:
+         emitInsn (0xf56);
+         emitBTS  (24, insn->def(0));
+         emitBTS  (16, insn->src(0));
+         break;
+      case FILE_THREAD_STATE:
+         assert(insn->def(0).getFile() == FILE_BARRIER);
+         emitInsn (0xf55);
+         emitBTS  (24, insn->src(0));
+         emitBTS  (16, insn->def(0));
+         break;
+      default:
+         assert(!"bad src file");
+         break;
+      }
+      emitField(84, 1, insn->subOp == NV50_IR_SUBOP_MOV_PQUAD ? 1 : 0);
       break;
    default:
       assert(!"bad dst file");
