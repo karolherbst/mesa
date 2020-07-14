@@ -73,6 +73,7 @@ private:
    bool handleSHFL(Instruction *);
    bool handleShift(Instruction *);
    bool handleSUB(Instruction *);
+   bool handleJOINAT(FlowInstruction *);
 };
 }
 #endif
