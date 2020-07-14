@@ -228,6 +228,21 @@ private:
       emitSYS(pos, ref.get() ? ref.rep() : (const Value *)NULL);
    }
 
+   inline void emitBTS(int pos, const Value *val) {
+      if (val->inFile(FILE_THREAD_STATE))
+         emitField(pos, 5, val->reg.data.ts | 0x10);
+      else
+         emitField(pos, 5, val->reg.data.id);
+   }
+
+   inline void emitBTS(int pos, const ValueRef &ref) {
+      emitBTS(pos, ref.get() ? ref.rep() : (const Value *)NULL);
+   }
+
+   inline void emitBTS(int pos, const ValueDef &def) {
+      emitBTS(pos, def.get() ? def.rep() : (const Value *)NULL);
+   }
+
    inline void emitGPR(int pos, const Value *val, int off) {
       emitField(pos, 8, val && !val->inFile(FILE_FLAGS) ?
                 val->reg.data.id + off: 255);
