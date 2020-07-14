@@ -330,6 +330,8 @@ private:
 
    void emitBRA();
    void emitEXIT();
+   void emitJOIN();
+   void emitJOINAT();
    void emitKILL();
    void emitNOP();
    void emitWARPSYNC();

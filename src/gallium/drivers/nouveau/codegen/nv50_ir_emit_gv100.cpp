@@ -180,6 +180,23 @@ CodeEmitterGV100::emitEXIT()
 }
 
 void
+CodeEmitterGV100::emitJOIN()
+{
+   emitInsn(0x941);
+   emitPRED(87);
+   emitBTS (16, insn->src(0));
+}
+
+void
+CodeEmitterGV100::emitJOINAT()
+{
+   emitInsn (0x945);
+   emitPRED (87);
+   emitField(32, 32, insn->asFlow()->target.bb->binPos - (codeSize + 0x10));
+   emitBTS  (16, insn->def(0));
+}
+
+void
 CodeEmitterGV100::emitKILL()
 {
    emitInsn(0x95b);
@@ -1763,7 +1780,6 @@ CodeEmitterGV100::emitInstruction(Instruction *i)
       emitBREV();
       break;
    case OP_BRA:
-   case OP_JOIN: //XXX
       emitBRA();
       break;
    case OP_CCTL:
@@ -1831,8 +1847,11 @@ CodeEmitterGV100::emitInstruction(Instruction *i)
             emitIMAD_WIDE();
       }
       break;
-   case OP_JOINAT: //XXX
-      emitNOP();
+   case OP_JOINAT:
+      emitJOINAT();
+      break;
+   case OP_JOIN:
+      emitJOIN();
       break;
    case OP_LINTERP:
       emitIPA();
