@@ -877,7 +877,8 @@ NVC0LegalizePostRA::visit(BasicBlock *bb)
    if (!bb->getEntry())
       return true;
 
-   if (!tryReplaceContWithBra(bb))
+   if (!tryReplaceContWithBra(bb) &&
+       prog->getTarget()->getChipset() < NVISA_GV100_CHIPSET)
       propagateJoin(bb);
 
    return true;

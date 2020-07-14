@@ -246,6 +246,21 @@ GV100LegalizeSSA::handleSUB(Instruction *i)
 }
 
 bool
+GV100LegalizeSSA::handleJOINAT(FlowInstruction *joinat)
+{
+   BasicBlock *target = joinat->target.bb;
+   Instruction *join = target->getEntry();
+   // remove joinat if there is no join
+   if (join->op != OP_JOIN)
+      return true;
+
+   Value *barrier = bld.getSSA(4, FILE_BARRIER);
+   joinat->setDef(0, barrier);
+   join->setSrc(0, barrier);
+   return false;
+}
+
+bool
 GV100LegalizeSSA::visit(Instruction *i)
 {
    bool lowered = false;
@@ -316,6 +331,9 @@ GV100LegalizeSSA::visit(Instruction *i)
       break;
    case OP_LOAD:
       handleLOAD(i);
+      break;
+   case OP_JOINAT:
+      lowered = handleJOINAT(i->asFlow());
       break;
    default:
       break;
