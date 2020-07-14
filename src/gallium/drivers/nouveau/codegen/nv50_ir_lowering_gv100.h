@@ -70,7 +70,6 @@ private:
    bool handleQUADON(Instruction *);
    bool handleQUADPOP(Instruction *);
    bool handleSET(Instruction *);
-   bool handleSHFL(Instruction *);
    bool handleShift(Instruction *);
    bool handleSUB(Instruction *);
    bool handleJOINAT(FlowInstruction *);

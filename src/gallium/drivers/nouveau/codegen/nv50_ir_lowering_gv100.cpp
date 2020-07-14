@@ -202,16 +202,6 @@ GV100LegalizeSSA::handleSET(Instruction *i)
 }
 
 bool
-GV100LegalizeSSA::handleSHFL(Instruction *i)
-{
-   Instruction *sync = new_Instruction(func, OP_WARPSYNC, TYPE_NONE);
-   sync->fixed = 1;
-   sync->setSrc(0, bld.mkImm(0xffffffff));
-   i->bb->insertBefore(i, sync);
-   return false;
-}
-
-bool
 GV100LegalizeSSA::handleShift(Instruction *i)
 {
    Value *zero = bld.mkImm(0);
@@ -304,9 +294,6 @@ GV100LegalizeSSA::visit(Instruction *i)
    case OP_MAD:
       if (!isFloatType(i->dType) && i->subOp == NV50_IR_SUBOP_MUL_HIGH)
          lowered = handleIMAD_HIGH(i);
-      break;
-   case OP_SHFL:
-      lowered = handleSHFL(i);
       break;
    case OP_QUADON:
       lowered = handleQUADON(i);
