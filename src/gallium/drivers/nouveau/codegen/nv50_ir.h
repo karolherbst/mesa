@@ -189,6 +189,7 @@ enum operation
 #define NV50_IR_SUBOP_EMU_PRERET   1
 #define NV50_IR_SUBOP_TEXBAR(n)    n
 #define NV50_IR_SUBOP_MOV_FINAL    1
+#define NV50_IR_SUBOP_MOV_PQUAD    2
 #define NV50_IR_SUBOP_EXTBF_REV    1
 #define NV50_IR_SUBOP_BFIND_SAMT   1
 #define NV50_IR_SUBOP_RCPRSQ_64H   1
@@ -385,7 +386,8 @@ enum DataFile
    FILE_PREDICATE,       // boolean predicate
    FILE_FLAGS,           // zero/sign/carry/overflow bits
    FILE_ADDRESS,
-   LAST_REGISTER_FILE = FILE_ADDRESS,
+   FILE_BARRIER,
+   LAST_REGISTER_FILE = FILE_BARRIER,
    FILE_IMMEDIATE,
    FILE_MEMORY_CONST,
    FILE_SHADER_INPUT,
@@ -395,6 +397,7 @@ enum DataFile
    FILE_MEMORY_SHARED,
    FILE_MEMORY_LOCAL,
    FILE_SYSTEM_VALUE,
+   FILE_THREAD_STATE,           // "special" barrier registers
    DATA_FILE_COUNT
 };
 
@@ -532,6 +535,27 @@ enum SVSemantic
    SV_LAST
 };
 
+enum TSSemantic
+{
+   TS_THREAD_STATE_ENUM0,
+   TS_THREAD_STATE_ENUM1,
+   TS_THREAD_STATE_ENUM2,
+   TS_THREAD_STATE_ENUM3,
+   TS_THREAD_STATE_ENUM4,
+   TS_TRAP_RETURN_PC_LO,
+   TS_TRAP_RETURN_PC_HI,
+   TS_TRAP_RETURN_MASK,
+   TS_MEXITED,
+   TS_MKILL,
+   TS_MACTIVE,
+   TS_MATEXIT,
+   TS_OPT_STACK,
+   TS_API_CALL_DEPTH,
+   TS_ATEXIT_PC_LO,
+   TS_ATEXIT_PC_HI,
+   TS_LAST
+};
+
 class Program;
 class Function;
 class BasicBlock;
@@ -571,6 +595,7 @@ struct Storage
          SVSemantic sv;
          int index;
       } sv;
+      TSSemantic ts;
    } data;
 };
 
