@@ -1446,8 +1446,8 @@ Converter::visit(nir_if *nif)
       insertJoins = insertJoins && bb->getExit()->op == OP_BRA;
    }
 
-   /* only insert joins for the most outer if */
-   if (--curIfDepth)
+   /* only insert joins for the most outer CFG structs */
+   if (--curIfDepth || curLoopDepth)
       insertJoins = false;
 
    /* we made sure that all threads would converge at the same block */
@@ -1474,6 +1474,10 @@ Converter::visit(nir_loop *loop)
 
    bb->cfg.attach(&loopBB->cfg, Graph::Edge::TREE);
 
+   /* only insert joins for the most outer CFG structs */
+   if (curLoopDepth == 1 && !curIfDepth)
+      bb->joinAt = mkFlow(OP_JOINAT, tailBB, CC_ALWAYS, NULL);
+
    mkFlow(OP_PREBREAK, tailBB, CC_ALWAYS, NULL);
    setPosition(loopBB, false);
    mkFlow(OP_PRECONT, loopBB, CC_ALWAYS, NULL);
@@ -1490,6 +1494,11 @@ Converter::visit(nir_loop *loop)
 
    if (tailBB->cfg.incidentCount() == 0)
       loopBB->cfg.attach(&tailBB->cfg, Graph::Edge::TREE);
+
+   if (curLoopDepth == 1 && !curIfDepth) {
+      setPosition(tailBB, false);
+      mkFlow(OP_JOIN, NULL, CC_ALWAYS, NULL)->fixed = 1;
+   }
 
    curLoopDepth -= 1;
 
