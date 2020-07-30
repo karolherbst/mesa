@@ -40,6 +40,7 @@ public:
    virtual bool isOpSupported(operation, DataType) const;
    virtual bool isModSupported(const Instruction *, int s, Modifier) const;
    virtual bool isSatSupported(const Instruction *) const;
+   virtual bool isUniformSupported(const Instruction *) const;
 
    virtual bool isBarrierRequired(const Instruction *) const;
 

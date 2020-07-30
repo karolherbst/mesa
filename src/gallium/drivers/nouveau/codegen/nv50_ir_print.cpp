@@ -36,10 +36,11 @@ enum TextStyle
    TXT_MEM,
    TXT_IMMD,
    TXT_BRA,
-   TXT_INSN
+   TXT_INSN,
+   TXT_UNIFORM,
 };
 
-static const char *_colour[8] =
+static const char *_colour[9] =
 {
    "\x1b[00m",
    "\x1b[34m",
@@ -48,12 +49,13 @@ static const char *_colour[8] =
    "\x1b[36m",
    "\x1b[33m",
    "\x1b[37m",
-   "\x1b[32m"
+   "\x1b[32m",
+   "\x1b[31m"
 };
 
-static const char *_nocolour[8] =
+static const char *_nocolour[9] =
 {
-      "", "", "", "", "", "", "", ""
+      "", "", "", "", "", "", "", "", ""
 };
 
 static const char **colour;
@@ -459,8 +461,10 @@ int LValue::print(char *buf, size_t size, DataType ty) const
    char p = join->reg.data.id >= 0 ? '$' : '%';
    char r;
    int col = TXT_DEFAULT;
+   bool uniform = reg.file == FILE_UGPR || reg.file == FILE_UPREDICATE;
 
    switch (reg.file) {
+   case FILE_UGPR:
    case FILE_GPR:
       r = 'r'; col = TXT_GPR;
       if (reg.size == 2) {
@@ -481,6 +485,7 @@ int LValue::print(char *buf, size_t size, DataType ty) const
          postFix = "t";
       }
       break;
+   case FILE_UPREDICATE:
    case FILE_PREDICATE:
       r = 'p'; col = TXT_REGISTER;
       if (reg.size == 2)
@@ -504,7 +509,7 @@ int LValue::print(char *buf, size_t size, DataType ty) const
       break;
    }
 
-   PRINT("%s%c%c%i%s", colour[col], p, r, idx, postFix);
+   PRINT("%s%c%s%c%i%s", colour[uniform ? TXT_UNIFORM : col], p, uniform ? "u" : "", r, idx, postFix);
 
    return pos;
 }

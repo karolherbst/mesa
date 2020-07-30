@@ -322,10 +322,12 @@ private:
       emitField(off, len, v->reg.data.offset >> shr);
    }
 
-   inline void emitFormA(uint16_t op, uint8_t forms, int src0, int src1, int src2);
+   inline void emitFormA(uint16_t op, uint16_t forms, int dst, int src0, int src1, int src2);
    inline void emitFormA_RRR(uint16_t op, int src1, int src2);
+   inline void emitFormA_RUR(uint16_t op, int src1, int src2);
    inline void emitFormA_RRI(uint16_t op, int src1, int src2);
    inline void emitFormA_RRC(uint16_t op, int src1, int src2);
+   inline void emitFormA_RRU(uint16_t op, int src1, int src2);
    inline void emitFormA_I32(int src);
 
    void emitBRA();

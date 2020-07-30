@@ -382,7 +382,9 @@ enum CacheMode
 enum DataFile
 {
    FILE_NULL = 0,
+   FILE_UGPR,            // uniform register
    FILE_GPR,
+   FILE_UPREDICATE,      // boolean uniform predicate
    FILE_PREDICATE,       // boolean predicate
    FILE_FLAGS,           // zero/sign/carry/overflow bits
    FILE_ADDRESS,
@@ -672,6 +674,9 @@ public:
 
    inline DataFile getFile() const;
    inline unsigned getSize() const;
+   inline bool isGPR() const {
+      return getFile() == FILE_GPR || getFile() == FILE_UGPR;
+   }
 
    // SSA: return eventual (traverse MOVs) literal value, if it exists
    bool getImmediate(ImmediateValue&) const;
@@ -707,6 +712,9 @@ public:
 
    inline DataFile getFile() const;
    inline unsigned getSize() const;
+   inline bool isGPR() const {
+      return getFile() == FILE_GPR || getFile() == FILE_UGPR;
+   }
 
    inline void setSSA(LValue *);
    inline const LValue *preSSA() const;
@@ -745,6 +753,9 @@ public:
    inline const ImmediateValue *asImm() const;
 
    inline bool inFile(DataFile f) const { return reg.file == f; }
+   inline bool isGPR() const {
+      return reg.file == FILE_GPR || reg.file == FILE_UGPR;
+   }
 
    static inline Value *get(Iterator&);
 
@@ -1363,6 +1374,7 @@ public:
    uint32_t tlsSize; // size required for FILE_MEMORY_LOCAL
 
    int maxGPR;
+   int maxUGPR;
    bool fp64;
    bool persampleInvocation;
 

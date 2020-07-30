@@ -28,22 +28,34 @@ namespace nv50_ir {
  * instruction format helpers
  ******************************************************************************/
 
-#define FA_NODEF (1 << 0)
-#define FA_RRR   (1 << 1)
-#define FA_RRI   (1 << 2)
-#define FA_RRC   (1 << 3)
-#define FA_RIR   (1 << 4)
-#define FA_RCR   (1 << 5)
+#define FA_R_RRR (1 <<  0)
+#define FA_R_RRI (1 <<  1)
+#define FA_R_RRC (1 <<  2)
+#define FA_R_RRU (1 <<  3)
+#define FA_R_RIR (1 <<  4)
+#define FA_R_RCR (1 <<  5)
+#define FA_R_RUR (1 <<  6)
+
+// uniform
+#define FA_U_UUU (1 <<  7)
+#define FA_U_UIU (1 <<  8)
+#define FA_U_UCU (1 <<  9)
+#define FA_U_UUI (1 << 10)
 
 #define FA_SRC_MASK 0x0ff
 #define FA_SRC_NEG  0x100
 #define FA_SRC_ABS  0x200
+#define FA_DEST_SAT 0x400
 
 #define EMPTY -1
 #define __(a) (a) // no source modifiers
 #define _A(a) ((a) | FA_SRC_ABS)
 #define N_(a) ((a) | FA_SRC_NEG)
 #define NA(a) ((a) | FA_SRC_NEG | FA_SRC_ABS)
+
+// dst
+#define _(a) (a)
+#define S(a) ((a) | FA_DEST_SAT)
 
 void
 CodeEmitterGV100::emitFormA_I32(int src)
@@ -102,52 +114,138 @@ CodeEmitterGV100::emitFormA_RRR(uint16_t op, int src1, int src2)
 }
 
 void
-CodeEmitterGV100::emitFormA(uint16_t op, uint8_t forms,
-                            int src0, int src1, int src2)
+CodeEmitterGV100::emitFormA_RUR(uint16_t op, int src1, int src2)
 {
-   switch ((src1 < 0) ? FILE_GPR : insn->src(src1 & FA_SRC_MASK).getFile()) {
+   emitInsn (op);
+   emitField(91, 1, 1);
+
+   if (src2 >= 0) {
+      emitNEG (75, (src2 & FA_SRC_MASK), (src2 & FA_SRC_NEG));
+      emitABS (74, (src2 & FA_SRC_MASK), (src2 & FA_SRC_ABS));
+      emitGPR (64, insn->src(src2 & FA_SRC_MASK));
+   }
+
+   if (src1 >= 0) {
+      emitNEG (63, (src1 & FA_SRC_MASK), (src1 & FA_SRC_NEG));
+      emitABS (62, (src1 & FA_SRC_MASK), (src1 & FA_SRC_ABS));
+      emitGPR (32, insn->src(src1 & FA_SRC_MASK));
+   }
+}
+
+void
+CodeEmitterGV100::emitFormA_RRU(uint16_t op, int src1, int src2)
+{
+   emitFormA_RUR(op, src1, src2);
+}
+
+void
+CodeEmitterGV100::emitFormA(uint16_t op, uint16_t forms,
+                            int dst, int src0, int src1, int src2)
+{
+   DataFile src0File;
+
+   // not much to do than to flip some bits
+   switch ((dst < 0) ? FILE_GPR : insn->def(dst & FA_SRC_MASK).getFile()) {
    case FILE_GPR:
-      switch ((src2 < 0) ? FILE_GPR : insn->src(src2 & FA_SRC_MASK).getFile()) {
+      src0File = FILE_GPR;
+      switch ((src1 < 0) ? FILE_GPR : insn->src(src1 & FA_SRC_MASK).getFile()) {
       case FILE_GPR:
-         assert(forms & FA_RRR);
-         emitFormA_RRR((1 << 9) | op, src1, src2);
+         switch ((src2 < 0) ? FILE_GPR : insn->src(src2 & FA_SRC_MASK).getFile()) {
+         case FILE_GPR:
+            assert(forms & FA_R_RRR);
+            emitFormA_RRR((1 << 9) | op, src1, src2);
+            break;
+         case FILE_IMMEDIATE:
+            assert(forms & FA_R_RRI);
+            emitFormA_RRI((2 << 9) | op, src1, src2);
+            break;
+         case FILE_MEMORY_CONST:
+            assert(forms & FA_R_RRC);
+            emitFormA_RRC((3 << 9) | op, src1, src2);
+            break;
+         case FILE_UGPR:
+            assert(forms & FA_R_RRU);
+            emitFormA_RRU((7 << 9) | op, src2, src1);
+            break;
+         default:
+            assert(!"bad src2 file");
+            break;
+         }
          break;
+
       case FILE_IMMEDIATE:
-         assert(forms & FA_RRI);
-         emitFormA_RRI((2 << 9) | op, src1, src2);
+         assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_GPR);
+         assert(forms & FA_R_RIR);
+         emitFormA_RRI((4 << 9) | op, src2, src1);
          break;
       case FILE_MEMORY_CONST:
-         assert(forms & FA_RRC);
-         emitFormA_RRC((3 << 9) | op, src1, src2);
+         assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_GPR);
+         assert(forms & FA_R_RCR);
+         emitFormA_RRC((5 << 9) | op, src2, src1);
+         break;
+      case FILE_UGPR:
+         assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_GPR);
+         assert(forms & FA_R_RUR);
+         emitFormA_RUR((6 << 9) | op, src1, src2);
          break;
       default:
-         assert(!"bad src2 file");
+         assert(!"bad src1 file");
          break;
       }
       break;
-   case FILE_IMMEDIATE:
-      assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_GPR);
-      assert(forms & FA_RIR);
-      emitFormA_RRI((4 << 9) | op, src2, src1);
-      break;
-   case FILE_MEMORY_CONST:
-      assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_GPR);
-      assert(forms & FA_RCR);
-      emitFormA_RRC((5 << 9) | op, src2, src1);
+
+   case FILE_UGPR:
+      src0File = FILE_UGPR;
+      switch ((src1 < 0) ? FILE_UGPR : insn->src(src1 & FA_SRC_MASK).getFile()) {
+      case FILE_UGPR:
+         switch ((src2 < 0) ? FILE_UGPR : insn->src(src2 & FA_SRC_MASK).getFile()) {
+         case FILE_UGPR:
+            assert(forms & FA_U_UUU);
+            emitFormA_RRR((1 << 9) | (1 << 7) | op, src1, src2);
+            break;
+         case FILE_IMMEDIATE:
+            assert(forms & FA_U_UUI);
+            emitFormA_RRI((2 << 9) | (1 << 7) | op, src1, src2);
+            break;
+         default:
+            assert(!"bad src2 file");
+            break;
+         }
+         emitField(91, 1, 1);
+         break;
+
+      case FILE_IMMEDIATE:
+         assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_UGPR);
+         assert(forms & FA_U_UIU);
+         emitFormA_RRI((4 << 9) | (1 << 7) | op, src2, src1);
+         // unary ops needs this
+         if (src0 >= 0 || src2 >= 0)
+            emitField(91, 1, 1);
+         break;
+      case FILE_MEMORY_CONST:
+         assert((src2 < 0) || insn->src(src2 & FA_SRC_MASK).getFile() == FILE_UGPR);
+         assert(forms & FA_U_UCU);
+         emitFormA_RRC((5 << 9) | (1 << 7) | op, src2, src1);
+         break;
+      default:
+         assert(!"bad src1 file");
+         break;
+      }
+
       break;
    default:
-      assert(!"bad src1 file");
+      assert(!"bad dst file");
       break;
    }
 
    if (src0 >= 0) {
-      assert(insn->src(src0 & FA_SRC_MASK).getFile() == FILE_GPR);
+      assert(insn->src(src0 & FA_SRC_MASK).getFile() == src0File);
       emitABS(73, (src0 & FA_SRC_MASK), (src0 & FA_SRC_ABS));
       emitNEG(72, (src0 & FA_SRC_MASK), (src0 & FA_SRC_NEG));
       emitGPR(24, insn->src(src0 & FA_SRC_MASK));
    }
 
-   if (!(forms & FA_NODEF))
+   if (dst >= 0)
       emitGPR(16, insn->def(0));
 }
 
@@ -212,7 +310,7 @@ CodeEmitterGV100::emitNOP()
 void
 CodeEmitterGV100::emitWARPSYNC()
 {
-   emitFormA(0x148, FA_NODEF | FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+   emitFormA(0x148, FA_R_RRR | FA_R_RIR | FA_R_RCR, EMPTY, EMPTY, __(0), EMPTY);
    emitNOT  (90);
    emitPRED (87);
 }
@@ -233,9 +331,9 @@ void
 CodeEmitterGV100::emitF2F()
 {
    if (typeSizeof(insn->sType) != 8 && typeSizeof(insn->dType) != 8)
-      emitFormA(0x104, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+      emitFormA(0x104, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, NA(0), EMPTY);
    else
-      emitFormA(0x110, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+      emitFormA(0x110, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, NA(0), EMPTY);
    emitField(84, 2, util_logbase2(typeSizeof(insn->sType)));
    emitFMZ  (80, 1);
    emitRND  (78);
@@ -247,9 +345,9 @@ void
 CodeEmitterGV100::emitF2I()
 {
    if (typeSizeof(insn->sType) != 8 && typeSizeof(insn->dType) != 8)
-      emitFormA(0x105, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+      emitFormA(0x105, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), EMPTY, NA(0), EMPTY);
    else
-      emitFormA(0x111, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+      emitFormA(0x111, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), EMPTY, NA(0), EMPTY);
    emitField(84, 2, util_logbase2(typeSizeof(insn->sType)));
    emitFMZ  (80, 1);
    emitRND  (78);
@@ -284,9 +382,9 @@ CodeEmitterGV100::emitFRND()
    }
 
    if (typeSizeof(insn->sType) != 8 && typeSizeof(insn->dType) != 8)
-      emitFormA(0x107, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+      emitFormA(0x107, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, NA(0), EMPTY);
    else
-      emitFormA(0x113, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+      emitFormA(0x113, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, NA(0), EMPTY);
    emitField(84, 2, util_logbase2(typeSizeof(insn->sType)));
    emitFMZ  (80, 1);
    emitField(78, 2, subop);
@@ -297,9 +395,9 @@ void
 CodeEmitterGV100::emitI2F()
 {
    if (typeSizeof(insn->sType) != 8 && typeSizeof(insn->dType) != 8)
-      emitFormA(0x106, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+      emitFormA(0x106, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), EMPTY, __(0), EMPTY);
    else
-      emitFormA(0x112, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+      emitFormA(0x112, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), EMPTY, __(0), EMPTY);
    emitField(84, 2, util_logbase2(typeSizeof(insn->sType)));
    emitRND  (78);
    emitField(75, 2, util_logbase2(typeSizeof(insn->dType)));
@@ -316,10 +414,11 @@ CodeEmitterGV100::emitMOV()
    switch (insn->def(0).getFile()) {
    case FILE_GPR:
       switch (insn->src(0).getFile()) {
+      case FILE_UGPR:
       case FILE_GPR:
       case FILE_MEMORY_CONST:
       case FILE_IMMEDIATE:
-         emitFormA(0x002, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+         emitFormA(0x002, FA_R_RUR | FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, __(0), EMPTY);
          emitField(72, 4, insn->lanes);
          break;
       case FILE_PREDICATE:
@@ -377,6 +476,18 @@ CodeEmitterGV100::emitMOV()
       }
       emitField(84, 1, insn->subOp == NV50_IR_SUBOP_MOV_PQUAD ? 1 : 0);
       break;
+   case FILE_UGPR: {
+      switch (insn->src(0).getFile()) {
+      case FILE_UGPR:
+      case FILE_IMMEDIATE:
+         emitFormA(0x082, FA_R_RUR | FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_U_UIU, _(0), EMPTY, __(0), EMPTY);
+         break;
+      default:
+         assert(!"bad src file");
+         break;
+      }
+      break;
+   }
    default:
       assert(!"bad dst file");
       break;
@@ -386,7 +497,7 @@ CodeEmitterGV100::emitMOV()
 void
 CodeEmitterGV100::emitPRMT()
 {
-   emitFormA(0x016, FA_RRR | FA_RRI | FA_RRC | FA_RIR | FA_RCR, __(0), __(1), __(2));
+   emitFormA(0x016, FA_R_RRR | FA_R_RRI | FA_R_RRC | FA_R_RIR | FA_R_RCR, _(0), __(0), __(1), __(2));
    emitField(72, 3, insn->subOp);
 }
 
@@ -411,7 +522,7 @@ selpFlip(const FixupEntry *entry, uint32_t *code, const FixupData& data)
 void
 CodeEmitterGV100::emitSEL()
 {
-   emitFormA(0x007, FA_RRR | FA_RIR | FA_RCR, __(0), __(1), EMPTY);
+   emitFormA(0x007, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), __(0), __(1), EMPTY);
    emitNOT  (90, insn->src(2));
    emitPRED (87, insn->src(2));
    if (insn->subOp == 1)
@@ -477,9 +588,9 @@ void
 CodeEmitterGV100::emitFADD()
 {
    if (insn->src(1).getFile() == FILE_GPR)
-      emitFormA(0x021, FA_RRR         , NA(0), NA(1), EMPTY);
+      emitFormA(0x021, FA_R_RRR, _(0), NA(0), NA(1), EMPTY);
    else
-      emitFormA(0x021, FA_RRI | FA_RRC, NA(0), EMPTY, NA(1));
+      emitFormA(0x021, FA_R_RRI | FA_R_RRC | FA_R_RRU, _(0), NA(0), EMPTY, NA(1));
    emitFMZ  (80, 1);
    emitRND  (78);
    emitSAT  (77);
@@ -488,7 +599,7 @@ CodeEmitterGV100::emitFADD()
 void
 CodeEmitterGV100::emitFFMA()
 {
-   emitFormA(0x023, FA_RRR | FA_RRI | FA_RRC | FA_RIR | FA_RCR, NA(0), NA(1), NA(2));
+   emitFormA(0x023, FA_R_RRR | FA_R_RRI | FA_R_RRC | FA_R_RRU | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), NA(0), NA(1), NA(2));
    emitField(80, 1, insn->ftz);
    emitRND  (78);
    emitSAT  (77);
@@ -498,7 +609,7 @@ CodeEmitterGV100::emitFFMA()
 void
 CodeEmitterGV100::emitFMNMX()
 {
-   emitFormA(0x009, FA_RRR | FA_RIR | FA_RCR, NA(0), NA(1), EMPTY);
+   emitFormA(0x009, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), NA(0), NA(1), EMPTY);
    emitField(90, 1, insn->op == OP_MAX);
    emitPRED (87);
    emitFMZ  (80, 1);
@@ -507,7 +618,7 @@ CodeEmitterGV100::emitFMNMX()
 void
 CodeEmitterGV100::emitFMUL()
 {
-   emitFormA(0x020, FA_RRR | FA_RIR | FA_RCR, NA(0), NA(1), EMPTY);
+   emitFormA(0x020, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), NA(0), NA(1), EMPTY);
    emitField(80, 1, insn->ftz);
    emitPDIV (84);
    emitRND  (78);
@@ -520,7 +631,7 @@ CodeEmitterGV100::emitFSET_BF()
 {
    const CmpInstruction *insn = this->insn->asCmp();
 
-   emitFormA(0x00a, FA_RRR | FA_RIR | FA_RCR, NA(0), NA(1), EMPTY);
+   emitFormA(0x00a, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), NA(0), NA(1), EMPTY);
    emitFMZ  (80, 1);
    emitCond4(76, insn->setCond);
 
@@ -545,7 +656,7 @@ CodeEmitterGV100::emitFSETP()
 {
    const CmpInstruction *insn = this->insn->asCmp();
 
-   emitFormA(0x00b, FA_NODEF | FA_RRR | FA_RIR | FA_RCR, NA(0), NA(1), EMPTY);
+   emitFormA(0x00b, FA_R_RRR | FA_R_RIR | FA_R_RCR, EMPTY, NA(0), NA(1), EMPTY);
    emitFMZ  (80, 1);
    emitCond4(76, insn->setCond);
 
@@ -612,7 +723,7 @@ CodeEmitterGV100::emitMUFU()
       break;
    }
 
-   emitFormA(0x108, FA_RRR | FA_RIR | FA_RCR, EMPTY, NA(0), EMPTY);
+   emitFormA(0x108, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, NA(0), EMPTY);
    emitField(74, 4, mufu);
 }
 
@@ -623,21 +734,21 @@ CodeEmitterGV100::emitMUFU()
 void
 CodeEmitterGV100::emitDADD()
 {
-   emitFormA(0x029, FA_RRR | FA_RRI | FA_RRC, NA(0), EMPTY, NA(1));
+   emitFormA(0x029, FA_R_RRR | FA_R_RRI | FA_R_RRC, _(0), NA(0), EMPTY, NA(1));
    emitRND(78);
 }
 
 void
 CodeEmitterGV100::emitDFMA()
 {
-   emitFormA(0x02b, FA_RRR | FA_RRI | FA_RRC | FA_RIR | FA_RCR, NA(0), NA(1), NA(2));
+   emitFormA(0x02b, FA_R_RRR | FA_R_RRI | FA_R_RRC | FA_R_RIR | FA_R_RCR, _(0), NA(0), NA(1), NA(2));
    emitRND(78);
 }
 
 void
 CodeEmitterGV100::emitDMUL()
 {
-   emitFormA(0x028, FA_RRR | FA_RIR | FA_RCR, NA(0), NA(1), EMPTY);
+   emitFormA(0x028, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), NA(0), NA(1), EMPTY);
    emitRND(78);
 }
 
@@ -647,9 +758,9 @@ CodeEmitterGV100::emitDSETP()
    const CmpInstruction *insn = this->insn->asCmp();
 
    if (insn->src(1).getFile() == FILE_GPR)
-      emitFormA(0x02a, FA_NODEF | FA_RRR         , NA(0), NA(1), EMPTY);
+      emitFormA(0x02a, FA_R_RRR         , EMPTY, NA(0), NA(1), EMPTY);
    else
-      emitFormA(0x02a, FA_NODEF | FA_RRI | FA_RRC, NA(0), EMPTY, NA(1));
+      emitFormA(0x02a, FA_R_RRI | FA_R_RRC, EMPTY, NA(0), EMPTY, NA(1));
 
    if (insn->op != OP_SET) {
       switch (insn->op) {
@@ -681,20 +792,20 @@ CodeEmitterGV100::emitDSETP()
 void
 CodeEmitterGV100::emitBMSK()
 {
-   emitFormA(0x01b, FA_RRR | FA_RIR | FA_RCR, __(0), __(1), EMPTY);
+   emitFormA(0x01b, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), __(0), __(1), EMPTY);
    emitField(75, 1, insn->subOp); // .C/.W
 }
 
 void
 CodeEmitterGV100::emitBREV()
 {
-   emitFormA(0x101, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+   emitFormA(0x101, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, __(0), EMPTY);
 }
 
 void
 CodeEmitterGV100::emitFLO()
 {
-   emitFormA(0x100, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+   emitFormA(0x100, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, __(0), EMPTY);
    emitPRED (81);
    emitField(74, 1, insn->subOp == NV50_IR_SUBOP_BFIND_SAMT);
    emitField(73, 1, isSignedType(insn->dType));
@@ -704,14 +815,14 @@ CodeEmitterGV100::emitFLO()
 void
 CodeEmitterGV100::emitIABS()
 {
-   emitFormA(0x013, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+   emitFormA(0x013, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, __(0), EMPTY);
 }
 
 void
 CodeEmitterGV100::emitIADD3()
 {
-//   emitFormA(0x010, FA_RRR | FA_RIR | FA_RCR, N_(0), N_(1), N_(2));
-   emitFormA(0x010, FA_RRR | FA_RIR | FA_RCR, N_(0), N_(1), EMPTY);
+//   emitFormA(0x010, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), N_(0), N_(1), N_(2));
+   emitFormA(0x010, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR | FA_U_UUU | FA_U_UIU, _(0), N_(0), N_(1), EMPTY);
    emitGPR  (64); //XXX: fix when switching back to N_(2)
    emitPRED (84, NULL); // .CC1
    emitPRED (81, insn->flagsDef >= 0 ? insn->getDef(insn->flagsDef) : NULL);
@@ -725,14 +836,14 @@ CodeEmitterGV100::emitIADD3()
 void
 CodeEmitterGV100::emitIMAD()
 {
-   emitFormA(0x024, FA_RRR | FA_RRI | FA_RRC | FA_RIR | FA_RCR, __(0), __(1), N_(2));
+   emitFormA(0x024, FA_R_RRR | FA_R_RRI | FA_R_RRC | FA_R_RRU | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), __(0), __(1), N_(2));
    emitField(73, 1, isSignedType(insn->sType));
 }
 
 void
 CodeEmitterGV100::emitIMAD_WIDE()
 {
-   emitFormA(0x025, FA_RRR |          FA_RRC | FA_RIR | FA_RCR, __(0), __(1), N_(2));
+   emitFormA(0x025, FA_R_RRR | FA_R_RRC | FA_R_RRU | FA_R_RIR | FA_R_RCR | FA_R_RUR, _(0), __(0), __(1), N_(2));
    emitPRED (81);
    emitField(73, 1, isSignedType(insn->sType));
 }
@@ -742,7 +853,7 @@ CodeEmitterGV100::emitISETP()
 {
    const CmpInstruction *insn = this->insn->asCmp();
 
-   emitFormA(0x00c, FA_NODEF | FA_RRR | FA_RIR | FA_RCR, __(0), __(1), EMPTY);
+   emitFormA(0x00c, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_R_RUR, EMPTY, __(0), __(1), EMPTY);
 
    if (insn->op != OP_SET) {
       switch (insn->op) {
@@ -789,7 +900,7 @@ CodeEmitterGV100::emitLEA()
 {
    assert(insn->src(1).get()->asImm());
 
-   emitFormA(0x011, FA_RRR | FA_RIR | FA_RCR, N_(0), N_(2), EMPTY);
+   emitFormA(0x011, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), N_(0), N_(2), EMPTY);
    emitPRED (81);
    emitIMMD (75, 5, insn->src(1));
    emitGPR  (64);
@@ -798,7 +909,7 @@ CodeEmitterGV100::emitLEA()
 void
 CodeEmitterGV100::emitLOP3_LUT()
 {
-   emitFormA(0x012, FA_RRR | FA_RIR | FA_RCR, __(0), __(1), __(2));
+   emitFormA(0x012, FA_R_RRR | FA_R_RIR | FA_R_RCR | FA_U_UUU | FA_U_UIU, _(0), __(0), __(1), __(2));
    emitField(90, 1, 1);
    emitPRED (87);
    emitPRED (81);
@@ -809,14 +920,14 @@ CodeEmitterGV100::emitLOP3_LUT()
 void
 CodeEmitterGV100::emitPOPC()
 {
-   emitFormA(0x109, FA_RRR | FA_RIR | FA_RCR, EMPTY, __(0), EMPTY);
+   emitFormA(0x109, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), EMPTY, __(0), EMPTY);
    emitNOT  (63, insn->src(0));
 }
 
 void
 CodeEmitterGV100::emitSGXT()
 {
-   emitFormA(0x01a, FA_RRR | FA_RIR | FA_RCR, __(0), __(1), EMPTY);
+   emitFormA(0x01a, FA_R_RRR | FA_R_RIR | FA_R_RCR, _(0), __(0), __(1), EMPTY);
    emitField(75, 1, 0); // .W
    emitField(73, 1, 1); // /.U32
 }
@@ -824,7 +935,7 @@ CodeEmitterGV100::emitSGXT()
 void
 CodeEmitterGV100::emitSHF()
 {
-   emitFormA(0x019, FA_RRR | FA_RRI | FA_RRC | FA_RIR | FA_RCR, __(0), __(1), __(2));
+   emitFormA(0x019, FA_R_RRR | FA_R_RRI | FA_R_RRC | FA_R_RIR | FA_R_RCR | FA_U_UUU | FA_U_UIU | FA_U_UUI, _(0), __(0), __(1), __(2));
    emitField(80, 1, !!(insn->subOp & NV50_IR_SUBOP_SHF_HI));
    emitField(76, 1, !!(insn->subOp & NV50_IR_SUBOP_SHF_R));
    emitField(75, 1, !!(insn->subOp & NV50_IR_SUBOP_SHF_W));
@@ -1091,7 +1202,17 @@ CodeEmitterGV100::emitLD()
 void
 CodeEmitterGV100::emitLDC()
 {
-   emitFormA(0x182, FA_RCR, EMPTY, __(0), EMPTY);
+   switch (insn->def(0).getFile()) {
+   case FILE_GPR:
+      emitFormA(0x182, FA_R_RCR, _(0), EMPTY, __(0), EMPTY);
+      break;
+   case FILE_UGPR:
+      emitFormA(0x0b9, FA_U_UCU, _(0), EMPTY, __(0), EMPTY);
+      break;
+   default:
+      assert(!"bad src file");
+      break;
+   }
    emitField(78, 2, insn->subOp);
    emitLDSTs(73, insn->dType);
    emitGPR  (24, insn->src(0).getIndirect(0));
@@ -1123,9 +1244,9 @@ CodeEmitterGV100::emitOUT()
    const int emit = insn->op == OP_EMIT;
 
    if (insn->op != OP_FINAL)
-      emitFormA(0x124, FA_RRR | FA_RIR, __(0), __(1), EMPTY);
+      emitFormA(0x124, FA_R_RRR | FA_R_RIR, _(0), __(0), __(1), EMPTY);
    else
-      emitFormA(0x124, FA_RRR | FA_RIR, __(0), EMPTY, EMPTY);
+      emitFormA(0x124, FA_R_RRR | FA_R_RIR, EMPTY, __(0), EMPTY, EMPTY);
    emitField(78, 2, (cut << 1) | emit);
 }
 
@@ -1858,7 +1979,12 @@ CodeEmitterGV100::emitInstruction(Instruction *i)
       break;
    case OP_LOAD:
       switch (insn->src(0).getFile()) {
-      case FILE_MEMORY_CONST : emitLDC(); break;
+      case FILE_MEMORY_CONST :
+         if (insn->getIndirect(0, 0) || insn->getIndirect(0, 1))
+            emitLDC();
+         else
+            emitMOV();
+         break;
       case FILE_MEMORY_LOCAL : emitLDL(); break;
       case FILE_MEMORY_SHARED: emitLDS(); break;
       case FILE_MEMORY_GLOBAL: emitLD(); break;

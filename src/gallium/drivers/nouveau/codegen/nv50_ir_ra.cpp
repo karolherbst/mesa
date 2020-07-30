@@ -1610,6 +1610,7 @@ GCRA::allocateRegisters(ArrayList& insns)
    } else {
       mergedDefs.merge();
       prog->maxGPR = std::max(prog->maxGPR, regs.getMaxAssigned(FILE_GPR));
+      prog->maxUGPR = std::max(prog->maxUGPR, regs.getMaxAssigned(FILE_UGPR));
    }
 
 out:

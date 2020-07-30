@@ -115,8 +115,10 @@ private:
 
 private:
    LValue *rZero;
+   LValue *urZero;
    LValue *carry;
    LValue *pOne;
+   LValue *upOne;
    const bool needTexBar;
 };
 

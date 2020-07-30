@@ -36,7 +36,11 @@ private:
    virtual bool visit(Instruction *);
 
    BuildUtil bld;
+   bool hasUGPRS;
+   bool hasUPreds;
 public:
+   LoweringHelper(Target *targ);
+
    bool handleABS(Instruction *);
    bool handleCVT(Instruction *);
    bool handleMAXMIN(Instruction *);
@@ -46,6 +50,8 @@ public:
    bool handleSLCT(CmpInstruction *);
 
    bool handleLogOp(Instruction *);
+
+   void handleUniformRP(Instruction *);
 };
 
 } // namespace nv50_ir

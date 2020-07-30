@@ -265,11 +265,15 @@ void TargetNVC0::initOpInfo()
 unsigned int
 TargetNVC0::getFileSize(DataFile file) const
 {
+   const unsigned int ugprs = (chipset >= NVISA_TU100_CHIPSET) ? 63 : 0;
+   const unsigned int upreds = (chipset >= NVISA_TU100_CHIPSET) ? 7 : 0;
    const unsigned int gprs = (chipset >= NVISA_GK20A_CHIPSET) ? 255 : 63;
    const unsigned int smregs = (chipset >= NVISA_GK104_CHIPSET) ? 65536 : 32768;
    switch (file) {
    case FILE_NULL:          return 0;
+   case FILE_UGPR:          return ugprs;
    case FILE_GPR:           return MIN2(gprs, smregs / threads);
+   case FILE_UPREDICATE:    return upreds;
    case FILE_PREDICATE:     return 7;
    case FILE_FLAGS:         return 1;
    case FILE_ADDRESS:       return 0;
@@ -294,7 +298,7 @@ unsigned int
 TargetNVC0::getFileUnit(DataFile file) const
 {
    if (file == FILE_GPR || file == FILE_ADDRESS || file == FILE_SYSTEM_VALUE ||
-       file == FILE_BARRIER || file == FILE_THREAD_STATE)
+       file == FILE_BARRIER || file == FILE_THREAD_STATE || file == FILE_UGPR)
       return 2;
    return 0;
 }

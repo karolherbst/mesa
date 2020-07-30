@@ -82,19 +82,25 @@ TargetGV100::initOpInfo()
 }
 
 struct opInfo {
+   uint16_t def;
    struct {
-      uint8_t files;
+      uint16_t files;
       uint8_t mods;
    } src[3];
 };
 
 #define SRC_NONE 0
+#define SRC_U    (1 << FILE_UGPR)
 #define SRC_R    (1 << FILE_GPR)
 #define SRC_I    (1 << FILE_MEMORY_CONST)
 #define SRC_C    (1 << FILE_IMMEDIATE)
-#define SRC_RC   (SRC_R |         SRC_C)
-#define SRC_RI   (SRC_R | SRC_I        )
-#define SRC_RIC  (SRC_R | SRC_I | SRC_C)
+#define SRC_P    (1 << FILE_PREDICATE)
+#define SRC_UR   (SRC_R |                 SRC_U)
+#define SRC_RC   (SRC_R |         SRC_C        )
+#define SRC_RI   (SRC_R | SRC_I                )
+#define SRC_URI  (SRC_R | SRC_I |         SRC_U)
+#define SRC_RIC  (SRC_R | SRC_I | SRC_C        )
+#define SRC_URIC (SRC_R | SRC_I | SRC_C | SRC_U)
 
 #define MOD_NONE 0
 #define MOD_NEG  NV50_IR_MOD_NEG
@@ -102,9 +108,10 @@ struct opInfo {
 #define MOD_NOT  NV50_IR_MOD_NOT
 #define MOD_NA   (MOD_NEG | MOD_ABS)
 
-#define OPINFO(O,SA,MA,SB,MB,SC,MC)                                            \
+#define OPINFO(O,DA,SA,MA,SB,MB,SC,MC)                                         \
 static struct opInfo                                                           \
 opInfo_##O = {                                                                 \
+   .def = SRC_##DA,                                                            \
    .src = { { SRC_##SA, MOD_##MA },                                            \
             { SRC_##SB, MOD_##MB },                                            \
             { SRC_##SC, MOD_##MC }},                                           \
@@ -112,94 +119,94 @@ opInfo_##O = {                                                                 \
 
 
 /* Handled by GV100LegalizeSSA. */
-OPINFO(FABS     , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(FCMP     , R   , NONE, RIC , NONE, RIC , NONE); //XXX: use FSEL for mods
-OPINFO(FNEG     , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(FSET     , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(ICMP     , R   , NONE, RIC , NONE, RIC , NONE);
-OPINFO(IMUL     , R   , NONE, RIC , NONE, NONE, NONE);
-OPINFO(INEG     , RIC , NEG , NONE, NONE, NONE, NONE);
-OPINFO(ISET     , R   , NONE, RIC , NONE, NONE, NONE);
-OPINFO(LOP2     , R   , NOT , RIC , NOT , NONE, NONE);
-OPINFO(NOT      , RIC , NONE, NONE, NONE, NONE, NONE);
-OPINFO(SAT      , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(SHL      , RIC , NONE, RIC , NONE, NONE, NONE);
-OPINFO(SHR      , RIC , NONE, RIC , NONE, NONE, NONE);
-OPINFO(SUB      , R   , NONE, RIC , NEG , NONE, NONE);
-OPINFO(IMNMX    , R   , NONE, RIC , NONE, NONE, NONE);
+OPINFO(FABS     , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(FCMP     , R   , R   , NONE, URIC, NONE, URIC, NONE); //XXX: use FSEL for mods
+OPINFO(FNEG     , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(FSET     , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(ICMP     , R   , R   , NONE, URIC, NONE, URIC, NONE);
+OPINFO(IMUL     , R   , R   , NONE, URIC, NONE, NONE, NONE);
+OPINFO(INEG     , R   , URIC, NEG , NONE, NONE, NONE, NONE);
+OPINFO(ISET     , R   , R   , NONE, URIC, NONE, NONE, NONE);
+OPINFO(LOP2     , R   , R   , NOT , URIC, NOT , NONE, NONE);
+OPINFO(NOT      , R   , URIC, NONE, NONE, NONE, NONE, NONE);
+OPINFO(SAT      , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(SHL      , R   , URIC, NONE, URIC, NONE, NONE, NONE);
+OPINFO(SHR      , R   , URIC, NONE, URIC, NONE, NONE, NONE);
+OPINFO(SUB      , R   , R   , NONE, URIC, NEG , NONE, NONE);
+OPINFO(IMNMX    , R   , R   , NONE, URIC, NONE, NONE, NONE);
 
 /* Handled by CodeEmitterGV100. */
-OPINFO(AL2P     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(ALD      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(AST      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(ATOM     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(ATOMS    , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(BAR      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(BRA      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(BMSK     , R   , NONE, RIC , NONE, NONE, NONE);
-OPINFO(BREV     , RIC , NONE, NONE, NONE, NONE, NONE);
-OPINFO(CCTL     , NONE, NONE, NONE, NONE, NONE, NONE);
-//OPINFO(CS2R     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(DADD     , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(DFMA     , R   , NA  , RIC , NA  , RIC , NA  );
-OPINFO(DMUL     , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(DSETP    , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(EXIT     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(F2F      , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(F2I      , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(FADD     , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(FFMA     , R   , NA  , RIC , NA  , RIC , NA  );
-OPINFO(FLO      , RIC , NOT , NONE, NONE, NONE, NONE);
-OPINFO(FMNMX    , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(FMUL     , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(FRND     , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(FSET_BF  , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(FSETP    , R   , NA  , RIC , NA  , NONE, NONE);
-OPINFO(FSWZADD  , R   , NONE, R   , NONE, NONE, NONE);
-OPINFO(I2F      , RIC , NONE, NONE, NONE, NONE, NONE);
-OPINFO(IABS     , RIC , NONE, NONE, NONE, NONE, NONE);
-OPINFO(IADD3    , R   , NEG , RIC , NEG , R   , NEG );
-OPINFO(IMAD     , R   , NONE, RIC , NONE, RIC , NEG );
-OPINFO(IMAD_WIDE, R   , NONE, RIC , NONE, RC  , NEG );
-OPINFO(IPA      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(ISBERD   , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(ISETP    , R   , NONE, RIC , NONE, NONE, NONE);
-OPINFO(KILL     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(LD       , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(LDC      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(LDL      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(LDS      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(LEA      , R   , NEG , I   , NONE, RIC , NEG );
-OPINFO(LOP3_LUT , R   , NONE, RIC , NONE, R   , NONE);
-OPINFO(MEMBAR   , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(MOV      , RIC , NONE, NONE, NONE, NONE, NONE);
-OPINFO(MUFU     , RIC , NA  , NONE, NONE, NONE, NONE);
-OPINFO(NOP      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(OUT      , R   , NONE, RI  , NONE, NONE, NONE);
-OPINFO(PIXLD    , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(PLOP3_LUT, NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(POPC     , RIC , NOT , NONE, NONE, NONE, NONE);
-OPINFO(PRMT     , R   , NONE, RIC , NONE, RIC , NONE);
-OPINFO(RED      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(SGXT     , R   , NONE, RIC , NONE, NONE, NONE);
-OPINFO(S2R      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(SEL      , R   , NONE, RIC , NONE, NONE, NONE);
-OPINFO(SHF      , R   , NONE, RIC , NONE, RIC , NONE);
-OPINFO(SHFL     , R   , NONE, R   , NONE, R   , NONE);
-OPINFO(ST       , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(STL      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(STS      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(SUATOM   , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(SULD     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(SUST     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(TEX      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(TLD      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(TLD4     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(TMML     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(TXD      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(TXQ      , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(VOTE     , NONE, NONE, NONE, NONE, NONE, NONE);
-OPINFO(WARPSYNC , R   , NONE, NONE, NONE, NONE, NONE);
+OPINFO(AL2P     , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(ALD      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(AST      , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(ATOM     , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(ATOMS    , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(BAR      , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(BRA      , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(BMSK     , UR  , R   , NONE, URIC, NONE, NONE, NONE);
+OPINFO(BREV     , UR  , URIC, NONE, NONE, NONE, NONE, NONE);
+OPINFO(CCTL     , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+//OPINFO(CS2R     , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(DADD     , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(DFMA     , R   , R   , NA  , URIC, NA  , URIC, NA  );
+OPINFO(DMUL     , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(DSETP    , R   , R   , NA  , URIC, NA  , P   , NONE);
+OPINFO(EXIT     , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(F2F      , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(F2I      , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(FADD     , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(FFMA     , R   , R   , NA  , URIC, NA  , URIC, NA  );
+OPINFO(FLO      , UR  , URIC, NOT , NONE, NONE, NONE, NONE);
+OPINFO(FMNMX    , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(FMUL     , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(FRND     , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(FSET_BF  , R   , R   , NA  , URIC, NA  , NONE, NONE);
+OPINFO(FSETP    , R   , R   , NA  , URIC, NA  , P   , NONE);
+OPINFO(FSWZADD  , R   , R   , NONE, R   , NONE, NONE, NONE);
+OPINFO(I2F      , R   , URIC, NONE, NONE, NONE, NONE, NONE);
+OPINFO(IABS     , R   , URIC, NONE, NONE, NONE, NONE, NONE);
+OPINFO(IADD3    , UR  , R   , NEG , URIC, NEG , R   , NEG );
+OPINFO(IMAD     , UR  , R   , NONE, URIC, NONE, URIC, NEG );
+OPINFO(IMAD_WIDE, UR  , R   , NONE, URIC, NONE, RC  , NEG );
+OPINFO(IPA      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(ISBERD   , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(ISETP    , P   , R   , NONE, URIC, NONE, P   , NONE);
+OPINFO(KILL     , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(LD       , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(LDC      , UR  , C   , NONE, NONE, NONE, NONE, NONE);
+OPINFO(LDL      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(LDS      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(LEA      , UR  , R   , NEG , I   , NONE, URIC, NEG );
+OPINFO(LOP3_LUT , UR  , R   , NONE, URIC, NONE, R   , NONE);
+OPINFO(MEMBAR   , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(MOV      , UR  , URIC, NONE, NONE, NONE, NONE, NONE);
+OPINFO(MUFU     , R   , URIC, NA  , NONE, NONE, NONE, NONE);
+OPINFO(NOP      , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(OUT      , R   , R   , NONE, URI , NONE, NONE, NONE);
+OPINFO(PIXLD    , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(PLOP3_LUT, UR  , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(POPC     , UR  , URIC, NOT , NONE, NONE, NONE, NONE);
+OPINFO(PRMT     , UR  , R   , NONE, URIC, NONE, URIC, NONE);
+OPINFO(RED      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(SGXT     , UR  , R   , NONE, URIC, NONE, NONE, NONE);
+OPINFO(S2R      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(SEL      , UR  , R   , NONE, URIC, NONE, NONE, NONE);
+OPINFO(SHF      , UR  , R   , NONE, URIC, NONE, URIC, NONE);
+OPINFO(SHFL     , R   , R   , NONE, R   , NONE, R   , NONE);
+OPINFO(ST       , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(STL      , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(STS      , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(SUATOM   , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(SULD     , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(SUST     , NONE, NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(TEX      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(TLD      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(TLD4     , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(TMML     , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(TXD      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(TXQ      , R   , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(VOTE     , UR  , NONE, NONE, NONE, NONE, NONE, NONE);
+OPINFO(WARPSYNC , NONE, R   , NONE, NONE, NONE, NONE, NONE);
 
 static const struct opInfo *
 getOpInfo(const Instruction *i)
@@ -458,6 +465,95 @@ TargetGV100::isOpSupported(operation op, DataType ty) const
 }
 
 bool
+TargetGV100::isUniformSupported(const Instruction *i) const
+{
+   if (i->asTex())
+      return false;
+
+   if (i->op == OP_NOP)
+      return true;
+
+   // some SVs are uniform
+   if (i->op == OP_RDSV) {
+      switch (i->getSrc(0)->reg.data.sv.sv) {
+      case SV_CTAID:
+         return true;
+      default:
+         assert(!"SV wrongly marked as uniform");
+         break;
+      }
+   }
+
+   const struct opInfo *info = nv50_ir::getOpInfo(i);
+   // if def is uniform, all sources can and must be
+   bool uniformWrite = i->defExists(0);
+   for (int d = 0; i->defExists(d); ++d) {
+      Value *def = i->getDef(d);
+      if (!(info->def & 1 << def->reg.file))
+         return false;
+      uniformWrite &= def->reg.file == FILE_UGPR;
+   }
+
+   for (int s = 0; i->srcExists(s); ++s) {
+      const ValueRef &src = i->src(s);
+      DataFile file = src.getFile();
+
+      // TODO
+      if (src.getIndirect(0) || src.getIndirect(1))
+         return false;
+
+      // treat all UGPRs as GPRs
+      // only allow immediates and UGPRs
+      if (uniformWrite) {
+         switch (src.getFile()) {
+         case FILE_UGPR:
+            file = FILE_GPR;
+            continue;
+         case FILE_UPREDICATE:
+            file = FILE_PREDICATE;
+            continue;
+         case FILE_IMMEDIATE:
+            // treat 0 as reg
+            if (!src.get()->asImm()->reg.data.u64)
+               file = FILE_GPR;
+            break;
+         case FILE_MEMORY_CONST:
+            if (i->op == OP_MOV || i->op == OP_LOAD)
+               break;
+            return false;
+         default:
+            return false;
+         }
+      }
+
+      if (!(info->src[s].files & (1 << file)))
+         return false;
+
+      if (uniformWrite)
+         continue;
+
+      switch (i->op) {
+      case OP_FMA:
+      case OP_MAD:
+      case OP_PERMT:
+      case OP_SHL:
+      case OP_SHR:
+         if (s == 1 && i->src(1).getFile() == FILE_UGPR && i->src(2).getFile() != FILE_GPR)
+            return false;
+         else
+         if (s == 2 && i->src(2).getFile() == FILE_UGPR && i->src(1).getFile() != FILE_GPR)
+            return false;
+         break;
+      default:
+         break;
+      }
+
+   }
+
+   return true;
+}
+
+bool
 TargetGV100::isBarrierRequired(const Instruction *i) const
 {
    switch (i->op) {
@@ -487,14 +583,14 @@ TargetGV100::insnCanLoad(const Instruction *i, int s,
 
    if (info && s < (int)ARRAY_SIZE(info->src)) {
       files = info->src[s].files;
-      if ((s == 1 && i->srcExists(2) && i->src(2).getFile() != FILE_GPR) ||
-          (s == 2 && i->srcExists(1) && i->src(1).getFile() != FILE_GPR)) {
+      if ((s == 1 && i->srcExists(2) && !i->src(2).isGPR()) ||
+          (s == 2 && i->srcExists(1) && !i->src(1).isGPR())) {
          files &= ~(1 << FILE_MEMORY_CONST);
          files &= ~(1 << FILE_IMMEDIATE);
       } else
       if ((i->op == OP_SHL || i->op == OP_SHR) &&
-          ((s == 0 && i->srcExists(1) && i->src(1).getFile() != FILE_GPR) ||
-           (s == 1 && i->srcExists(0) && i->src(0).getFile() != FILE_GPR))) {
+          ((s == 0 && i->srcExists(1) && !i->src(1).isGPR()) ||
+           (s == 1 && i->srcExists(0) && !i->src(0).isGPR()))) {
          files &= ~(1 << FILE_MEMORY_CONST);
          files &= ~(1 << FILE_IMMEDIATE);
       }
@@ -565,7 +661,10 @@ TargetGV100::runLegalizePass(Program *prog, CGStage stage) const
    } else
    if (stage == CG_STAGE_SSA) {
       GV100LegalizeSSA pass(prog);
-      return pass.run(prog, false, true);
+      TU100LegalizeURegs uregs(this);
+      bool res = pass.run(prog, false, true);
+      uregs.run(prog, true, false);
+      return res;
    } else
    if (stage == CG_STAGE_POST_RA) {
       NVC0LegalizePostRA pass(prog);

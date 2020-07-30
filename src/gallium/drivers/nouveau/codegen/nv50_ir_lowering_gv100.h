@@ -74,5 +74,17 @@ private:
    bool handleSUB(Instruction *);
    bool handleJOINAT(FlowInstruction *);
 };
+
+class TU100LegalizeURegs : public Pass
+{
+public:
+   TU100LegalizeURegs(const Target *targ) : targ(targ) {}
+   virtual bool visit(Function *);
+   virtual bool visit(Instruction *);
+
+private:
+   const Target *targ;
+};
+
 }
 #endif

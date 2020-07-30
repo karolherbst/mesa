@@ -374,8 +374,10 @@ NVC0LegalizeSSA::visit(BasicBlock *bb)
 
 NVC0LegalizePostRA::NVC0LegalizePostRA(const Program *prog)
    : rZero(NULL),
+     urZero(NULL),
      carry(NULL),
      pOne(NULL),
+     upOne(NULL),
      needTexBar(prog->getTarget()->getChipset() >= 0xe0 &&
                 prog->getTarget()->getChipset() < 0x110)
 {
@@ -691,12 +693,16 @@ NVC0LegalizePostRA::visit(Function *fn)
       insertTextureBarriers(fn);
 
    rZero = new_LValue(fn, FILE_GPR);
+   urZero = new_LValue(fn, FILE_UGPR);
    pOne = new_LValue(fn, FILE_PREDICATE);
+   upOne = new_LValue(fn, FILE_UPREDICATE);
    carry = new_LValue(fn, FILE_FLAGS);
 
    rZero->reg.data.id = (prog->getTarget()->getChipset() >= NVISA_GK20A_CHIPSET) ? 255 : 63;
+   urZero->reg.data.id = 63;
    carry->reg.data.id = 0;
    pOne->reg.data.id = 7;
+   upOne->reg.data.id = 7;
 
    return true;
 }
@@ -712,11 +718,17 @@ NVC0LegalizePostRA::replaceZero(Instruction *i)
       ImmediateValue *imm = i->getSrc(s)->asImm();
       if (imm) {
          if (i->op == OP_SELP && s == 2) {
-            i->setSrc(s, pOne);
+            if (i->def(0).getFile() == FILE_UGPR || i->def(0).getFile() == FILE_UPREDICATE)
+               i->setSrc(s, upOne);
+            else
+               i->setSrc(s, pOne);
             if (imm->reg.data.u64 == 0)
                i->src(s).mod = i->src(s).mod ^ Modifier(NV50_IR_MOD_NOT);
          } else if (imm->reg.data.u64 == 0) {
-            i->setSrc(s, rZero);
+            if (i->defExists(0) && (i->def(0).getFile() == FILE_UGPR || i->def(0).getFile() == FILE_UPREDICATE))
+               i->setSrc(s, urZero);
+            else
+               i->setSrc(s, rZero);
          }
       }
    }

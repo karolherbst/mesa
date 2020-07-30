@@ -202,7 +202,7 @@ LoadPropagation::checkSwapSrc01(Instruction *insn)
       if (insn->op == OP_XMAD && (insn->subOp & NV50_IR_SUBOP_XMAD_MRG))
          return;
    }
-   if (insn->src(1).getFile() != FILE_GPR)
+   if (!insn->src(1).isGPR())
       return;
    // This is the special OP_SET used for alphatesting, we can't reverse its
    // arguments as that will confuse the fixup code.
@@ -1827,8 +1827,8 @@ AlgebraicOpt::handleABS(Instruction *abs)
       return;
 
    if ((sub->op != OP_ADD && sub->op != OP_SUB) ||
-       sub->src(0).getFile() != FILE_GPR || sub->src(0).mod ||
-       sub->src(1).getFile() != FILE_GPR || sub->src(1).mod)
+       !sub->src(0).isGPR() || sub->src(0).mod ||
+       !sub->src(1).isGPR() || sub->src(1).mod)
          return;
 
    Value *src0 = sub->getSrc(0);
@@ -1862,7 +1862,7 @@ AlgebraicOpt::handleADD(Instruction *add)
    Value *src0 = add->getSrc(0);
    Value *src1 = add->getSrc(1);
 
-   if (src0->reg.file != FILE_GPR || src1->reg.file != FILE_GPR)
+   if (!src0->isGPR() || !src1->isGPR())
       return false;
 
    bool changed = false;
@@ -1948,7 +1948,7 @@ AlgebraicOpt::handleMINMAX(Instruction *minmax)
    Value *src0 = minmax->getSrc(0);
    Value *src1 = minmax->getSrc(1);
 
-   if (src0 != src1 || src0->reg.file != FILE_GPR)
+   if (src0 != src1 || !src0->isGPR())
       return;
    if (minmax->src(0).mod == minmax->src(1).mod) {
       if (minmax->def(0).mayReplace(minmax->src(0))) {
@@ -2011,7 +2011,7 @@ AlgebraicOpt::handleLOGOP(Instruction *logop)
    Value *src0 = logop->getSrc(0);
    Value *src1 = logop->getSrc(1);
 
-   if (src0->reg.file != FILE_GPR || src1->reg.file != FILE_GPR)
+   if (!src0->isGPR() || !src1->isGPR())
       return;
 
    if (src0 == src1) {
@@ -2429,7 +2429,7 @@ LateAlgebraicOpt::handleADD(Instruction *add)
    Value *src0 = add->getSrc(0);
    Value *src1 = add->getSrc(1);
 
-   if (src0->reg.file != FILE_GPR || src1->reg.file != FILE_GPR)
+   if (!src0->isGPR() || !src1->isGPR())
       return;
 
    if (prog->getTarget()->isOpSupported(OP_SHLADD, add->dType))
@@ -2998,7 +2998,7 @@ MemoryOpt::replaceLdFromSt(Instruction *ld, Record *rec)
    for (d = 0; ld->defExists(d) && st->srcExists(s); ++d, ++s) {
       if (ld->getDef(d)->reg.size != st->getSrc(s)->reg.size)
          return false;
-      if (st->getSrc(s)->reg.file != FILE_GPR)
+      if (!st->getSrc(s)->isGPR())
          return false;
       ld->def(d).replace(st->src(s), false);
    }
@@ -3168,7 +3168,7 @@ MemoryOpt::runOpt(BasicBlock *bb)
       } else
       if (ldst->op == OP_STORE || ldst->op == OP_EXPORT) {
          if (typeSizeof(ldst->dType) == 4 &&
-             ldst->src(1).getFile() == FILE_GPR &&
+             ldst->src(1).isGPR() &&
              ldst->getSrc(1)->getInsn()->op == OP_NOP) {
             delete_Instruction(prog, ldst);
             continue;

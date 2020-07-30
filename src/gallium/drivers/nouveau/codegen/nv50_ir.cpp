@@ -1181,6 +1181,7 @@ Program::Program(Type type, Target *arch)
    binSize = 0;
 
    maxGPR = -1;
+   maxUGPR = -1;
    fp64 = false;
    persampleInvocation = false;
 
@@ -1348,6 +1349,7 @@ out:
    INFO_DBG(prog->dbgFlags, VERBOSE, "nv50_ir_generate_code: ret = %i\n", ret);
 
    info->bin.maxGPR = prog->maxGPR;
+   info->bin.maxUGPR = prog->maxUGPR;
    info->bin.code = prog->code;
    info->bin.codeSize = prog->binSize;
    info->bin.tlsSpace = prog->tlsSize;

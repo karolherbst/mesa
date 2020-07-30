@@ -714,9 +714,9 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
                                                 &prog->pipe.stream_output);
 
    pipe_debug_message(debug, SHADER_INFO,
-                      "type: %d, local: %d, shared: %d, gpr: %d, inst: %d, bytes: %d",
+                      "type: %d, local: %d, shared: %d, gpr: %d, ugpr: %d, inst: %d, bytes: %d",
                       prog->type, info->bin.tlsSpace, info->bin.smemSize,
-                      prog->num_gprs, info->bin.instructions,
+                      prog->num_gprs, info->bin.maxUGPR + 1, info->bin.instructions,
                       info->bin.codeSize);
 
 #ifndef NDEBUG

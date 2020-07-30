@@ -23,12 +23,15 @@
  */
 
 #include "codegen/nv50_ir_lowering_helper.h"
+#include "codegen/nv50_ir_target.h"
 
 namespace nv50_ir {
 
 bool
 LoweringHelper::visit(Instruction *insn)
 {
+   handleUniformRP(insn);
+
    switch (insn->op) {
    case OP_ABS:
       return handleABS(insn);
@@ -270,6 +273,36 @@ LoweringHelper::handleLogOp(Instruction *insn)
    insn->setSrc(1, def1);
 
    return true;
+}
+
+void
+LoweringHelper::handleUniformRP(Instruction *insn)
+{
+   if (hasUGPRS && hasUPreds)
+      return;
+
+   for (int d = 0; insn->defExists(d); ++d) {
+      Value *def = insn->getDef(d);
+      switch (def->reg.file) {
+
+      case FILE_UGPR:
+         def->reg.file = FILE_GPR;
+         break;
+
+      case FILE_UPREDICATE:
+         def->reg.file = FILE_PREDICATE;
+         break;
+
+      default:
+         continue;
+      }
+   }
+}
+
+LoweringHelper::LoweringHelper(Target *targ)
+:  Pass() {
+   hasUGPRS = targ->getFileSize(FILE_UGPR);
+   hasUPreds = targ->getFileSize(FILE_UPREDICATE);
 }
 
 } // namespace nv50_ir

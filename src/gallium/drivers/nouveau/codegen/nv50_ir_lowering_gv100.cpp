@@ -488,4 +488,134 @@ GV100LoweringPass::visit(Instruction *i)
    return true;
 }
 
+bool
+TU100LegalizeURegs::visit(Function *func)
+{
+   // TODO: we might want to iterate backwards for less iterations?
+   bool changed;
+   do {
+      changed = false;
+      IteratorRef bbIter = func->cfg.iteratorCFG();
+      for (; !bbIter->end(); bbIter->next()) {
+         BasicBlock *bb = BasicBlock::get(reinterpret_cast<Graph::Node *>(bbIter->get()));
+
+         for (Instruction *insn = bb->getFirst(); insn != NULL; insn = insn->next)
+            changed |= visit(insn);
+      }
+   } while (changed);
+
+   return false;
+}
+
+bool
+TU100LegalizeURegs::visit(Instruction *i)
+{
+   bool changed = false;
+   bool isUniform = false;
+
+   for (int d = 0; i->defExists(d); ++d) {
+      DataFile file = i->def(d).getFile();
+      isUniform |= file == FILE_UGPR || file == FILE_UPREDICATE;
+   }
+   for (int s = 0; i->srcExists(s); ++s) {
+      DataFile file = i->src(s).getFile();
+      isUniform |= file == FILE_UGPR || file == FILE_UPREDICATE;
+   }
+
+   if (!isUniform)
+      return false;
+
+   if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+      i->print();
+
+   // TODO: pseudo needs special handling
+   if (!i->isPseudo() && targ->isUniformSupported(i)) {
+      // we need to do a few fixups
+      if (i->op == OP_MOV && i->src(0).getFile() == FILE_MEMORY_CONST) {
+         i->op = OP_LOAD;
+      }
+      if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+         printf("true\n");
+      return changed;
+   }
+   if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+      printf("false\n");
+
+   // deal with constraints
+   switch (i->op) {
+   case OP_ADD:
+   case OP_FMA:
+   case OP_MAD:
+   case OP_MUL:
+      if (i->src(0).getFile() == FILE_UGPR &&
+          i->src(1).getFile() == FILE_GPR) {
+         changed = true;
+         i->swapSources(0, 1);
+      }
+      break;
+   default:
+      break;
+   }
+
+   for (int d = 0; i->defExists(d); ++d) {
+      Value *def = i->getDef(d);
+      switch (def->reg.file) {
+      case FILE_UGPR:
+         changed = true;
+         def->reg.file = FILE_GPR;
+         break;
+
+      case FILE_UPREDICATE:
+         changed = true;
+         def->reg.file = FILE_PREDICATE;
+         break;
+
+      default:
+         break;
+      }
+   }
+
+   if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+      i->print();
+
+   if (!i->isPseudo() && targ->isUniformSupported(i)) {
+      if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+         printf("true\n");
+      return changed;
+   }
+   if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+      printf("false\n");
+
+   for (int s = 0; i->srcExists(s); ++s) {
+      Value *src = i->getSrc(s);
+      switch (src->reg.file) {
+      case FILE_UGPR:
+         changed = true;
+         src->reg.file = FILE_GPR;
+         break;
+
+      case FILE_UPREDICATE:
+         changed = true;
+         src->reg.file = FILE_PREDICATE;
+         break;
+
+      default:
+         break;
+      }
+
+      if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+         i->print();
+
+      if (!i->isPseudo() && targ->isUniformSupported(i)) {
+         if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+            printf("true\n");
+         return changed;
+      }
+      if (i->bb->getProgram()->dbgFlags & NV50_IR_DEBUG_VERBOSE)
+         printf("false\n");
+   }
+
+   return changed;
+}
+
 } // namespace nv50_ir

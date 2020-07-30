@@ -78,6 +78,7 @@ struct nv50_ir_prog_symbol
 #define NVISA_GM107_CHIPSET    0x110
 #define NVISA_GM200_CHIPSET    0x120
 #define NVISA_GV100_CHIPSET    0x140
+#define NVISA_TU100_CHIPSET    0x160
 
 struct nv50_ir_prog_info
 {
@@ -91,6 +92,7 @@ struct nv50_ir_prog_info
 
    struct {
       int16_t maxGPR;     /* may be -1 if none used */
+      int16_t maxUGPR;     /* may be -1 if none used */
       uint32_t tlsSpace;  /* required local memory per thread */
       uint32_t smemSize;  /* required shared memory per block */
       uint32_t *code;

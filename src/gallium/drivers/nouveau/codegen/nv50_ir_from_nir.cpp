@@ -87,6 +87,9 @@ private:
    Value* getSrc(nir_src *, uint8_t, bool indirect = false);
    Value* getSrc(nir_ssa_def *, uint8_t);
 
+   template<typename T> Value* loadImm(T val, DataType ty = TYPE_U32);
+   template<typename T> Value* loadImm(Value *, T val);
+
    // returned value is the constant part of the given source (either the
    // nir_src or the selected source component of an intrinsic). Even though
    // this is mostly an optimization to be able to skip indirects in a few
@@ -721,7 +724,7 @@ Converter::convert(nir_ssa_def *def)
 
    LValues newDef(def->num_components);
    for (uint8_t i = 0; i < def->num_components; i++)
-      newDef[i] = getSSA(std::max(4, def->bit_size / 8));
+      newDef[i] = getSSA(std::max(4, def->bit_size / 8), def->divergent ? FILE_GPR : FILE_UGPR);
    return ssaDefs[def->index] = newDef;
 }
 
@@ -777,6 +780,20 @@ Converter::getSrc(nir_ssa_def *src, uint8_t idx)
    return it->second[idx];
 }
 
+template<typename T>
+Value*
+Converter::loadImm(T val, DataType ty)
+{
+   return BuildUtil::loadImm(getSSA(typeSizeof(ty), FILE_UGPR), val);
+}
+
+template<typename T>
+Value*
+Converter::loadImm(Value *val, T imm)
+{
+   return BuildUtil::loadImm(val, imm);
+}
+
 uint32_t
 Converter::getIndirect(nir_src *src, uint8_t idx, Value *&indirect)
 {
@@ -796,7 +813,7 @@ Converter::getIndirect(nir_intrinsic_instr *insn, uint8_t s, uint8_t c, Value *&
 {
    int32_t idx = nir_intrinsic_base(insn) + getIndirect(&insn->src[s], c, indirect);
    if (indirect && !isScalar)
-      indirect = mkOp2v(OP_SHL, TYPE_U32, getSSA(4, FILE_ADDRESS), indirect, loadImm(NULL, 4));
+      indirect = mkOp2v(OP_SHL, TYPE_U32, getSSA(4, indirect->reg.file), indirect, loadImm(4));
    return idx;
 }
 
@@ -1187,8 +1204,8 @@ Converter::loadFrom(DataFile file, uint8_t i, DataType ty, Value *def,
 
    if (tySize == 8 &&
        (file == FILE_MEMORY_CONST || file == FILE_MEMORY_BUFFER || indirect0)) {
-      Value *lo = getSSA();
-      Value *hi = getSSA();
+      Value *lo = getSSA(4, def->reg.file);
+      Value *hi = getSSA(4, def->reg.file);
 
       Instruction *loi =
          mkLoad(TYPE_U32, lo,
@@ -1227,8 +1244,8 @@ Converter::storeTo(nir_intrinsic_instr *insn, DataFile file, operation op,
       mkSplit(split, 4, src);
 
       if (op == OP_EXPORT) {
-         split[0] = mkMov(getSSA(), split[0], ty)->getDef(0);
-         split[1] = mkMov(getSSA(), split[1], ty)->getDef(0);
+         split[0] = mkMov(getSSA(4, src->reg.file), split[0], ty)->getDef(0);
+         split[1] = mkMov(getSSA(4, src->reg.file), split[1], ty)->getDef(0);
       }
 
       mkStore(op, TYPE_U32, mkSymbol(file, 0, TYPE_U32, address), indirect0,
@@ -1237,7 +1254,7 @@ Converter::storeTo(nir_intrinsic_instr *insn, DataFile file, operation op,
               split[1])->perPatch = info->out[idx].patch;
    } else {
       if (op == OP_EXPORT)
-         src = mkMov(getSSA(size), src, ty)->getDef(0);
+         src = mkMov(getSSA(size, src->reg.file), src, ty)->getDef(0);
       mkStore(op, ty, mkSymbol(file, 0, ty, address), indirect0,
               src)->perPatch = info->out[idx].patch;
    }
@@ -1724,8 +1741,8 @@ Converter::visit(nir_intrinsic_instr *insn)
          if (prog->getType() == Program::TYPE_FRAGMENT) {
             int s = 1;
             if (typeSizeof(dType) == 8) {
-               Value *lo = getSSA();
-               Value *hi = getSSA();
+               Value *lo = getSSA(4, newDefs[i]->reg.file);
+               Value *hi = getSSA(4, newDefs[i]->reg.file);
                Instruction *interp;
 
                interp = mkOp1(nvirOp, TYPE_U32, lo, sym);
@@ -1788,9 +1805,9 @@ Converter::visit(nir_intrinsic_instr *insn)
          Value *offs[2];
          for (uint8_t c = 0; c < 2; c++) {
             offs[c] = getScratch();
-            mkOp2(OP_MIN, TYPE_F32, offs[c], getSrc(&insn->src[0], c), loadImm(NULL, 0.4375f));
-            mkOp2(OP_MAX, TYPE_F32, offs[c], offs[c], loadImm(NULL, -0.5f));
-            mkOp2(OP_MUL, TYPE_F32, offs[c], offs[c], loadImm(NULL, 4096.0f));
+            mkOp2(OP_MIN, TYPE_F32, offs[c], getSrc(&insn->src[0], c), loadImm(0.4375f));
+            mkOp2(OP_MAX, TYPE_F32, offs[c], offs[c], loadImm(-0.5f));
+            mkOp2(OP_MUL, TYPE_F32, offs[c], offs[c], loadImm(4096.0f));
             mkCvt(OP_CVT, TYPE_S32, offs[c], TYPE_F32, offs[c]);
          }
          mkOp3v(OP_INSBF, TYPE_U32, newDefs[0], offs[1], mkImm(0x1010), offs[0]);
@@ -1859,7 +1876,7 @@ Converter::visit(nir_intrinsic_instr *insn)
       for (uint8_t i = 0u; i < nir_intrinsic_dest_components(insn); ++i) {
          Value *def;
          if (typeSizeof(dType) == 8)
-            def = getSSA();
+            def = getSSA(4, newDefs[i]->reg.file);
          else
             def = newDefs[i];
 
@@ -1873,7 +1890,7 @@ Converter::visit(nir_intrinsic_instr *insn)
          }
 
          if (typeSizeof(dType) == 8)
-            mkOp2(OP_MERGE, dType, newDefs[i], def, loadImm(getSSA(), 0u));
+            mkOp2(OP_MERGE, dType, newDefs[i], def, loadImm(0u));
       }
       break;
    }
@@ -1948,7 +1965,7 @@ Converter::visit(nir_intrinsic_instr *insn)
       if (indirectVertex)
          vtxBase = indirectVertex;
       else
-         vtxBase = loadImm(NULL, baseVertex);
+         vtxBase = loadImm(baseVertex);
 
       vtxBase = mkOp2v(OP_ADD, TYPE_U32, getSSA(4, FILE_ADDRESS), outBase, vtxBase);
 
@@ -2395,16 +2412,16 @@ Converter::convert(nir_load_const_instr *insn, uint8_t idx)
 
    switch (insn->def.bit_size) {
    case 64:
-      val = loadImm(getSSA(8), insn->value[idx].u64);
+      val = loadImm(insn->value[idx].u64, TYPE_U64);
       break;
    case 32:
-      val = loadImm(getSSA(4), insn->value[idx].u32);
+      val = loadImm(insn->value[idx].u32, TYPE_U32);
       break;
    case 16:
-      val = loadImm(getSSA(2), insn->value[idx].u16);
+      val = loadImm(insn->value[idx].u16, TYPE_U16);
       break;
    case 8:
-      val = loadImm(getSSA(1), insn->value[idx].u8);
+      val = loadImm(insn->value[idx].u8, TYPE_U8);
       break;
    default:
       unreachable("unhandled bit size!\n");
@@ -2497,7 +2514,7 @@ Converter::visit(nir_alu_instr *insn)
       operation preOp = preOperationNeeded(op);
       if (preOp != OP_NOP) {
          assert(info.num_inputs < 2);
-         Value *tmp = getSSA(typeSizeof(dType));
+         Value *tmp = getSSA(typeSizeof(dType), newDefs[0]->reg.file);
          Instruction *i0 = mkOp(preOp, dType, tmp);
          Instruction *i1 = mkOp(getOperation(op), dType, newDefs[0]);
          if (info.num_inputs) {
@@ -2590,7 +2607,7 @@ Converter::visit(nir_alu_instr *insn)
          Value *indirect = NULL;
 
          if (reg.indirect)
-            indirect = mkOp2v(OP_MUL, TYPE_U32, getSSA(4, FILE_ADDRESS),
+            indirect = mkOp2v(OP_MUL, TYPE_U32, getSSA(4, getSrc(reg.indirect, 0)->reg.file),
                               getSrc(reg.indirect, 0), mkImm(csize));
 
          for (uint8_t i = 0u; i < comps; ++i) {
@@ -2612,7 +2629,7 @@ Converter::visit(nir_alu_instr *insn)
          Value *indirect = NULL;
 
          if (reg.indirect)
-            indirect = mkOp2v(OP_MUL, TYPE_U32, getSSA(4, FILE_ADDRESS), getSrc(reg.indirect, 0), mkImm(csize));
+            indirect = mkOp2v(OP_MUL, TYPE_U32, getSSA(4, getSrc(reg.indirect, 0)->reg.file), getSrc(reg.indirect, 0), mkImm(csize));
 
          for (uint8_t i = 0u; i < newDefs.size(); ++i)
             loadFrom(FILE_MEMORY_LOCAL, 0, dType, newDefs[i], goffset + aoffset, i, indirect);
@@ -2632,6 +2649,10 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_vec16: {
       LValues &newDefs = convert(&insn->dest);
       for (LValues::size_type c = 0u; c < newDefs.size(); ++c) {
+         Value *src = getSrc(&insn->src[c]);
+         // TODO this is a bit ugly, but the best we can do right now
+         if (&insn->dest.dest.is_ssa)
+            newDefs[c]->reg.file = src->reg.file;
          mkMov(newDefs[c], getSrc(&insn->src[c]), dType);
       }
       break;
@@ -2646,8 +2667,8 @@ Converter::visit(nir_alu_instr *insn)
    }
    case nir_op_pack_half_2x16_split: {
       LValues &newDefs = convert(&insn->dest);
-      Value *tmpH = getSSA();
-      Value *tmpL = getSSA();
+      Value *tmpH = getSSA(4, newDefs[0]->reg.file);
+      Value *tmpL = getSSA(4, newDefs[0]->reg.file);
 
       mkCvt(OP_CVT, TYPE_F16, tmpL, TYPE_F32, getSrc(&insn->src[0]));
       mkCvt(OP_CVT, TYPE_F16, tmpH, TYPE_F32, getSrc(&insn->src[1]));
@@ -2669,12 +2690,12 @@ Converter::visit(nir_alu_instr *insn)
    }
    case nir_op_unpack_64_2x32_split_x: {
       LValues &newDefs = convert(&insn->dest);
-      mkOp1(OP_SPLIT, dType, newDefs[0], getSrc(&insn->src[0]))->setDef(1, getSSA());
+      mkOp1(OP_SPLIT, dType, newDefs[0], getSrc(&insn->src[0]))->setDef(1, getSSA(4, newDefs[0]->reg.file));
       break;
    }
    case nir_op_unpack_64_2x32_split_y: {
       LValues &newDefs = convert(&insn->dest);
-      mkOp1(OP_SPLIT, dType, getSSA(), getSrc(&insn->src[0]))->setDef(1, newDefs[0]);
+      mkOp1(OP_SPLIT, dType, getSSA(4, newDefs[0]->reg.file), getSrc(&insn->src[0]))->setDef(1, newDefs[0]);
       break;
    }
    // special instructions
@@ -2698,7 +2719,7 @@ Converter::visit(nir_alu_instr *insn)
          mkCvt(OP_CVT, TYPE_F64, newDefs[0], iType, val0);
       } else if (dType == TYPE_S64 || dType == TYPE_U64) {
          mkOp2(OP_SUB, iType, val0, val1, val0);
-         mkOp2(OP_SHR, iType, val1, val0, loadImm(NULL, 31));
+         mkOp2(OP_SHR, iType, val1, val0, loadImm(31));
          mkOp2(OP_MERGE, dType, newDefs[0], val0, val1);
       } else if (::isFloatType(dType))
          mkOp2(OP_SUB, iType, newDefs[0], val0, val1);
@@ -2716,9 +2737,9 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_ibitfield_extract:
    case nir_op_ubitfield_extract: {
       DEFAULT_CHECKS;
-      Value *tmp = getSSA();
       LValues &newDefs = convert(&insn->dest);
-      mkOp3(OP_INSBF, dType, tmp, getSrc(&insn->src[2]), loadImm(NULL, 0x808), getSrc(&insn->src[1]));
+      Value *tmp = getSSA(4, getSrc(&insn->src[2])->reg.file == FILE_UGPR && getSrc(&insn->src[1])->reg.file == FILE_UGPR ? FILE_UGPR : FILE_GPR);
+      mkOp3(OP_INSBF, dType, tmp, getSrc(&insn->src[2]), loadImm(0x808), getSrc(&insn->src[1]));
       mkOp2(OP_EXTBF, dType, newDefs[0], getSrc(&insn->src[0]), tmp);
       break;
    }
@@ -2731,7 +2752,7 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_bitfield_insert: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      LValue *temp = getSSA();
+      LValue *temp = getSSA(4, getSrc(&insn->src[2])->reg.file == FILE_UGPR && getSrc(&insn->src[3])->reg.file == FILE_UGPR ? FILE_UGPR : FILE_GPR);
       mkOp3(OP_INSBF, TYPE_U32, temp, getSrc(&insn->src[3]), mkImm(0x808), getSrc(&insn->src[2]));
       mkOp3(OP_INSBF, dType, newDefs[0], getSrc(&insn->src[1]), temp, getSrc(&insn->src[0]));
       break;
@@ -2751,7 +2772,7 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_find_lsb: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      Value *tmp = getSSA();
+      Value *tmp = getSSA(4, getSrc(&insn->src[0])->reg.file);
       mkOp1(OP_BREV, TYPE_U32, tmp, getSrc(&insn->src[0]));
       mkOp1(OP_BFIND, TYPE_U32, newDefs[0], tmp)->subOp = NV50_IR_SUBOP_BFIND_SAMT;
       break;
@@ -2759,33 +2780,33 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_extract_u8: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      Value *prmt = getSSA();
-      mkOp2(OP_OR, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(NULL, 0x4440));
-      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(NULL, 0));
+      Value *prmt = getSSA(4, getSrc(&insn->src[1])->reg.file);
+      mkOp2(OP_OR, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(0x4440));
+      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(0));
       break;
    }
    case nir_op_extract_i8: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      Value *prmt = getSSA();
-      mkOp3(OP_MAD, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(NULL, 0x1111), loadImm(NULL, 0x8880));
-      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(NULL, 0));
+      Value *prmt = getSSA(4, getSrc(&insn->src[1])->reg.file);
+      mkOp3(OP_MAD, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(0x1111), loadImm(0x8880));
+      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(0));
       break;
    }
    case nir_op_extract_u16: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      Value *prmt = getSSA();
-      mkOp3(OP_MAD, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(NULL, 0x22), loadImm(NULL, 0x4410));
-      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(NULL, 0));
+      Value *prmt = getSSA(4, getSrc(&insn->src[1])->reg.file);
+      mkOp3(OP_MAD, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(0x22), loadImm(0x4410));
+      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(0));
       break;
    }
    case nir_op_extract_i16: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      Value *prmt = getSSA();
-      mkOp3(OP_MAD, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(NULL, 0x2222), loadImm(NULL, 0x9910));
-      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(NULL, 0));
+      Value *prmt = getSSA(4, getSrc(&insn->src[1])->reg.file);
+      mkOp3(OP_MAD, TYPE_U32, prmt, getSrc(&insn->src[1]), loadImm(0x2222), loadImm(0x9910));
+      mkOp3(OP_PERMT, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), prmt, loadImm(0));
       break;
    }
    case nir_op_urol: {
@@ -2812,15 +2833,15 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_b2f32: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      mkOp2(OP_AND, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), loadImm(NULL, 1.0f));
+      mkOp2(OP_AND, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), loadImm(1.0f));
       break;
    }
    case nir_op_b2f64: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      Value *tmp = getSSA(4);
-      mkOp2(OP_AND, TYPE_U32, tmp, getSrc(&insn->src[0]), loadImm(NULL, 0x3ff00000));
-      mkOp2(OP_MERGE, TYPE_U64, newDefs[0], loadImm(NULL, 0), tmp);
+      Value *tmp = getSSA(4, getSrc(&insn->src[0])->reg.file);
+      mkOp2(OP_AND, TYPE_U32, tmp, getSrc(&insn->src[0]), loadImm(0x3ff00000));
+      mkOp2(OP_MERGE, TYPE_U64, newDefs[0], loadImm(0), tmp);
       break;
    }
    case nir_op_f2b32:
@@ -2829,7 +2850,7 @@ Converter::visit(nir_alu_instr *insn)
       LValues &newDefs = convert(&insn->dest);
       Value *src1;
       if (typeSizeof(sTypes[0]) == 8) {
-         src1 = loadImm(getSSA(8), 0.0);
+         src1 = loadImm(0.0, TYPE_F64);
       } else {
          src1 = zero;
       }
@@ -2840,15 +2861,15 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_b2i32: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
-      mkOp2(OP_AND, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), loadImm(NULL, 1));
+      mkOp2(OP_AND, TYPE_U32, newDefs[0], getSrc(&insn->src[0]), loadImm(1));
       break;
    }
    case nir_op_b2i64: {
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
       LValue *def = getScratch();
-      mkOp2(OP_AND, TYPE_U32, def, getSrc(&insn->src[0]), loadImm(NULL, 1));
-      mkOp2(OP_MERGE, TYPE_S64, newDefs[0], def, loadImm(NULL, 0));
+      mkOp2(OP_AND, TYPE_U32, def, getSrc(&insn->src[0]), loadImm(1));
+      mkOp2(OP_MERGE, TYPE_S64, newDefs[0], def, loadImm(0));
       break;
    }
    default:
@@ -3017,7 +3038,7 @@ Converter::visit(nir_tex_instr *insn)
       if (insn->op == nir_texop_texture_samples)
          srcs.push_back(zero);
       else if (!insn->num_srcs)
-         srcs.push_back(loadImm(NULL, 0));
+         srcs.push_back(loadImm(0));
       if (biasIdx != -1)
          srcs.push_back(getSrc(&insn->src[biasIdx].src, 0));
       if (lodIdx != -1)
@@ -3107,7 +3128,7 @@ Converter::visit(nir_tex_instr *insn)
             setPosition(texi, false);
             for (uint8_t i = 0; i < 4; ++i) {
                for (uint8_t j = 0; j < 2; ++j) {
-                  texi->offset[i][j].set(loadImm(NULL, insn->tg4_offsets[i][j]));
+                  texi->offset[i][j].set(loadImm(insn->tg4_offsets[i][j]));
                   texi->offset[i][j].setInsn(texi);
                }
             }
@@ -3173,8 +3194,13 @@ Converter::run()
    } while (progress);
 
    NIR_PASS_V(nir, nir_lower_bool_to_int32);
+
+   NIR_PASS_V(nir, nir_convert_to_lcssa, true, false);
+
    NIR_PASS_V(nir, nir_lower_locals_to_regs);
    NIR_PASS_V(nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
+
+   nir_divergence_analysis(nir, (nir_divergence_options)0);
    NIR_PASS_V(nir, nir_convert_from_ssa, true);
 
    // Garbage collect dead instructions
@@ -3213,7 +3239,7 @@ Program::makeFromNIR(struct nv50_ir_prog_info *info)
    bool result = converter.run();
    if (!result)
       return result;
-   LoweringHelper lowering;
+   LoweringHelper lowering(this->target);
    lowering.run(this);
    tlsSize = info->bin.tlsSpace;
    return result;

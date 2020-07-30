@@ -226,6 +226,7 @@ public:
    virtual bool isSatSupported(const Instruction *) const = 0;
    virtual bool isPostMultiplySupported(operation op, float f,
                                         int& e) const { return false; }
+   virtual bool isUniformSupported(const Instruction *) const { return false; }
    virtual bool mayPredicate(const Instruction *,
                              const Value *) const = 0;
 
