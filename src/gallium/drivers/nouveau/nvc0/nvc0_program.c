@@ -646,7 +646,7 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
    prog->relocs = info->bin.relocData;
    prog->fixups = info->bin.fixupData;
    if (info->target >= NVISA_GV100_CHIPSET)
-      prog->num_gprs = MIN2(info->bin.maxGPR + 5, 256); //XXX: why?
+      prog->num_gprs = MIN2(info->bin.maxGPR + 3, 256); //XXX: why?
    else
       prog->num_gprs = MAX2(4, (info->bin.maxGPR + 1));
    prog->cp.smem_size = info->bin.smemSize;
@@ -716,7 +716,7 @@ nvc0_program_translate(struct nvc0_program *prog, uint16_t chipset,
    pipe_debug_message(debug, SHADER_INFO,
                       "type: %d, local: %d, shared: %d, gpr: %d, inst: %d, bytes: %d",
                       prog->type, info->bin.tlsSpace, info->bin.smemSize,
-                      prog->num_gprs, info->bin.instructions,
+                      info->bin.maxGPR + 1, info->bin.instructions,
                       info->bin.codeSize);
 
 #ifndef NDEBUG
