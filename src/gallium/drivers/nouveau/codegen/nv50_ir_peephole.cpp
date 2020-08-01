@@ -3383,7 +3383,7 @@ FlatteningPass::tryPropagateBranch(BasicBlock *bb)
       if (!rep || rep->getPredicate())
          continue;
       if (rep->op != OP_BRA &&
-          rep->op != OP_JOIN &&
+          (rep->op != OP_JOIN || !prog->getTarget()->hasJoin) &&
           rep->op != OP_EXIT)
          continue;
 
