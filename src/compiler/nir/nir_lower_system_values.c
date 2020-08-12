@@ -227,6 +227,7 @@ lower_compute_system_value_instr(nir_builder *b,
                                  nir_instr *instr, void *_options)
 {
    nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+   const nir_lower_compute_system_values_options *options = _options;
 
    /* All the intrinsics we care about are loads */
    if (!nir_intrinsic_infos[intrin->intrinsic].has_dest)
@@ -331,8 +332,9 @@ lower_compute_system_value_instr(nir_builder *b,
          return nir_u2u(b, nir_build_imm(b, 3, 32, local_size_const), bit_size);
       }
 
-   case nir_intrinsic_load_global_invocation_id: {
-      if (b->shader->options->lower_cs_global_id_from_local) {
+   case nir_intrinsic_load_global_invocation_id_zero_base: {
+      if ((options && options->has_base_work_group_id) ||
+          b->shader->options->lower_cs_global_id_from_local) {
          nir_ssa_def *group_size = nir_load_local_group_size(b);
          nir_ssa_def *group_id = nir_load_work_group_id(b, bit_size);
          nir_ssa_def *local_id = nir_load_local_invocation_id(b);
@@ -346,8 +348,21 @@ lower_compute_system_value_instr(nir_builder *b,
       }
    }
 
+   case nir_intrinsic_load_global_invocation_id: {
+      if (options && options->has_base_global_invocation_id)
+         return nir_iadd(b, nir_load_global_invocation_id_zero_base(b, bit_size),
+                            nir_load_base_global_invocation_id(b, bit_size));
+      else if (b->shader->options->lower_cs_global_id_from_local)
+         return nir_load_global_invocation_id_zero_base(b, bit_size);
+      else
+         return NULL;
+   }
+
    case nir_intrinsic_load_global_invocation_index: {
-      nir_ssa_def *global_id = nir_load_global_invocation_id(b, bit_size);
+      /* OpenCL's global_linear_id explicitly removes the global offset before computing this */
+      assert(b->shader->info.stage == MESA_SHADER_KERNEL);
+      nir_ssa_def *global_base_id = nir_load_base_global_invocation_id(b, bit_size);
+      nir_ssa_def *global_id = nir_isub(b, nir_load_global_invocation_id(b, bit_size), global_base_id);
       nir_ssa_def *global_size = build_global_group_size(b, bit_size);
 
       /* index = id.x + ((id.y + (id.z * size.y)) * size.x) */
@@ -360,13 +375,22 @@ lower_compute_system_value_instr(nir_builder *b,
       return index;
    }
 
+   case nir_intrinsic_load_work_group_id: {
+      if (options && options->has_base_work_group_id)
+         return nir_iadd(b, nir_u2u(b, nir_load_work_group_id_zero_base(b), bit_size),
+                            nir_load_base_work_group_id(b, bit_size));
+      else
+         return NULL;
+   }
+
    default:
       return NULL;
    }
 }
 
 bool
-nir_lower_compute_system_values(nir_shader *shader)
+nir_lower_compute_system_values(nir_shader *shader,
+                                const nir_lower_compute_system_values_options *options)
 {
    if (shader->info.stage != MESA_SHADER_COMPUTE &&
        shader->info.stage != MESA_SHADER_KERNEL)
@@ -375,5 +399,5 @@ nir_lower_compute_system_values(nir_shader *shader)
    return nir_shader_lower_instructions(shader,
                                         lower_compute_system_value_filter,
                                         lower_compute_system_value_instr,
-                                        NULL);
+                                        (void*)options);
 }
