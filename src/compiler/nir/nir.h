@@ -4264,6 +4264,7 @@ bool nir_lower_subgroups(nir_shader *shader,
                          const nir_lower_subgroups_options *options);
 
 bool nir_lower_system_values(nir_shader *shader);
+bool nir_lower_compute_system_values(nir_shader *shader);
 
 enum PACKED nir_lower_tex_packing {
    nir_lower_tex_packing_none = 0,
