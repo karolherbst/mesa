@@ -318,7 +318,14 @@ namespace {
          maximum_spirv_version = SPIRV::VersionNumber::MaximumVersion;
       }
 
-      return SPIRV::TranslatorOpts(maximum_spirv_version);
+      SPIRV::TranslatorOpts::ExtensionsStatusMap spirv_extensions;
+      for (auto &ext : spirv::supported_extensions()) {
+         #define EXT(X) if (ext == #X) spirv_extensions.insert({ SPIRV::ExtensionID::X, true });
+         #include <LLVMSPIRVLib/LLVMSPIRVExtensions.inc>
+         #undef EXT
+      }
+
+      return SPIRV::TranslatorOpts(maximum_spirv_version, spirv_extensions);
    }
 #endif
 }
