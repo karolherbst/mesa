@@ -1486,7 +1486,7 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          break;
       case OP_MUL:
          int muls;
-         if (isFloatType(si->dType))
+         if (isFloatType(si->dType) || i->subOp == NV50_IR_SUBOP_SHIFT_WRAP)
             return false;
          if (si->src(1).getImmediate(imm1))
             muls = 1;
