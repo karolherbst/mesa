@@ -1470,11 +1470,18 @@ ConstantFolding::opnd(Instruction *i, ImmediateValue &imm0, int s)
          }
          break;
       case OP_SHR:
-         if (si->src(1).getImmediate(imm1) && imm0.reg.data.u32 == imm1.reg.data.u32) {
+         if (si->src(1).getImmediate(imm1) && imm0.reg.data.u32 == imm1.reg.data.u32 &&
+             si->subOp == i->subOp) {
             bld.setPosition(i, false);
-            i->op = OP_AND;
-            i->setSrc(0, si->getSrc(0));
-            i->setSrc(1, bld.loadImm(NULL, ~((1 << imm0.reg.data.u32) - 1)));
+            if (i->subOp == NV50_IR_SUBOP_SHIFT_WRAP) {
+               i->op = OP_MOV;
+               i->setSrc(0, si->getSrc(0));
+               i->setSrc(1, NULL);
+            } else {
+               i->op = OP_AND;
+               i->setSrc(0, si->getSrc(0));
+               i->setSrc(1, bld.loadImm(NULL, ~((1 << imm0.reg.data.u32) - 1)));
+            }
          }
          break;
       case OP_MUL:
