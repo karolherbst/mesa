@@ -471,8 +471,8 @@ validate_deref_instr(nir_deref_instr *instr, validate_state *state)
                                    glsl_type_is_vector(parent->type));
          } else {
             /* Most of NIR cannot handle array derefs on vectors */
-            validate_assert(state, glsl_type_is_array(parent->type) ||
-                                   glsl_type_is_matrix(parent->type));
+//            validate_assert(state, glsl_type_is_array(parent->type) ||
+//                                   glsl_type_is_matrix(parent->type));
          }
          validate_assert(state,
             instr->type == glsl_get_array_element(parent->type));
