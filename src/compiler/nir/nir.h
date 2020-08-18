@@ -1380,7 +1380,7 @@ nir_alu_instr_is_comparison(const nir_alu_instr *instr)
    case nir_op_flt:
    case nir_op_fge:
    case nir_op_feq:
-   case nir_op_fne:
+   case nir_op_fneu:
    case nir_op_ilt:
    case nir_op_ult:
    case nir_op_ige:
