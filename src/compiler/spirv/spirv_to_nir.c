@@ -710,6 +710,7 @@ vtn_types_compatible(struct vtn_builder *b,
    case vtn_base_type_image:
    case vtn_base_type_sampler:
    case vtn_base_type_sampled_image:
+   case vtn_base_type_event:
       return t1->type == t2->type;
 
    case vtn_base_type_array:
@@ -765,6 +766,7 @@ vtn_type_copy(struct vtn_builder *b, struct vtn_type *src)
    case vtn_base_type_image:
    case vtn_base_type_sampler:
    case vtn_base_type_sampled_image:
+   case vtn_base_type_event:
       /* Nothing more to do */
       break;
 
@@ -1696,8 +1698,12 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
          vtn_mode_to_address_format(b, vtn_variable_mode_function));
       break;
 
-   case SpvOpTypeOpaque:
    case SpvOpTypeEvent:
+      val->type->base_type = vtn_base_type_event;
+      val->type->type = glsl_int_type();
+      break;
+
+   case SpvOpTypeOpaque:
    case SpvOpTypeDeviceEvent:
    case SpvOpTypeReserveId:
    case SpvOpTypeQueue:
@@ -1747,6 +1753,7 @@ vtn_null_constant(struct vtn_builder *b, struct vtn_type *type)
    case vtn_base_type_sampler:
    case vtn_base_type_sampled_image:
    case vtn_base_type_function:
+   case vtn_base_type_event:
       /* For those we have to return something but it doesn't matter what. */
       break;
 
