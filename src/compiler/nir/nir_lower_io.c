@@ -762,7 +762,8 @@ build_addr_for_var(nir_builder *b, nir_variable *var,
                    nir_address_format addr_format)
 {
    assert(var->data.mode & (nir_var_shader_in | nir_var_mem_shared |
-                            nir_var_shader_temp | nir_var_function_temp));
+                            nir_var_shader_temp | nir_var_function_temp |
+                            nir_var_mem_constant));
 
    const unsigned num_comps = nir_address_format_num_components(addr_format);
    const unsigned bit_size = nir_address_format_bit_size(addr_format);
@@ -778,6 +779,10 @@ build_addr_for_var(nir_builder *b, nir_variable *var,
 
       case nir_var_function_temp:
          base_addr = nir_load_scratch_base_ptr(b, 1, num_comps, bit_size);
+         break;
+
+      case nir_var_mem_constant:
+         base_addr = nir_load_constant_base_ptr(b, num_comps, bit_size);
          break;
 
       default:
@@ -938,6 +943,14 @@ build_explicit_io_load(nir_builder *b, nir_intrinsic_instr *intrin,
          op = nir_intrinsic_load_global;
       }
       break;
+   case nir_var_mem_constant:
+      if (addr_format_is_offset(addr_format)) {
+         op = nir_intrinsic_load_constant;
+      } else {
+         assert(addr_format_is_global(addr_format));
+         op = nir_intrinsic_load_global;
+      }
+      break;
    default:
       unreachable("Unsupported explicit IO variable mode");
    }
@@ -956,6 +969,11 @@ build_explicit_io_load(nir_builder *b, nir_intrinsic_instr *intrin,
 
    if (nir_intrinsic_infos[op].index_map[NIR_INTRINSIC_ACCESS] > 0)
       nir_intrinsic_set_access(load, nir_intrinsic_access(intrin));
+
+   if (op == nir_intrinsic_load_constant) {
+      nir_intrinsic_set_base(load, 0);
+      nir_intrinsic_set_range(load, b->shader->constant_data_size);
+   }
 
    unsigned bit_size = intrin->dest.ssa.bit_size;
    if (bit_size == 1) {
@@ -1535,6 +1553,9 @@ lower_vars_to_explicit(nir_shader *shader,
    case nir_var_mem_shared:
       offset = 0;
       break;
+   case nir_var_mem_constant:
+      offset = shader->constant_data_size;
+      break;
    default:
       unreachable("Unsupported mode");
    }
@@ -1546,13 +1567,12 @@ lower_vars_to_explicit(nir_shader *shader,
       const struct glsl_type *explicit_type =
          glsl_get_explicit_type_for_size_align(var->type, type_info, &size, &align);
 
-      if (explicit_type != var->type) {
-         progress = true;
+      if (explicit_type != var->type)
          var->type = explicit_type;
-      }
 
       var->data.driver_location = ALIGN_POT(offset, align);
       offset = var->data.driver_location + size;
+      progress = true;
    }
 
    switch (mode) {
@@ -1563,6 +1583,9 @@ lower_vars_to_explicit(nir_shader *shader,
    case nir_var_mem_shared:
       shader->info.cs.shared_size = offset;
       shader->num_shared = offset;
+      break;
+   case nir_var_mem_constant:
+      shader->constant_data_size = offset;
       break;
    default:
       unreachable("Unsupported mode");
@@ -1602,6 +1625,94 @@ nir_lower_vars_to_explicit_types(nir_shader *shader,
    }
 
    return progress;
+}
+
+static void
+write_constant(void *dst, const nir_constant *c, const struct glsl_type *type)
+{
+   if (glsl_type_is_vector_or_scalar(type)) {
+      const unsigned num_components = glsl_get_vector_elements(type);
+      const unsigned bit_size = glsl_get_bit_size(type);
+      switch (bit_size) {
+      case 1:
+         /* Booleans are special-cased to be 32-bit
+          *
+          * TODO: Make the native bool bit_size an option.
+          */
+         for (unsigned i = 0; i < num_components; i++)
+            ((int32_t *)dst)[i] = -(int)c->values[i].b;
+         break;
+
+      case 8:
+         for (unsigned i = 0; i < num_components; i++)
+            ((uint8_t *)dst)[i] = c->values[i].u8;
+         break;
+
+      case 16:
+         for (unsigned i = 0; i < num_components; i++)
+            ((uint16_t *)dst)[i] = c->values[i].u16;
+         break;
+
+      case 32:
+         for (unsigned i = 0; i < num_components; i++)
+            ((uint32_t *)dst)[i] = c->values[i].u32;
+         break;
+
+      case 64:
+         for (unsigned i = 0; i < num_components; i++)
+            ((uint64_t *)dst)[i] = c->values[i].u64;
+         break;
+
+      default:
+         unreachable("Invalid bit size");
+      }
+   } else if (glsl_type_is_array_or_matrix(type)) {
+      const unsigned array_len = glsl_get_length(type);
+      const unsigned stride = glsl_get_explicit_stride(type);
+      const struct glsl_type *elem_type = glsl_get_array_element(type);
+      for (unsigned i = 0; i < array_len; i++)
+         write_constant((char *)dst + i * stride, c->elements[i], elem_type);
+   } else {
+      assert(glsl_type_is_struct_or_ifc(type));
+      const unsigned num_fields = glsl_get_length(type);
+      for (unsigned i = 0; i < num_fields; i++) {
+         const int field_offset = glsl_get_struct_field_offset(type, i);
+         const struct glsl_type *field_type = glsl_get_struct_field(type, i);
+         write_constant((char *)dst + field_offset, c->elements[i], field_type);
+      }
+   }
+}
+
+bool
+nir_lower_mem_constant_vars(nir_shader *shader,
+                            glsl_type_size_align_func type_info)
+{
+   unsigned old_constant_data_size = shader->constant_data_size;
+   if (!lower_vars_to_explicit(shader, &shader->variables,
+                               nir_var_mem_constant, type_info)) {
+      nir_shader_preserve_all_metadata(shader);
+      return false;
+   }
+
+   shader->constant_data = rerzalloc_size(shader, shader->constant_data,
+                                          old_constant_data_size,
+                                          shader->constant_data_size);
+
+   nir_foreach_variable_with_modes(var, shader, nir_var_mem_constant) {
+      write_constant((char *)shader->constant_data + var->data.driver_location,
+                     var->constant_initializer, var->type);
+   }
+
+   nir_foreach_function(function, shader) {
+      if (!function->impl)
+         continue;
+
+      nir_lower_vars_to_explicit_types_impl(function->impl,
+                                            nir_var_mem_constant,
+                                            type_info);
+   }
+
+   return true;
 }
 
 /**
