@@ -1439,27 +1439,13 @@ if with_gallium_opencl
   ]
 endif
 
-if with_amd_vk or with_gallium_radeonsi
+with_opencl_spirv = _opencl != 'disabled' and get_option('opencl-spirv')
+if with_amd_vk or with_gallium_radeonsi or with_opencl_spirv
   _llvm_version = '>= 8.0.0'
 elif with_gallium_swr
   _llvm_version = '>= 6.0.0'
 else
   _llvm_version = '>= 3.9.0'
-endif
-
-with_opencl_spirv = _opencl != 'disabled' and get_option('opencl-spirv')
-if with_opencl_spirv
-  _minimum_llvmspirvlib_version = '8.0.1.3' # this is the first version exposing new API used in clover.
-  _minimum_llvmspirvlib_version_array = _minimum_llvmspirvlib_version.split('.')
-  _minimum_llvmspirvlib_version_major = _minimum_llvmspirvlib_version_array[0]
-  _minimum_llvmspirvlib_version_minor = _minimum_llvmspirvlib_version_array[1]
-  llvm_spirvlib_base_llvm_version = '>= @0@.@1@'.format(_minimum_llvmspirvlib_version_major, _minimum_llvmspirvlib_version_minor)
-
-  # Ensure that the SPIRV-LLVM-Translator's LLVM version requirement is not
-  # incompatible with existing requirements.
-  if not llvm_spirvlib_base_llvm_version.version_compare(_llvm_version)
-    error('SPIRV-LLVM-Translator requirements on a minimum LLVM version (@0@) are not compatible with existing requirements (@1@).'.format(llvm_spirvlib_base_llvm_version, _llvm_version))
-  endif
 endif
 
 _shared_llvm = get_option('shared-llvm')
@@ -1560,7 +1546,7 @@ if with_opencl_spirv
     # we do not want to accept SPIRV-LLVM-Translator 8.0.0.1 as that version does
     # not have the required API and those are only available starting from
     # 8.0.1.3.
-    '>= @0@'.format(_minimum_llvmspirvlib_version),
+    '>= 8.0.1.3',
     '>= @0@.@1@'.format(chosen_llvm_version_major, chosen_llvm_version_minor),
     '< @0@.@1@'.format(chosen_llvm_version_major, chosen_llvm_version_minor + 1) ]
 
