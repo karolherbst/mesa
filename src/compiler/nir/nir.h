@@ -120,7 +120,8 @@ typedef enum {
    nir_var_mem_shared      = (1 << 8),
    nir_var_mem_global      = (1 << 9),
    nir_var_mem_push_const  = (1 << 10), /* not actually used for variables */
-   nir_num_variable_modes  = 11,
+   nir_var_mem_constant    = (1 << 11),
+   nir_num_variable_modes  = 12,
    nir_var_all             = (1 << nir_num_variable_modes) - 1,
 } nir_variable_mode;
 
@@ -328,7 +329,7 @@ typedef struct nir_variable {
        *
        * \sa nir_variable_mode
        */
-      nir_variable_mode mode:11;
+      nir_variable_mode mode:12;
 
       /**
        * Is the variable read-only?
