@@ -4382,10 +4382,6 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
          assert(nir_address_format_num_components(b->options->global_addr_format) == 1);
          assert(nir_address_format_bit_size(b->options->shared_addr_format) == 32);
          assert(nir_address_format_num_components(b->options->shared_addr_format) == 1);
-         if (!b->options->constant_as_global) {
-            assert(nir_address_format_bit_size(b->options->ubo_addr_format) == 32);
-            assert(nir_address_format_num_components(b->options->ubo_addr_format) == 1);
-         }
          break;
       case SpvAddressingModelPhysical64:
          vtn_fail_if(b->shader->info.stage != MESA_SHADER_KERNEL,
@@ -4396,10 +4392,6 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
          assert(nir_address_format_num_components(b->options->global_addr_format) == 1);
          assert(nir_address_format_bit_size(b->options->shared_addr_format) == 64);
          assert(nir_address_format_num_components(b->options->shared_addr_format) == 1);
-         if (!b->options->constant_as_global) {
-            assert(nir_address_format_bit_size(b->options->ubo_addr_format) == 64);
-            assert(nir_address_format_num_components(b->options->ubo_addr_format) == 1);
-         }
          break;
       case SpvAddressingModelLogical:
          vtn_fail_if(b->shader->info.stage == MESA_SHADER_KERNEL,
