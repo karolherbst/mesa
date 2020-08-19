@@ -64,6 +64,7 @@ namespace clover {
       private:
          void *st;
          pipe_compute_state cs;
+         cl_mem constant_buffer;
       };
 
    public:
