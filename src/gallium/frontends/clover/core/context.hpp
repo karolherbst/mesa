@@ -27,6 +27,8 @@
 #include "core/device.hpp"
 #include "core/property.hpp"
 
+#include <unordered_map>
+
 namespace clover {
    class context : public ref_counter, public _cl_context {
    private:
@@ -37,6 +39,7 @@ namespace clover {
 
    public:
       typedef std::function<void (const char *)> notify_action;
+      typedef std::unordered_map<const void*, size_t> svm_pointer_map;
 
       context(const property_list &props, const ref_vector<device> &devs,
               const notify_action &notify);
@@ -56,11 +59,21 @@ namespace clover {
       device_range
       devices() const;
 
+      void
+      add_svm_allocation(const void *ptr, size_t size);
+
+      void
+      remove_svm_allocation(const void *ptr);
+
+      svm_pointer_map::value_type
+      find_svm_allocation(const void *ptr) const;
+
       const notify_action notify;
 
    private:
       property_list props;
       const std::vector<intrusive_ref<device>> devs;
+      svm_pointer_map svm_ptrs;
    };
 }
 

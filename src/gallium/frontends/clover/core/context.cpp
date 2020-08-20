@@ -49,3 +49,33 @@ context::device_range
 context::devices() const {
    return map(evals(), devs);
 }
+
+void
+context::add_svm_allocation(const void *ptr, size_t size) {
+   svm_ptrs.emplace(ptr, size);
+}
+
+void
+context::remove_svm_allocation(const void *ptr) {
+   svm_ptrs.erase(ptr);
+}
+
+context::svm_pointer_map::value_type
+context::find_svm_allocation(const void *ptr) const {
+   auto it = svm_ptrs.find(ptr);
+
+   if (it != svm_ptrs.end())
+      return *it;
+
+   /* direct lookup failed, search for allocation ptr is part of */
+   for (const auto &p : svm_ptrs) {
+      uintptr_t base = reinterpret_cast<uintptr_t>(p.first);
+      uintptr_t end  = p.second + base;
+      uintptr_t ptrv = reinterpret_cast<uintptr_t>(ptr);
+
+      if (ptrv >= base && ptrv < end)
+         return p;
+   }
+
+   return { nullptr, 0 };
+}
