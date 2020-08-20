@@ -1324,12 +1324,14 @@ clEnqueueSVMMigrateMem(cl_command_queue d_q,
          throw error(CL_INVALID_VALUE);
 
       auto p = q.context().find_svm_allocation(ptr);
-      if (!p.first)
+      if (!p.first && !size)
          throw error(CL_INVALID_VALUE);
 
-      std::ptrdiff_t pdiff = (uint8_t*)ptr - (uint8_t*)p.first;
-      if (size && size + pdiff > p.second)
-         throw error(CL_INVALID_VALUE);
+      if (p.first) {
+         std::ptrdiff_t pdiff = (uint8_t*)ptr - (uint8_t*)p.first;
+         if (size + pdiff > p.second)
+            throw error(CL_INVALID_VALUE);
+      }
 
       sizes_copy[i] = size ? size : p.second;
       ptrs[i] = size ? svm_pointers[i] : p.first;
