@@ -450,6 +450,10 @@ clSVMAlloc(cl_context d_ctx,
       if (alignment < sizeof(void*))
          alignment = sizeof(void*);
       posix_memalign(&ptr, alignment, size);
+
+      if (ptr)
+         ctx.add_svm_allocation(ptr, size);
+
       return ptr;
    }
 
@@ -466,8 +470,10 @@ clSVMFree(cl_context d_ctx,
    auto &ctx = obj(d_ctx);
    bool can_emulate = all_of(std::mem_fn(&device::has_system_svm), ctx.devices());
 
-   if (can_emulate)
+   if (can_emulate) {
+      ctx.remove_svm_allocation(svm_pointer);
       return free(svm_pointer);
+   }
 
    CLOVER_NOT_SUPPORTED_UNTIL("2.0");
 
