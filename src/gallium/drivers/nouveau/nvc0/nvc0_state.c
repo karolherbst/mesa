@@ -1394,7 +1394,10 @@ nvc0_set_global_bindings(struct pipe_context *pipe,
       ptr = util_dynarray_element(
          &nvc0->global_residents, struct pipe_resource *, start);
       for (i = 0; i < nr; ++i) {
-         pipe_resource_reference(&ptr[i], resources[i]);
+         struct nv04_resource *res = nv04_resource(resources[i]);
+         if (!(res->status & NOUVEAU_BUFFER_STATUS_USER_PTR))
+            pipe_resource_reference(&ptr[i], resources[i]);
+
          nvc0_set_global_handle(handles[i], resources[i]);
       }
    } else {
