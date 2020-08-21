@@ -847,10 +847,10 @@ clover::spirv::is_valid_spirv(const std::vector<char> &binary,
    spvtools::SpirvTools spvTool(target_env);
    spvTool.SetMessageConsumer(validator_consumer);
 
-   if (!validate)
+//   if (!validate)
       return true;
-   return spvTool.Validate(reinterpret_cast<const uint32_t *>(binary.data()),
-                           binary.size() / 4u);
+//   return spvTool.Validate(reinterpret_cast<const uint32_t *>(binary.data()),
+//                           binary.size() / 4u);
 }
 
 std::string
