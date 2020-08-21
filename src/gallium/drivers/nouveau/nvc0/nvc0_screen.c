@@ -888,10 +888,10 @@ nvc0_screen_resize_tls_area(struct nvc0_screen *screen,
    int ret;
    uint64_t size = (lpos + lneg) * 32 + cstack;
 
-   if (size >= (1 << 20)) {
-      NOUVEAU_ERR("requested TLS size too large: 0x%"PRIx64"\n", size);
-      return -1;
-   }
+//   if (size >= (1 << 20)) {
+//      NOUVEAU_ERR("requested TLS size too large: 0x%"PRIx64"\n", size);
+//      return -1;
+//   }
 
    size *= (screen->base.device->chipset >= 0xe0) ? 64 : 48; /* max warps */
    size  = align(size, 0x8000);
@@ -1324,7 +1324,7 @@ nvc0_screen_create(struct nouveau_device *dev)
    screen->mp_count = value >> 8;
    screen->mp_count_compute = screen->mp_count;
 
-   ret = nvc0_screen_resize_tls_area(screen, 128 * 16, 0, 0x200);
+   ret = nvc0_screen_resize_tls_area(screen, 128 * 16 * 16, 0, 0x200);
    if (ret)
       FAIL_SCREEN_INIT("Error allocating TLS area: %d\n", ret);
 
