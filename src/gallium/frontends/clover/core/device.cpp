@@ -350,7 +350,7 @@ device::supported_extensions() const {
       + std::string(has_doubles() ? " cl_khr_fp64" : "")
       + std::string(has_halves() ? " cl_khr_fp16" : "")
       + std::string(svm_support() ? " cl_arm_shared_virtual_memory" : "")
-      + std::string(supports_il_program ? " cl_khr_il_program" : "");
+      + std::string(supports_il_program ? " cl_khr_il_program cl_khr_spirv_no_integer_wrap_decoration" : "");
 }
 
 std::string
