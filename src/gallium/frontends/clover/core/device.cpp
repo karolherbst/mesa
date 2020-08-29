@@ -48,6 +48,13 @@ namespace {
    }
 }
 
+std::shared_ptr<nir_shader>
+device::set_up_clc()
+{
+   std::string log;
+   return { nir::libclc_spirv_to_nir(clc, *this, log), ralloc_free };
+}
+
 device::device(clover::platform &platform, pipe_loader_device *ldev) :
    platform(platform), clc_cache(NULL), ldev(ldev) {
    pipe = pipe_loader_create_screen(ldev);
@@ -57,7 +64,7 @@ device::device(clover::platform &platform, pipe_loader_device *ldev) :
 #ifdef HAVE_CLOVER_SPIRV
       if (supports_ir(PIPE_SHADER_IR_NIR_SERIALIZED)) {
          load_clc();
-         clc_nir = lazy<std::shared_ptr<nir_shader>>([&] () { std::string log; return std::shared_ptr<nir_shader>(nir::libclc_spirv_to_nir(clc, *this, log), ralloc_free); });
+         clc_nir = { std::bind(&device::set_up_clc, this) };
          return;
       }
 #endif

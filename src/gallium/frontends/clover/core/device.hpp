@@ -114,6 +114,8 @@ namespace clover {
       lazy<std::shared_ptr<struct nir_shader>> clc_nir;
       struct disk_cache *clc_cache;
    private:
+      std::shared_ptr<nir_shader> set_up_clc();
+
       pipe_screen *pipe;
       pipe_loader_device *ldev;
    };
