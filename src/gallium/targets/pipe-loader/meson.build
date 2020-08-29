@@ -45,10 +45,6 @@ if with_ld_version_script
   pipe_loader_link_deps += files('pipe.sym')
 endif
 
-if with_gallium_iris
-  pipe_loader_link_with += _libxmlconfig
-endif
-
 pipe_loader_install_dir = join_paths(get_option('libdir'), 'gallium-pipe')
 
 _kmsro_targets = [
@@ -60,11 +56,9 @@ if with_gallium_v3d
    _kmsro_targets += [idep_xmlconfig, dep_expat]
 endif
 
-
 pipe_loaders = [
   [with_gallium_i915, 'i915', driver_i915, []],
   [with_gallium_nouveau, 'nouveau', driver_nouveau, []],
-  [with_gallium_iris, 'iris', driver_iris, []],
   [with_gallium_r300, 'r300', driver_r300, []],
   [with_gallium_r600, 'r600', driver_r600, []],
   [with_gallium_radeonsi, 'radeonsi', [driver_radeonsi, idep_xmlconfig], []],

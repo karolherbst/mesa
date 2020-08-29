@@ -899,26 +899,6 @@ brw_vectorize_lower_mem_access(nir_shader *nir,
    }
 }
 
-static nir_lower_atomics_strategy
-intel_ir_lower_atomics_callback(const nir_intrinsic_instr *intr)
-{
-   switch (intr->intrinsic) {
-   case nir_intrinsic_shared_atomic_add:
-   case nir_intrinsic_shared_atomic_and:
-   case nir_intrinsic_shared_atomic_imax:
-   case nir_intrinsic_shared_atomic_imin:
-   case nir_intrinsic_shared_atomic_umax:
-   case nir_intrinsic_shared_atomic_umin:
-   case nir_intrinsic_shared_atomic_or:
-   case nir_intrinsic_shared_atomic_xor:
-//      if (nir_dest_bit_size(intr->dest) == 64)
-      return nir_lower_atomics_strategy_comp_swap_loop;
-//      return nir_lower_atomics_strategy_none;
-   default:
-      return nir_lower_atomics_strategy_none;
-   }
-}
-
 /* Prepare the given shader for codegen
  *
  * This function is intended to be called right before going into the actual
@@ -1007,8 +987,6 @@ brw_postprocess_nir(nir_shader *nir, const struct brw_compiler *compiler,
    OPT(nir_copy_prop);
    OPT(nir_opt_dce);
    OPT(nir_opt_move, nir_move_comparisons);
-
-   OPT(nir_lower_atomics, intel_ir_lower_atomics_callback);
 
    OPT(nir_lower_bool_to_int32);
    OPT(nir_copy_prop);
