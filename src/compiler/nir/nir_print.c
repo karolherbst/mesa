@@ -248,8 +248,6 @@ print_alu_instr(nir_alu_instr *instr, print_state *state)
    fprintf(fp, " = %s", nir_op_infos[instr->op].name);
    if (instr->exact)
       fprintf(fp, "!");
-   if (instr->cl)
-      fprintf(fp, ".cl");
    if (instr->dest.saturate)
       fprintf(fp, ".sat");
    if (instr->no_signed_wrap)
