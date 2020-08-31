@@ -79,6 +79,7 @@ lower_reduction(nir_alu_instr *alu, nir_op chan_op, nir_op merge_op,
          chan->src[1].swizzle[0] = chan->src[1].swizzle[i];
       }
       chan->exact = alu->exact;
+      chan->cl = alu->cl;
 
       nir_builder_instr_insert(builder, &chan->instr);
 
@@ -106,6 +107,7 @@ lower_alu_instr_scalar(nir_builder *b, nir_instr *instr, void *_data)
 
    b->cursor = nir_before_instr(&alu->instr);
    b->exact = alu->exact;
+   b->cl = alu->cl;
 
    if (data->cb && !data->cb(instr, data->data))
       return NULL;
@@ -266,6 +268,7 @@ lower_alu_instr_scalar(nir_builder *b, nir_instr *instr, void *_data)
       lower->dest.saturate = alu->dest.saturate;
       comps[chan] = &lower->dest.dest.ssa;
       lower->exact = alu->exact;
+      lower->cl = alu->cl;
 
       nir_builder_instr_insert(b, &lower->instr);
    }
