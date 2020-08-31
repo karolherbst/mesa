@@ -113,7 +113,8 @@ hash_alu(uint32_t hash, const nir_alu_instr *instr)
 
    /* We explicitly don't hash instr->exact. */
    uint8_t flags = instr->no_signed_wrap |
-                   instr->no_unsigned_wrap << 1;
+                   instr->no_unsigned_wrap << 1 |
+                   instr->cl << 2;
    hash = HASH(hash, flags);
 
    hash = HASH(hash, instr->dest.dest.ssa.num_components);
@@ -567,6 +568,9 @@ nir_instrs_equal(const nir_instr *instr1, const nir_instr *instr2)
          return false;
 
       if (alu1->no_unsigned_wrap != alu2->no_unsigned_wrap)
+         return false;
+
+      if (alu1->cl != alu2->cl)
          return false;
 
       /* TODO: We can probably acutally do something more inteligent such

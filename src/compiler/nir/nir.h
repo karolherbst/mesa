@@ -1341,6 +1341,8 @@ typedef struct nir_alu_instr {
     */
    bool exact:1;
 
+   bool cl:1;
+
    /**
     * Indicates that this instruction do not cause wrapping to occur, in the
     * form of overflow or underflow.
