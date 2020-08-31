@@ -1030,7 +1030,6 @@ clone_alu_and_replace_src_defs(nir_builder *b, const nir_alu_instr *alu,
 {
    nir_alu_instr *nalu = nir_alu_instr_create(b->shader, alu->op);
    nalu->exact = alu->exact;
-   nalu->cl = alu->cl;
 
    nir_ssa_dest_init(&nalu->instr, &nalu->dest.dest,
                      alu->dest.dest.ssa.num_components,

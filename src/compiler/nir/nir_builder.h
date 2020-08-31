@@ -35,8 +35,6 @@ typedef struct nir_builder {
 
    /* Whether new ALU instructions will be marked "exact" */
    bool exact;
-   /* Whether new ALU instructions will be marked "cl" */
-   bool cl;
 
    /* Whether to run divergence analysis on inserted instructions (loop merge
     * and header phis are not updated). */
@@ -51,7 +49,6 @@ nir_builder_init(nir_builder *build, nir_function_impl *impl)
 {
    memset(build, 0, sizeof(*build));
    build->exact = false;
-   build->cl = false;
    build->impl = impl;
    build->shader = impl->function->shader;
 }
@@ -66,7 +63,6 @@ nir_builder_init_simple_shader(nir_builder *build, void *mem_ctx,
    nir_function *func = nir_function_create(build->shader, "main");
    func->is_entrypoint = true;
    build->exact = false;
-   build->cl = false;
    build->impl = nir_function_impl_create(func);
    build->cursor = nir_after_cf_list(&build->impl->body);
 }
@@ -419,7 +415,6 @@ nir_builder_alu_instr_finish_and_insert(nir_builder *build, nir_alu_instr *instr
    const nir_op_info *op_info = &nir_op_infos[instr->op];
 
    instr->exact = build->exact;
-   instr->cl = build->cl;
 
    /* Guess the number of components the destination temporary should have
     * based on our input sizes, if it's not fixed for the op.
@@ -536,7 +531,6 @@ nir_mov_alu(nir_builder *build, nir_alu_src src, unsigned num_components)
    nir_ssa_dest_init(&mov->instr, &mov->dest.dest, num_components,
                      nir_src_bit_size(src.src), NULL);
    mov->exact = build->exact;
-   mov->cl = build->cl;
    mov->dest.write_mask = (1 << num_components) - 1;
    mov->src[0] = src;
    nir_builder_instr_insert(build, &mov->instr);

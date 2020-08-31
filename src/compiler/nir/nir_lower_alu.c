@@ -48,7 +48,6 @@ lower_alu_instr(nir_alu_instr *instr, nir_builder *b)
 
    b->cursor = nir_before_instr(&instr->instr);
    b->exact = instr->exact;
-   b->cl = instr->cl;
 
    switch (instr->op) {
    case nir_op_bitfield_reverse:

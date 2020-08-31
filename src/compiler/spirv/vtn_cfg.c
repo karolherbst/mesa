@@ -204,7 +204,6 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
       nir_builder_init(&b->nb, func->impl);
       b->nb.cursor = nir_before_cf_list(&b->func->impl->body);
       b->nb.exact = b->exact;
-      b->nb.cl = b->shader->info.stage == MESA_SHADER_KERNEL;
 
       b->func_param_idx = 0;
 
@@ -1362,7 +1361,6 @@ vtn_function_emit(struct vtn_builder *b, struct vtn_function *func,
    b->func = func;
    b->nb.cursor = nir_after_cf_list(&func->impl->body);
    b->nb.exact = b->exact;
-   b->nb.cl = b->shader->info.stage == MESA_SHADER_KERNEL;
    b->has_loop_continue = false;
    b->phi_table = _mesa_pointer_hash_table_create(b);
 

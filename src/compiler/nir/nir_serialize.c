@@ -856,9 +856,6 @@ write_alu(write_ctx *ctx, const nir_alu_instr *alu)
 
    write_dest(ctx, &alu->dest.dest, header, alu->instr.type);
 
-   if (ctx->nir->info.stage == MESA_SHADER_KERNEL)
-      blob_write_uint8(ctx->blob, alu->cl);
-
    if (!alu->dest.dest.is_ssa && dst_components > 4)
       blob_write_uint32(ctx->blob, alu->dest.write_mask);
 
@@ -918,9 +915,6 @@ read_alu(read_ctx *ctx, union packed_instr header)
    alu->dest.saturate = header.alu.saturate;
 
    read_dest(ctx, &alu->dest.dest, &alu->instr, header);
-
-   if (ctx->nir->info.stage == MESA_SHADER_KERNEL)
-      alu->cl = blob_read_uint8(ctx->blob);
 
    unsigned dst_components = nir_dest_num_components(alu->dest.dest);
 

@@ -509,8 +509,6 @@ module clover::nir::spirv_to_nir(const module &mod, const device &dev,
       nir->info.cs.local_size[2] = sym.reqd_work_group_size[2];
       nir_validate_shader(nir, "clover");
 
-      nir_print_shader(nir, stdout);
-
       // Inline all functions first.
       // according to the comment on nir_inline_functions
       NIR_PASS_V(nir, nir_lower_variable_initializers, nir_var_function_temp);
