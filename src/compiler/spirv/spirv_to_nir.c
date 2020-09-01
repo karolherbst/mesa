@@ -5568,8 +5568,6 @@ vtn_emit_kernel_entry_point_wrapper(struct vtn_builder *b,
    const char *func_name =
       ralloc_asprintf(b->shader, "__wrapped_%s", entry_point->name);
 
-   /* we shouldn't have any inputs yet */
-   vtn_assert(!entry_point->shader->num_inputs);
    vtn_assert(b->shader->info.stage == MESA_SHADER_KERNEL);
 
    nir_function *main_entry_point = nir_function_create(b->shader, func_name);
@@ -5612,7 +5610,6 @@ vtn_emit_kernel_entry_point_wrapper(struct vtn_builder *b,
          in_var->type = param_type->type;
 
       nir_shader_add_variable(b->nb.shader, in_var);
-      b->nb.shader->num_inputs++;
 
       /* we have to copy the entire variable into function memory */
       if (is_by_val) {
