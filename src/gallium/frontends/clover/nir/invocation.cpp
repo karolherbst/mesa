@@ -147,7 +147,7 @@ clover_lower_nir(nir_shader *nir, std::vector<module::argument> &args,
 
       constant_var = nir_variable_create(nir, nir_var_uniform, type,
                                          "constant_buffer_addr");
-      constant_var->data.location = nir->num_uniforms++;
+      constant_var->data.location = args.size() - 1;
    }
 
    clover_lower_nir_state state = { args, dims, constant_var };
@@ -327,6 +327,7 @@ module clover::nir::spirv_to_nir(const module &mod, const device &dev,
       NIR_PASS_V(nir, nir_lower_compute_system_values, &sysval_options);
 
       NIR_PASS_V(nir, nir_remove_dead_variables, nir_var_mem_constant, NULL);
+      NIR_PASS_V(nir, nir_lower_vars_to_explicit_types, nir_var_mem_constant, glsl_get_cl_type_size_align);
       NIR_PASS_V(nir, nir_lower_mem_constant_vars, glsl_get_cl_type_size_align);
       NIR_PASS_V(nir, nir_lower_explicit_io, nir_var_mem_constant,
                  spirv_options.constant_addr_format);
