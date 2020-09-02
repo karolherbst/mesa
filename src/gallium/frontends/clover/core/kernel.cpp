@@ -146,7 +146,7 @@ kernel::module(const command_queue &q) const {
 }
 
 kernel::exec_context::exec_context(kernel &kern) :
-   kern(kern), q(NULL), mem_local(0), st(NULL), cs() {
+   kern(kern), q(NULL), mem_local(0), st(NULL), cs(), constant_buffer(nullptr) {
 }
 
 kernel::exec_context::~exec_context() {
@@ -163,7 +163,18 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
    auto &m = kern.program().build(q->device()).binary;
    auto msym = find(name_equals(kern.name()), m.syms);
    auto margs = msym.args;
-   auto msec = find(id_equals(msym.section), m.secs);
+   const auto id = msym.section;
+   auto msec =
+      find(id_type_equals(id, module::section::text_executable), m.secs);
+
+   const auto f = id_type_equals(id, module::section::data_constant);
+   if (any_of(f, m.secs)) {
+      auto mconst = find(f, m.secs);
+      constant_buffer =
+         new root_buffer(q->context(), CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY,
+                         mconst.size, mconst.data.data());
+   }
+
    auto explicit_arg = kern._args.begin();
 
    for (auto &marg : margs) {
@@ -217,6 +228,14 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
          }
          break;
       }
+      case module::argument::constant_buffer: {
+         assert(constant_buffer);
+
+         auto arg = argument::create(marg);
+         arg->set(q->device().address_bits() / 8, &constant_buffer);
+         arg->bind(*this, marg);
+         break;
+      }
       }
    }
 
@@ -253,6 +272,8 @@ kernel::exec_context::unbind() {
    g_buffers.clear();
    g_handles.clear();
    mem_local = 0;
+   delete pobj(constant_buffer);
+   constant_buffer = nullptr;
 }
 
 namespace {
