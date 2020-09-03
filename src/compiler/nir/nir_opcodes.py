@@ -936,6 +936,7 @@ def triop_horiz(name, output_size, src1_size, src2_size, src3_size, const_expr):
    [src1_size, src2_size, src3_size],
    [tuint, tuint, tuint], False, "", const_expr)
 
+triop("fmad", tfloat, _2src_commutative, "src0 * src1 + src2")
 triop("ffma", tfloat, _2src_commutative, """
 if (nir_is_rounding_mode_rtz(execution_mode, bit_size)) {
    if (bit_size == 64)
