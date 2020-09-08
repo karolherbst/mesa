@@ -188,6 +188,12 @@ nir_fast_normalize(nir_builder *b, nir_ssa_def *vec)
 }
 
 static inline nir_ssa_def*
+nir_fmad(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y, nir_ssa_def *z)
+{
+   return nir_fadd(b, nir_fmul(b, x, y), z);
+}
+
+static inline nir_ssa_def*
 nir_maxmag(nir_builder *b, nir_ssa_def *x, nir_ssa_def *y)
 {
    nir_ssa_def *xabs = nir_fabs(b, x);
