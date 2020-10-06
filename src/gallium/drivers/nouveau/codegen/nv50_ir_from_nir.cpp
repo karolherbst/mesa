@@ -92,8 +92,6 @@ private:
    Value* convert(nir_load_const_instr*, uint8_t);
    LValues& convert(nir_register *);
    LValues& convert(nir_ssa_def *);
-   DataType convert(nir_alu_type);
-   RoundMode convert(nir_rounding_mode);
 
    Value* getSrc(nir_alu_src *, uint8_t component = 0);
    Value* getSrc(nir_register *, uint8_t);
@@ -353,41 +351,6 @@ Converter::getSType(nir_src &src, bool isFloat, bool isSigned)
    return ty;
 }
 
-DataType
-Converter::convert(nir_alu_type type)
-{
-   switch (type) {
-   case nir_type_int8:    return TYPE_S8;
-   case nir_type_int16:   return TYPE_S16;
-   case nir_type_int32:   return TYPE_S32;
-   case nir_type_int64:   return TYPE_S64;
-   case nir_type_uint8:   return TYPE_U8;
-   case nir_type_uint16:  return TYPE_U16;
-   case nir_type_uint32:  return TYPE_U32;
-   case nir_type_uint64:  return TYPE_U64;
-   case nir_type_float16: return TYPE_F16;
-   case nir_type_float32: return TYPE_F32;
-   case nir_type_float64: return TYPE_F64;
-   default:
-      ERROR("unsupported nir_alu_type\n");
-      assert(false);
-      return TYPE_NONE;
-   }
-}
-
-RoundMode
-Converter::convert(nir_rounding_mode mode)
-{
-   switch (mode) {
-   case nir_rounding_mode_undef: return ROUND_N;
-   case nir_rounding_mode_rtne:  return ROUND_N;
-   case nir_rounding_mode_ru:    return ROUND_P;
-   case nir_rounding_mode_rd:    return ROUND_M;
-   case nir_rounding_mode_rtz:   return ROUND_Z;
-   }
-   return ROUND_N;
-}
-
 DataFile
 Converter::getFile(nir_intrinsic_op op)
 {
@@ -431,6 +394,24 @@ Converter::getOperation(nir_op op)
       return OP_CEIL;
    case nir_op_fcos:
       return OP_COS;
+   case nir_op_f2f32:
+   case nir_op_f2f64:
+   case nir_op_f2i32:
+   case nir_op_f2i64:
+   case nir_op_f2u8:
+   case nir_op_f2u32:
+   case nir_op_f2u64:
+   case nir_op_i2f32:
+   case nir_op_i2f64:
+   case nir_op_i2i32:
+   case nir_op_i2i64:
+   case nir_op_u2f32:
+   case nir_op_u2f64:
+   case nir_op_u2u8:
+   case nir_op_u2u16:
+   case nir_op_u2u32:
+   case nir_op_u2u64:
+      return OP_CVT;
    case nir_op_fddx:
    case nir_op_fddx_coarse:
    case nir_op_fddx_fine:
@@ -2390,19 +2371,6 @@ Converter::visit(nir_intrinsic_instr *insn)
       info_out->io.globalAccess |= 0x2;
       break;
    }
-   // convert instructions
-   case nir_intrinsic_convert_alu_types: {
-      LValues &newDefs = convert(&insn->dest);
-      const DataType dType = convert(nir_intrinsic_dest_type(insn));
-      const DataType sType = convert(nir_intrinsic_src_type(insn));
-
-      for (auto i = 0u; i < nir_intrinsic_src_components(insn, 0); ++i) {
-         Instruction *cvt = mkCvt(OP_CVT, dType, newDefs[i], sType, getSrc(&insn->src[0], i));
-         cvt->saturate = nir_intrinsic_saturate(insn);
-         cvt->rnd = convert(nir_intrinsic_rounding_mode(insn));
-      }
-      break;
-   }
    default:
       ERROR("unknown nir_intrinsic_op %s\n", nir_intrinsic_infos[op].name);
       return false;
@@ -2580,6 +2548,32 @@ Converter::visit(nir_alu_instr *insn)
       DEFAULT_CHECKS;
       LValues &newDefs = convert(&insn->dest);
       mkCvt(OP_CVT, dType, newDefs[0], dType, getSrc(&insn->src[0]))->rnd = ROUND_NI;
+      break;
+   }
+   // convert instructions
+   case nir_op_f2f32:
+   case nir_op_f2i32:
+   case nir_op_f2u8:
+   case nir_op_f2u32:
+   case nir_op_i2f32:
+   case nir_op_i2i32:
+   case nir_op_u2f32:
+   case nir_op_u2u8:
+   case nir_op_u2u16:
+   case nir_op_u2u32:
+   case nir_op_f2f64:
+   case nir_op_f2i64:
+   case nir_op_f2u64:
+   case nir_op_i2f64:
+   case nir_op_i2i64:
+   case nir_op_u2f64:
+   case nir_op_u2u64: {
+      DEFAULT_CHECKS;
+      LValues &newDefs = convert(&insn->dest);
+      Instruction *i = mkOp1(getOperation(op), dType, newDefs[0], getSrc(&insn->src[0]));
+      if (op == nir_op_f2i32 || op == nir_op_f2i64 || op == nir_op_f2u8 || op == nir_op_f2u32 || op == nir_op_f2u64)
+         i->rnd = ROUND_Z;
+      i->sType = sTypes[0];
       break;
    }
    // compare instructions
@@ -3193,7 +3187,6 @@ Converter::run()
    NIR_PASS_V(nir, nir_opt_algebraic_before_ffma);
    NIR_PASS_V(nir, nir_opt_algebraic_late);
    NIR_PASS_V(nir, nir_lower_bool_to_int32);
-   NIR_PASS_V(nir, nir_lower_alu_conversion_to_intrinsic);
    NIR_PASS_V(nir, nir_convert_from_ssa, true);
 
    // Garbage collect dead instructions
