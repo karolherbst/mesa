@@ -21,16 +21,10 @@ nv50_m2mf_rect_setup(struct nv50_m2mf_rect *rect,
    const unsigned w = u_minify(res->width0, l);
    const unsigned h = u_minify(res->height0, l);
 
-   rect->is_user = mt->base.status & NOUVEAU_BUFFER_STATUS_USER_PTR;
-   if (rect->is_user)
-      rect->user_ptr = mt->base.data;
-   else
-      rect->bo = mt->base.bo;
-
+   rect->bo = mt->base.bo;
    rect->domain = mt->base.domain;
    rect->base = mt->level[l].offset;
-   if (!(mt->base.status & NOUVEAU_BUFFER_STATUS_USER_PTR)
-       && mt->base.bo->offset != mt->base.address)
+   if (mt->base.bo->offset != mt->base.address)
       rect->base += mt->base.address - mt->base.bo->offset;
    rect->pitch = mt->level[l].pitch;
    if (util_format_is_plain(res->format)) {

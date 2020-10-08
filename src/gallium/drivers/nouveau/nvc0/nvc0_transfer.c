@@ -135,10 +135,8 @@ nve4_m2mf_transfer_rect(struct nvc0_context *nvc0,
    assert(dst->cpp < ARRAY_SIZE(cpbs) && cpbs[dst->cpp].cs);
    assert(dst->cpp == src->cpp);
 
-   if (dst->bo)
-      nouveau_bufctx_refn(bctx, 0, dst->bo, dst->domain | NOUVEAU_BO_WR);
-   if (src->bo)
-      nouveau_bufctx_refn(bctx, 0, src->bo, src->domain | NOUVEAU_BO_RD);
+   nouveau_bufctx_refn(bctx, 0, dst->bo, dst->domain | NOUVEAU_BO_WR);
+   nouveau_bufctx_refn(bctx, 0, src->bo, src->domain | NOUVEAU_BO_RD);
    nouveau_pushbuf_bufctx(push, bctx);
    nouveau_pushbuf_validate(push);
 
@@ -153,7 +151,7 @@ nve4_m2mf_transfer_rect(struct nvc0_context *nvc0,
                     1 <<  4 /* DST_Y = SRC_Y */ |
                     0 <<  0 /* DST_X = SRC_X */);
 
-   if (!dst->is_user && nouveau_bo_memtype(dst->bo)) {
+   if (nouveau_bo_memtype(dst->bo)) {
       BEGIN_NVC0(push, NVE4_COPY(DST_BLOCK_DIMENSIONS), 6);
       PUSH_DATA (push, dst->tile_mode | NVE4_COPY_SRC_BLOCK_DIMENSIONS_GOB_HEIGHT_FERMI_8);
       PUSH_DATA (push, dst->width);
@@ -167,7 +165,7 @@ nve4_m2mf_transfer_rect(struct nvc0_context *nvc0,
       exec |= NVE4_COPY_EXEC_DST_LAYOUT_BLOCKLINEAR;
    }
 
-   if (!src->is_user && nouveau_bo_memtype(src->bo)) {
+   if (nouveau_bo_memtype(src->bo)) {
       BEGIN_NVC0(push, NVE4_COPY(SRC_BLOCK_DIMENSIONS), 6);
       PUSH_DATA (push, src->tile_mode | NVE4_COPY_SRC_BLOCK_DIMENSIONS_GOB_HEIGHT_FERMI_8);
       PUSH_DATA (push, src->width);
@@ -181,14 +179,11 @@ nve4_m2mf_transfer_rect(struct nvc0_context *nvc0,
       exec |= NVE4_COPY_EXEC_SRC_LAYOUT_BLOCKLINEAR;
    }
 
-   uint64_t src_address = src->is_user ? (uint64_t)src->user_ptr : src->bo->offset;
-   uint64_t dst_address = src->is_user ? (uint64_t)src->user_ptr : src->bo->offset;
-
    BEGIN_NVC0(push, NVE4_COPY(SRC_ADDRESS_HIGH), 8);
-   PUSH_DATAh(push, src_address + src_base);
-   PUSH_DATA (push, src_address + src_base);
-   PUSH_DATAh(push, dst_address + dst_base);
-   PUSH_DATA (push, dst_address + dst_base);
+   PUSH_DATAh(push, src->bo->offset + src_base);
+   PUSH_DATA (push, src->bo->offset + src_base);
+   PUSH_DATAh(push, dst->bo->offset + dst_base);
+   PUSH_DATA (push, dst->bo->offset + dst_base);
    PUSH_DATA (push, src->pitch);
    PUSH_DATA (push, dst->pitch);
    PUSH_DATA (push, nblocksx);
