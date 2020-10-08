@@ -5,7 +5,11 @@
 #include "pipe/p_state.h"
 
 struct nv50_m2mf_rect {
-   struct nouveau_bo *bo;
+   union {
+      struct nouveau_bo *bo;
+      void *user_ptr;
+   };
+   bool is_user;
    uint32_t base;
    unsigned domain;
    uint32_t pitch;
