@@ -231,12 +231,9 @@ clCreateImage(cl_context d_ctx, cl_mem_flags d_flags,
       if (!desc->image_width)
          throw error(CL_INVALID_IMAGE_SIZE);
 
-      /**
-       * NOTE: We sligntly abuse image_levels_2d() for 1d case.
-       */
       if (all_of([=](const device &dev) {
-               const size_t max = 1 << dev.max_image_levels_2d();
-               const size_t amax = 1 << dev.max_image_array_number();
+               const size_t max = dev.max_image_size_2d();
+               const size_t amax = dev.max_image_array_number();
                return (desc->image_width > max ||
                        desc->image_array_size > amax);
             }, ctx.devices()))

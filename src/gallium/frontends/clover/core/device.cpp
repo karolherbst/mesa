@@ -123,6 +123,11 @@ device::max_image_buffer_size() const {
 }
 
 cl_uint
+device::max_image_size_2d() const {
+   return pipe->get_param(pipe, PIPE_CAP_MAX_TEXTURE_2D_SIZE);
+}
+
+cl_uint
 device::max_image_levels_2d() const {
    return util_last_bit(pipe->get_param(pipe, PIPE_CAP_MAX_TEXTURE_2D_SIZE));
 }
