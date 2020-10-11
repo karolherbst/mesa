@@ -199,7 +199,7 @@ clCreateImage(cl_context d_ctx, cl_mem_flags d_flags,
 
       return new image1d(ctx, flags, format,
                          desc->image_width,
-                         desc->image_row_pitch, host_ptr);
+                         row_pitch, host_ptr);
 
    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
       if (!desc->image_width)
@@ -225,7 +225,7 @@ clCreateImage(cl_context d_ctx, cl_mem_flags d_flags,
       //We don't necessarily enforce any of the above....
       return new image1d_buffer(ctx, flags, format,
                                 desc->image_width,
-                                desc->image_row_pitch, host_ptr, desc->buffer);
+                                row_pitch, host_ptr, desc->buffer);
 
    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
       if (!desc->image_width)
