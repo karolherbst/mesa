@@ -200,6 +200,11 @@ image::format() const {
    return _format;
 }
 
+cl_uint
+image::dimensions() const {
+   return 1;
+}
+
 size_t
 image::width() const {
    return _width;
@@ -288,6 +293,11 @@ image2d::type() const {
    return CL_MEM_OBJECT_IMAGE2D;
 }
 
+cl_uint
+image2d::dimensions() const {
+   return 2;
+}
+
 image2d_array::image2d_array(clover::context &ctx, cl_mem_flags flags,
                              const cl_image_format *format,
                              size_t width, size_t height, size_t array_size,
@@ -300,6 +310,11 @@ image2d_array::image2d_array(clover::context &ctx, cl_mem_flags flags,
 cl_mem_object_type
 image2d_array::type() const {
    return CL_MEM_OBJECT_IMAGE2D_ARRAY;
+}
+
+cl_uint
+image2d_array::dimensions() const {
+   return 2;
 }
 
 image3d::image3d(clover::context &ctx, cl_mem_flags flags,
@@ -315,4 +330,9 @@ image3d::image3d(clover::context &ctx, cl_mem_flags flags,
 cl_mem_object_type
 image3d::type() const {
    return CL_MEM_OBJECT_IMAGE3D;
+}
+
+cl_uint
+image3d::dimensions() const {
+   return 3;
 }
