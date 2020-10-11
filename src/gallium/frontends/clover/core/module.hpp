@@ -28,10 +28,25 @@
 
 #include "CL/cl.h"
 
+#include "util/macros.h"
+
 namespace clover {
    struct module {
       typedef uint32_t resource_id;
       typedef uint32_t size_t;
+
+      // used for storing inline samplers
+      struct PACKED sampler {
+         sampler(cl_addressing_mode addr_mode, cl_filter_mode filter_mode, bool norm_coords) :
+                 addr_mode(addr_mode), filter_mode(filter_mode), norm_coords(norm_coords) { }
+
+         cl_addressing_mode addr_mode;
+         cl_filter_mode filter_mode;
+         bool norm_coords;
+
+         static std::vector<char> serialize(std::vector<sampler>&);
+         static std::vector<sampler> deserialize(const std::vector<char>&);
+      };
 
       struct section {
          enum type {
@@ -41,7 +56,8 @@ namespace clover {
             data_constant,
             data_global,
             data_local,
-            data_private
+            data_private,
+            data_sampler,
          };
 
          section(resource_id id, enum type type, size_t size,
@@ -98,7 +114,8 @@ namespace clover {
             grid_offset,
             image_size,
             image_format,
-            constant_buffer
+            constant_buffer,
+            inline_sampler,
          };
 
          argument(enum type type, size_t size,

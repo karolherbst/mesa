@@ -193,6 +193,11 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
    auto msec = find(id_type_equals(msym.section, module::section::text_executable), m.secs);
    auto explicit_arg = kern._args.begin();
 
+   size_t sidx = 0;
+   std::vector<module::sampler> samplers;
+   if (any_of(id_type_equals(msym.section, module::section::data_sampler), m.secs))
+      samplers = module::sampler::deserialize(find(id_type_equals(msym.section, module::section::data_sampler), m.secs).data);
+
    for (auto &marg : margs) {
       switch (marg.semantic) {
       case module::argument::general:
@@ -248,6 +253,16 @@ kernel::exec_context::bind(intrusive_ptr<command_queue> _q,
          auto arg = argument::create(marg);
          cl_mem buf = kern._constant_buffers.at(&q->device()).get();
          arg->set(q->device().address_bits() / 8, &buf);
+         arg->bind(*this, marg);
+         break;
+      }
+      case module::argument::inline_sampler: {
+         assert(sidx < samplers.size());
+         auto arg = argument::create(marg);
+         module::sampler &d = samplers[sidx++];
+         clover::sampler s(q->context(), d.norm_coords, d.addr_mode, d.filter_mode);
+         cl_sampler samp = &s;
+         arg->set(q->device().address_bits() / 8, &samp);
          arg->bind(*this, marg);
          break;
       }

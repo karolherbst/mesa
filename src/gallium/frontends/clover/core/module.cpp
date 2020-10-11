@@ -211,6 +211,19 @@ namespace {
 };
 
 namespace clover {
+   std::vector<char>
+   module::sampler::serialize(std::vector<sampler> &s) {
+      char *data = reinterpret_cast<char*>(s.data());
+      return std::vector<char>(data, data + (s.size() * sizeof(module::sampler)));
+   }
+
+   std::vector<module::sampler>
+   module::sampler::deserialize(const std::vector<char> &d) {
+      const module::sampler *data = reinterpret_cast<const module::sampler *>(d.data());
+      assert((d.size() % sizeof(module::sampler)) == 0);
+      return std::vector<module::sampler>(data, data + (d.size() / sizeof(module::sampler)));
+   }
+
    void
    module::serialize(std::ostream &os) const {
       _proc(os, *this);
