@@ -214,9 +214,18 @@ clCreateImage(cl_context d_ctx, cl_mem_flags d_flags,
             }, ctx.devices()))
          throw error(CL_INVALID_IMAGE_SIZE);
 
+      //There are a bunch of rules related to 1D buffer definitions.
+      //- IF CL_MEM_READ_WRITE, CL_MEM_READ_ONLY or CL_MEM_WRITE_ONLY are not in 'flags', then
+      //  they are inherited from the buffer flags.
+      //- CL_MEM_USE_HOST_PTR, CL_MEM_ALLOC_HOST_PTR and CL_MEM_COPY_HOST_PTR cannot be specified in 'flags', and MUST
+      //  be inherited from buffer.flags
+      //- If the CL_MEM_HOST_WRITE_ONLY, CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_NO_ACCESS values are
+      //  not specified in flags, they are inherited from the corresponding memory access qualifiers
+      //  associated with buffer.
+      //We don't necessarily enforce any of the above....
       return new image1d_buffer(ctx, flags, format,
                                 desc->image_width,
-                                desc->image_row_pitch, host_ptr);
+                                desc->image_row_pitch, host_ptr, desc->buffer);
 
    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
       if (!desc->image_width)
@@ -450,6 +459,23 @@ clGetImageInfo(cl_mem d_mem, cl_image_info param,
 
    case CL_IMAGE_DEPTH:
       buf.as_scalar<size_t>() = img.dimensions() > 2 ? img.depth() : 0;
+      break;
+
+   case CL_IMAGE_ARRAY_SIZE:
+      buf.as_scalar<size_t>() = img.array_size();
+      break;
+
+   case CL_IMAGE_BUFFER:
+      //TODO: Right type?
+      buf.as_scalar<cl_mem>() = img.buffer();
+      break;
+
+   case CL_IMAGE_NUM_MIP_LEVELS:
+      buf.as_scalar<cl_uint>() = 0;
+      break;
+
+   case CL_IMAGE_NUM_SAMPLES:
+      buf.as_scalar<cl_uint>() = 0;
       break;
 
    default:

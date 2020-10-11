@@ -128,7 +128,7 @@ namespace clover {
             const cl_image_format *format,
             size_t width, size_t height, size_t depth,
             size_t row_pitch, size_t slice_pitch, size_t size,
-            void *host_ptr);
+            void *host_ptr, size_t array_size = 0, cl_mem buffer = NULL);
 
    public:
       cl_image_format format() const;
@@ -140,6 +140,7 @@ namespace clover {
       size_t row_pitch() const;
       size_t slice_pitch() const;
       size_t array_size() const;
+      cl_mem buffer() const;
       virtual clover::resource &
       resource_in(command_queue &q);
       virtual clover::resource &
@@ -158,6 +159,7 @@ namespace clover {
       size_t _row_pitch;
       size_t _slice_pitch;
       size_t _array_size;
+      cl_mem _buffer;
       std::map<device *,
                std::unique_ptr<root_resource>> resources;
    };
@@ -177,7 +179,7 @@ namespace clover {
       image1d_buffer(clover::context &ctx, cl_mem_flags flags,
                      const cl_image_format *format,
                      size_t width, size_t row_pitch,
-                     void *host_ptr);
+                     void *host_ptr, cl_mem buffer);
 
       virtual cl_mem_object_type type() const;
    };
