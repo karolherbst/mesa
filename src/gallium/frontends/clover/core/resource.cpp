@@ -66,15 +66,15 @@ resource::copy(command_queue &q, const vector &origin, const vector &region,
 
 void
 resource::clear(command_queue &q, const vector &origin, const vector &region,
-                const std::string &data) {
+                const std::vector<char> &data) {
    auto from = offset + origin;
 
    if (pipe->target == PIPE_BUFFER) {
       q.pipe->clear_buffer(q.pipe, pipe, from[0], region[0], data.data(), data.size());
    } else {
-      std::string texture_data;
+      std::vector<char> texture_data;
       texture_data.reserve(util_format_get_blocksize(pipe->format));
-      util_format_pack_rgba(pipe->format, &texture_data[0], data.data(), 1);
+      util_format_pack_rgba(pipe->format, texture_data.data(), data.data(), 1);
       q.pipe->clear_texture(q.pipe, pipe, 0, box(from, region), texture_data.data());
    }
 }
@@ -160,13 +160,14 @@ root_resource::root_resource(clover::device &dev, memory_obj &obj,
       info.width0 = img->width();
       info.height0 = img->height();
       info.depth0 = img->depth();
+      info.array_size = MAX2(1, img->array_size());
    } else {
       info.width0 = obj.size();
       info.height0 = 1;
       info.depth0 = 1;
+      info.array_size = 1;
    }
 
-   info.array_size = 1;
    info.target = translate_target(obj.type());
    info.bind = (PIPE_BIND_SAMPLER_VIEW |
                 PIPE_BIND_COMPUTE_RESOURCE |

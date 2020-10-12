@@ -104,7 +104,9 @@ namespace {
    void
    validate_object(command_queue &q, image &img,
                    const vector_t &orig, const vector_t &region) {
-      vector_t size = { img.width(), img.height(), img.depth() };
+      size_t height = img.type() == CL_MEM_OBJECT_IMAGE1D_ARRAY ? img.array_size() : img.height();
+      size_t depth = img.type() == CL_MEM_OBJECT_IMAGE2D_ARRAY ? img.array_size() : img.depth();
+      vector_t size = { img.width(), height, depth };
       const auto &dev = q.device();
 
       if (!dev.image_support())
@@ -120,9 +122,29 @@ namespace {
          throw error(CL_INVALID_VALUE);
 
       switch (img.type()) {
+      case CL_MEM_OBJECT_IMAGE1D: {
+         const size_t max = 1 << dev.max_image_levels_2d();
+         if (img.width() > max)
+            throw error(CL_INVALID_IMAGE_SIZE);
+         break;
+      }
+      case CL_MEM_OBJECT_IMAGE1D_ARRAY: {
+         const size_t max_size = 1 << dev.max_image_levels_2d();
+         const size_t max_array = dev.max_image_array_number();
+         if (img.width() > max_size || img.array_size() > max_array)
+            throw error(CL_INVALID_IMAGE_SIZE);
+         break;
+      }
       case CL_MEM_OBJECT_IMAGE2D: {
          const size_t max = 1 << dev.max_image_levels_2d();
          if (img.width() > max || img.height() > max)
+            throw error(CL_INVALID_IMAGE_SIZE);
+         break;
+      }
+      case CL_MEM_OBJECT_IMAGE2D_ARRAY: {
+         const size_t max_size = 1 << dev.max_image_levels_2d();
+         const size_t max_array = dev.max_image_array_number();
+         if (img.width() > max_size || img.height() > max_size || img.array_size() > max_array)
             throw error(CL_INVALID_IMAGE_SIZE);
          break;
       }
@@ -217,6 +239,27 @@ namespace {
 
       if (flags & (CL_MAP_WRITE | CL_MAP_WRITE_INVALIDATE_REGION))
          validate_object_access(mem, CL_MEM_HOST_WRITE_ONLY);
+   }
+
+   ///
+   /// Fixes region and origin for 1DArray images
+   ///
+   void
+   fix_origin_for_image(const image &img, vector_t &origin) {
+      // image array index go into depth
+      if (img.type() == CL_MEM_OBJECT_IMAGE1D_ARRAY) {
+         origin[2] = origin[1];
+         origin[1] = 0;
+      }
+   }
+
+   void
+   fix_region_for_image(const image &img, vector_t &region) {
+      // image array index go into depth
+      if (img.type() == CL_MEM_OBJECT_IMAGE1D_ARRAY) {
+         region[2] = region[1];
+         region[1] = 1;
+      }
    }
 
    ///
@@ -497,7 +540,8 @@ clEnqueueFillBuffer(cl_command_queue d_queue, cl_mem d_mem,
       return CL_MISALIGNED_SUB_BUFFER_OFFSET;
    }
 
-   std::string data = std::string((char *)pattern, pattern_size);
+   const char *d = (const char*)pattern;
+   std::vector<char> data = std::vector<char>(d, d + pattern_size);
    auto hev = create<hard_event>(
       q, CL_COMMAND_FILL_BUFFER, deps,
       [=, &q, &mem](event &) {
@@ -592,15 +636,20 @@ clEnqueueReadImage(cl_command_queue d_q, cl_mem d_mem, cl_bool blocking,
    auto &img = obj<image>(d_mem);
    auto deps = objs<wait_list_tag>(d_deps, num_deps);
    auto region = vector(p_region);
-   auto dst_pitch = pitch(region, {{ img.pixel_size(),
-                                     row_pitch, slice_pitch }});
    auto src_origin = vector(p_origin);
    auto src_pitch = pitch(region, {{ img.pixel_size(),
                                      img.row_pitch(), img.slice_pitch() }});
 
    validate_common(q, deps);
-   validate_object(q, ptr, {}, dst_pitch, region);
    validate_object(q, img, src_origin, region);
+
+   fix_origin_for_image(img, src_origin);
+   fix_region_for_image(img, region);
+
+   auto dst_pitch = pitch(region, {{ img.pixel_size(),
+                                     row_pitch, slice_pitch }});
+
+   validate_object(q, ptr, {}, dst_pitch, region);
    validate_object_access(img, CL_MEM_HOST_READ_ONLY);
 
    auto hev = create<hard_event>(
@@ -632,11 +681,16 @@ clEnqueueWriteImage(cl_command_queue d_q, cl_mem d_mem, cl_bool blocking,
    auto dst_origin = vector(p_origin);
    auto dst_pitch = pitch(region, {{ img.pixel_size(),
                                      img.row_pitch(), img.slice_pitch() }});
-   auto src_pitch = pitch(region, {{ img.pixel_size(),
-                                     row_pitch, slice_pitch }});
 
    validate_common(q, deps);
    validate_object(q, img, dst_origin, region);
+
+   fix_origin_for_image(img, dst_origin);
+   fix_region_for_image(img, region);
+
+   auto src_pitch = pitch(region, {{ img.pixel_size(),
+                                     row_pitch, slice_pitch }});
+
    validate_object(q, ptr, {}, src_pitch, region);
    validate_object_access(img, CL_MEM_HOST_WRITE_ONLY);
 
@@ -674,7 +728,11 @@ clEnqueueFillImage(cl_command_queue d_queue, cl_mem d_mem,
    if (!fill_color)
       return CL_INVALID_VALUE;
 
-   std::string data = std::string((char *)fill_color, sizeof(cl_uint4));
+   fix_origin_for_image(img, origin);
+   fix_region_for_image(img, region);
+
+   const char *d = (char*)fill_color;
+   std::vector<char> data = std::vector<char>(d, d + sizeof(cl_uint4));
    auto hev = create<hard_event>(
       q, CL_COMMAND_FILL_IMAGE, deps,
       [=, &q, &img](event &) {
@@ -706,6 +764,10 @@ clEnqueueCopyImage(cl_command_queue d_q, cl_mem d_src_mem, cl_mem d_dst_mem,
    validate_object(q, dst_img, dst_origin, region);
    validate_object(q, src_img, src_origin, region);
    validate_copy(q, dst_img, dst_origin, src_img, src_origin, region);
+
+   fix_region_for_image(src_img, region);
+   fix_origin_for_image(src_img, src_origin);
+   fix_origin_for_image(dst_img, dst_origin);
 
    auto hev = create<hard_event>(
       q, CL_COMMAND_COPY_IMAGE, deps,
@@ -743,6 +805,9 @@ clEnqueueCopyImageToBuffer(cl_command_queue d_q,
    validate_object(q, dst_mem, dst_origin, dst_pitch, region);
    validate_object(q, src_img, src_origin, region);
 
+   fix_origin_for_image(src_img, src_origin);
+   fix_region_for_image(src_img, region);
+
    auto hev = create<hard_event>(
       q, CL_COMMAND_COPY_IMAGE_TO_BUFFER, deps,
       soft_copy_op(q, &dst_mem, dst_origin, dst_pitch,
@@ -778,6 +843,8 @@ clEnqueueCopyBufferToImage(cl_command_queue d_q,
    validate_common(q, deps);
    validate_object(q, dst_img, dst_origin, region);
    validate_object(q, src_mem, src_origin, src_pitch, region);
+
+   fix_origin_for_image(dst_img, dst_origin);
 
    auto hev = create<hard_event>(
       q, CL_COMMAND_COPY_BUFFER_TO_IMAGE, deps,
@@ -843,8 +910,11 @@ clEnqueueMapImage(cl_command_queue d_q, cl_mem d_mem, cl_bool blocking,
    if (!row_pitch)
       throw error(CL_INVALID_VALUE);
 
-   if (img.slice_pitch() && !slice_pitch)
+   if ((img.slice_pitch() || img.array_size()) && !slice_pitch)
       throw error(CL_INVALID_VALUE);
+
+   fix_origin_for_image(img, origin);
+   fix_region_for_image(img, region);
 
    auto *map = img.resource_in(q).add_map(q, flags, blocking, origin, region);
    *row_pitch = map->pitch()[1];

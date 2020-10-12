@@ -51,7 +51,7 @@ namespace clover {
                 resource &src_resource, const vector &src_origin);
 
       void clear(command_queue &q, const vector &origin, const vector &region,
-                 const std::string &data);
+                 const std::vector<char> &data);
 
       mapping *add_map(command_queue &q, cl_map_flags flags, bool blocking,
                        const vector &origin, const vector &region);

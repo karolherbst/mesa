@@ -227,7 +227,7 @@ clCreateImage(cl_context d_ctx, cl_mem_flags d_flags,
                                 desc->image_width,
                                 row_pitch, host_ptr, desc->buffer);
 
-   case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+   case CL_MEM_OBJECT_IMAGE1D_ARRAY: {
       if (!desc->image_width)
          throw error(CL_INVALID_IMAGE_SIZE);
 
@@ -239,10 +239,14 @@ clCreateImage(cl_context d_ctx, cl_mem_flags d_flags,
             }, ctx.devices()))
          throw error(CL_INVALID_IMAGE_SIZE);
 
+      const size_t slice_pitch = desc->image_slice_pitch ?
+         desc->image_slice_pitch : row_pitch;
+
       return new image1d_array(ctx, flags, format,
                                desc->image_width,
-                               desc->image_array_size, desc->image_slice_pitch,
+                               desc->image_array_size, slice_pitch,
                                host_ptr);
+   }
 
    case CL_MEM_OBJECT_IMAGE2D:
       if (!desc->image_width || !desc->image_height)
