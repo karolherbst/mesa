@@ -1201,8 +1201,8 @@ static void visit_load_image(struct lp_build_nir_context *bld_base,
    bld_base->image_op(bld_base, &params);
 }
 
-static void visit_store_image(struct lp_build_nir_context *bld_base,
-                              nir_intrinsic_instr *instr)
+static void visit_store_deref_image(struct lp_build_nir_context *bld_base,
+				    nir_intrinsic_instr *instr)
 {
    struct gallivm_state *gallivm = bld_base->base.gallivm;
    LLVMBuilderRef builder = gallivm->builder;
@@ -1238,6 +1238,33 @@ static void visit_store_image(struct lp_build_nir_context *bld_base,
 
    if (params.target == PIPE_TEXTURE_1D_ARRAY)
       coords[2] = coords[1];
+   bld_base->image_op(bld_base, &params);
+}
+
+
+static void visit_store_image(struct lp_build_nir_context *bld_base,
+			      nir_intrinsic_instr *instr)
+{
+   struct gallivm_state *gallivm = bld_base->base.gallivm;
+   LLVMBuilderRef builder = gallivm->builder;
+   LLVMValueRef coord_val = get_src(bld_base, instr->src[1]);
+   LLVMValueRef in_val = get_src(bld_base, instr->src[3]);
+   LLVMValueRef coords[5];
+   struct lp_img_params params;
+
+   memset(&params, 0, sizeof(params));
+   params.target = glsl_sampler_to_pipe(nir_intrinsic_image_dim(instr), nir_intrinsic_image_array(instr));
+   for (unsigned i = 0; i < 4; i++)
+      coords[i] = LLVMBuildExtractValue(builder, coord_val, i, "");
+   params.coords = coords;
+
+   for (unsigned i = 0; i < 4; i++) {
+      params.indata[i] = LLVMBuildExtractValue(builder, in_val, i, "");
+      params.indata[i] = LLVMBuildBitCast(builder, params.indata[i], bld_base->base.vec_type, "");
+   }
+   params.img_op = LP_IMG_STORE;
+   params.image_index = nir_src_as_int(instr->src[0]);
+
    bld_base->image_op(bld_base, &params);
 }
 
@@ -1317,9 +1344,9 @@ static void visit_atomic_image(struct lp_build_nir_context *bld_base,
 }
 
 
-static void visit_image_size(struct lp_build_nir_context *bld_base,
-                             nir_intrinsic_instr *instr,
-                             LLVMValueRef result[NIR_MAX_VEC_COMPONENTS])
+static void visit_image_deref_size(struct lp_build_nir_context *bld_base,
+				   nir_intrinsic_instr *instr,
+				   LLVMValueRef result[NIR_MAX_VEC_COMPONENTS])
 {
    nir_deref_instr *deref = nir_instr_as_deref(instr->src[0].ssa->parent_instr);
    nir_variable *var = nir_deref_instr_get_variable(deref);
@@ -1334,6 +1361,18 @@ static void visit_image_size(struct lp_build_nir_context *bld_base,
    params.target = glsl_sampler_to_pipe(glsl_get_sampler_dim(type), glsl_sampler_type_is_array(type));
    params.sizes_out = result;
 
+   bld_base->image_size(bld_base, &params);
+}
+
+static void visit_image_size(struct lp_build_nir_context *bld_base,
+			     nir_intrinsic_instr *instr,
+			     LLVMValueRef result[NIR_MAX_VEC_COMPONENTS])
+{
+   struct lp_sampler_size_query_params params = { 0 };
+
+   params.texture_unit = nir_src_as_uint(instr->src[0]);
+   params.target = glsl_sampler_to_pipe(nir_intrinsic_image_dim(instr), nir_intrinsic_image_array(instr));
+   params.sizes_out = result;
    bld_base->image_size(bld_base, &params);
 }
 
@@ -1567,6 +1606,9 @@ static void visit_intrinsic(struct lp_build_nir_context *bld_base,
       visit_load_image(bld_base, instr, result);
       break;
    case nir_intrinsic_image_deref_store:
+      visit_store_deref_image(bld_base, instr);
+      break;
+   case nir_intrinsic_image_store:
       visit_store_image(bld_base, instr);
       break;
    case nir_intrinsic_image_deref_atomic_add:
@@ -1582,6 +1624,9 @@ static void visit_intrinsic(struct lp_build_nir_context *bld_base,
       visit_atomic_image(bld_base, instr, result);
       break;
    case nir_intrinsic_image_deref_size:
+      visit_image_deref_size(bld_base, instr, result);
+      break;
+   case nir_intrinsic_image_size:
       visit_image_size(bld_base, instr, result);
       break;
    case nir_intrinsic_image_deref_samples:
