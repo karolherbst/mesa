@@ -3100,13 +3100,18 @@ glsl_type::cl_size() const
       return size * this->length;
    } else if (this->is_struct()) {
       unsigned size = 0;
+      unsigned max_align = 1;
       for (unsigned i = 0; i < this->length; ++i) {
          struct glsl_struct_field &field = this->fields.structure[i];
          /* if a struct is packed, members don't get aligned */
-         if (!this->packed)
-            size = align(size, field.type->cl_alignment());
+         if (!this->packed) {
+            unsigned a = field.type->cl_alignment();
+            size = align(size, a);
+            max_align = MAX2(max_align, a);
+         }
          size += field.type->cl_size();
       }
+      size = align(size, max_align);
       return size;
    }
    return 1;
