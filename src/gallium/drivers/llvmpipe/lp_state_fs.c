@@ -2518,6 +2518,20 @@ generate_unswizzled_blend(struct gallivm_state *gallivm,
       twiddle_after_convert = TRUE;
    }
 
+#if UTIL_ARCH_BIG_ENDIAN
+   if (dst_channels == 3 && !has_alpha) {
+      for (i = 0; i < num_fullblock_fs; ++i) {
+         LLVMValueRef old_src[] = {
+            fs_src[i][0], fs_src[i][1], fs_src[i][2], fs_src[i][3],
+         };
+         fs_src[i][0] = old_src[3];
+         fs_src[i][1] = old_src[0];
+         fs_src[i][2] = old_src[1];
+         fs_src[i][3] = old_src[2];
+      }
+   }
+#endif
+
    /*
     * Pixel twiddle from fragment shader order to memory order
     */

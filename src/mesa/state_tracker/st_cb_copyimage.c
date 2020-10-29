@@ -64,18 +64,9 @@ get_canonical_format(enum pipe_format format)
        format == PIPE_FORMAT_R9G9B9E5_FLOAT)
       return get_canonical_format(PIPE_FORMAT_R8G8B8A8_UINT);
 
-   if (desc->nr_channels == 4 &&
-       desc->channel[0].size == 10 &&
-       desc->channel[1].size == 10 &&
-       desc->channel[2].size == 10 &&
-       desc->channel[3].size == 2) {
-      if (desc->swizzle[0] == PIPE_SWIZZLE_X &&
-          desc->swizzle[1] == PIPE_SWIZZLE_Y &&
-          desc->swizzle[2] == PIPE_SWIZZLE_Z)
-         return get_canonical_format(PIPE_FORMAT_R8G8B8A8_UINT);
-
-      return PIPE_FORMAT_NONE;
-   }
+   if (format == PIPE_FORMAT_R10G10B10A2_UNORM ||
+       format == PIPE_FORMAT_R10G10B10X2_UNORM)
+      return get_canonical_format(PIPE_FORMAT_R8G8B8A8_UINT);
 
 #define RETURN_FOR_SWIZZLE1(x, format) \
    if (desc->swizzle[0] == PIPE_SWIZZLE_##x) \
