@@ -20,7 +20,7 @@
 
 project(
   'mesa',
-  ['c', 'cpp'],
+  ['c', 'cpp', 'rust'],
   version : run_command(
     [find_program('python', 'python3'), 'bin/meson_get_version.py']
   ).stdout(),
@@ -827,6 +827,18 @@ if _opencl != 'disabled'
 else
   with_gallium_opencl = false
   with_opencl_icd = false
+endif
+
+_rusticl = get_option('gallium-rusticl')
+if _rusticl != 'disabled'
+  if not with_gallium
+    error('rusticl requires at least one gallium driver.')
+  endif
+
+  with_clc = true
+  with_gallium_rusticl = true
+else
+  with_gallium_rusticl = false
 endif
 
 dep_clc = null_dep
