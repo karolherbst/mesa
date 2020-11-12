@@ -65,6 +65,7 @@
 
    repository
    sourcetree
+   dependencies
    utilities
    helpwanted
    devinfo
